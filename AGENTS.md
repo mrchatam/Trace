@@ -26,17 +26,19 @@ Symbol-level code exploration is **optional** via separate Codegraph MCP — Tra
 ## Orchestrator (paste per phase)
 
 ```text
-Phase 00–42 complete — do not re-run closed rows.
+Phase 00–43 complete — do not re-run closed rows.
 @docs/TODO.md
 
-- Active phase: **none** — remediation G1–G9 complete
-- Next runnable: **idle** (optional Phase 43+ residuals — human promotion only)
+- Active phase: **none** — Phase 43 GitHub hygiene complete
+- Next runnable: **idle** (human promotion only)
 - Follow docs/rules/agent-loop-protocol.md
 ```
 
 ## Current focus
 
-**Phase 42+ complete** (2026-08-22) — closed at `P42-S02-02`; G6 graph-label concept retrieval, G7 index freshness & langs delivered; M-001 preserved; REMEDIATION-PLAN G1–G9 complete. Successor: **no successor**. Board: [`docs/TODO/phase-42.md`](docs/TODO/phase-42.md).
+**Phase 43 complete** (2026-08-22) — closed at `P43-S01-02`; GitHub triage (0 open issues), extended evals aligned with Phase 29 HTTP policy, perf ceilings re-locked; CI + GHCR green on main. Board: [`docs/TODO/phase-43.md`](docs/TODO/phase-43.md).
+
+**Phase 42 complete** (2026-08-22) — closed at `P42-S02-02`; G6 graph-label concept retrieval, G7 index freshness & langs delivered; M-001 preserved; REMEDIATION-PLAN G1–G9 complete. Board: [`docs/TODO/phase-42.md`](docs/TODO/phase-42.md).
 
 **Phase 41 complete** (2026-08-22) — closed at `P41-S02-02`; G8 opt-in L2/L3 layers, G9 rule-based intent pipeline delivered; M-001 preserved. Board: [`docs/TODO/phase-41.md`](docs/TODO/phase-41.md).
 
