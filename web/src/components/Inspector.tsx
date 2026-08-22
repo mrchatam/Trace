@@ -131,9 +131,10 @@ type Props = {
   token?: string
   onUseAsCenter: (id: string) => void
   onClose?: () => void
+  overlay?: boolean
 }
 
-export function Inspector({ selectedId, center, graph, token, onUseAsCenter, onClose }: Props) {
+export function Inspector({ selectedId, center, graph, token, onUseAsCenter, onClose, overlay }: Props) {
   const [entity, setEntity] = useState<SectionState<EntitySummary>>(emptySection())
   const [task, setTask] = useState<SectionState<TaskRow>>(emptySection())
   const [why, setWhy] = useState<SectionState<WhyPacket>>(emptySection())
@@ -282,7 +283,7 @@ export function Inspector({ selectedId, center, graph, token, onUseAsCenter, onC
 
   return (
     <aside
-      className="graph-inspector"
+      className={overlay ? 'graph-inspector graph-inspector--overlay' : 'graph-inspector'}
       data-testid="graph-inspector"
       aria-label="Node inspector"
     >

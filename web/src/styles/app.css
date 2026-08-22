@@ -578,6 +578,101 @@ button {
   gap: var(--space-2);
 }
 
+.main:has(.graph-page) {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.graph-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+}
+
+.graph-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--graph-page-toolbar-height);
+  flex-shrink: 0;
+}
+
+.graph-page__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.graph-page__meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-page__actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.graph-page__status,
+.graph-page__banner {
+  flex-shrink: 0;
+}
+
+.graph-page__truncation {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.8rem;
+}
+
+.graph-page__stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
+.graph-main--full {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.graph-main--full .graph-canvas {
+  height: 100%;
+  min-height: 0;
+}
+
+.graph-main--full .graph-communities {
+  max-height: 100%;
+}
+
+.graph-inspector--overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--graph-inspector-max), 92vw);
+  max-height: none;
+  z-index: 4;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  border-left: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
 .graph-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(var(--graph-inspector-min), var(--graph-inspector-max));

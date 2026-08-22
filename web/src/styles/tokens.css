@@ -37,6 +37,8 @@
   --graph-inspector-min: 18rem;
   --graph-inspector-max: 26rem;
   --graph-canvas-height: min(48rem, calc(100dvh - 14rem));
+  --graph-page-toolbar-height: 2.75rem;
+  --graph-canvas-height-full: calc(100dvh - var(--chrome-height) - var(--graph-page-toolbar-height) - var(--space-4));
   --graph-edge-stroke: color-mix(in srgb, var(--border) 85%, var(--text-muted));
   --duration-fast: 140ms;
   --duration-settle: 200ms;

@@ -3,13 +3,14 @@ import { dismissOrient } from '../lib/orientDismiss'
 import { DEPTH, EXPAND_MAX_NODES, PROJECT_MAX_NODES } from '../lib/overviewCompose'
 
 type Props = {
-  onDismiss: () => void
+  onDismiss?: () => void
+  persistent?: boolean
 }
 
-export function GraphOrientPanel({ onDismiss }: Props) {
+export function GraphOrientPanel({ onDismiss, persistent }: Props) {
   function handleDismiss() {
     dismissOrient()
-    onDismiss()
+    onDismiss?.()
   }
 
   return (
@@ -23,15 +24,17 @@ export function GraphOrientPanel({ onDismiss }: Props) {
         <h2 id="graph-orient-title" className="graph-orient__title">
           Explore — orient first
         </h2>
-        <button
-          type="button"
-          className="btn btn--ghost graph-orient__dismiss"
-          aria-label="Dismiss orient panel"
-          data-testid="graph-orient-dismiss"
-          onClick={handleDismiss}
-        >
-          Dismiss
-        </button>
+        {!persistent ? (
+          <button
+            type="button"
+            className="btn btn--ghost graph-orient__dismiss"
+            aria-label="Dismiss orient panel"
+            data-testid="graph-orient-dismiss"
+            onClick={handleDismiss}
+          >
+            Dismiss
+          </button>
+        ) : null}
       </div>
       <p className="graph-orient__lead">
         Trace is <strong>moat-first</strong>: pick work on Tasks, run the deliberation loop, pass the

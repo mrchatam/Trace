@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppChromeProvider } from './context/AppChrome'
 import { Shell } from './layout/Shell'
 import { Overview } from './screens/Overview'
+import { Orient } from './screens/Orient'
 import { Tasks } from './screens/Tasks'
 import { TaskDetail } from './screens/TaskDetail'
 import { Loop } from './screens/Loop'
@@ -19,6 +20,7 @@ export default function App() {
         <Routes>
           <Route element={<Shell />}>
             <Route index element={<Graph />} />
+            <Route path="orient" element={<Orient />} />
             <Route path="overview" element={<Overview />} />
             <Route path="graph" element={<Navigate to="/" replace />} />
             <Route path="tasks" element={<Tasks />} />

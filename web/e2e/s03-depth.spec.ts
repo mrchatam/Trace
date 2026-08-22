@@ -61,7 +61,7 @@ async function ensureNeighborhood(request: APIRequestContext): Promise<string> {
 }
 
 test.describe('S03 depth', () => {
-  test('overview-on-open shows nodes without pick-first; select≠expand', async ({
+  test('overview-on-open shows canvas without pick-first; select≠expand', async ({
     page,
     request,
   }: {
@@ -71,44 +71,39 @@ test.describe('S03 depth', () => {
     const taskId = await ensureNeighborhood(request)
 
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Graph' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible()
 
-    // Overview-first: canvas/list appears without mandatory pick-task click
+    // Project graph canvas appears without mandatory pick-task click
     await expect(page.getByTestId('graph-overview-loading')).toBeHidden({ timeout: 30_000 })
-    await expect(page.getByTestId('graph-node-list')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('graph-canvas')).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('#graph-budget')).toBeVisible()
     await expect(page.getByTestId('graph-center-id')).not.toHaveText('')
-    const nodeList = page.getByTestId('graph-node-list')
-    const selectButtons = nodeList.locator('button[data-testid^="graph-select-node-"]')
-    await expect(selectButtons.first()).toBeVisible()
-    expect(await selectButtons.count()).toBeGreaterThanOrEqual(1)
 
-    // data-kind hook present for S04
-    await expect(selectButtons.first()).toHaveAttribute('data-kind', /.+/ )
+    const canvasNodes = page.locator('[data-testid^="graph-canvas-node-"]')
+    await expect(canvasNodes.first()).toBeVisible()
+    expect(await canvasNodes.count()).toBeGreaterThanOrEqual(1)
+    await expect(canvasNodes.first()).toHaveAttribute('data-kind', /.+/ )
 
-    // Manual center remains secondary (collapsed details)
+    // Manual center lives on Orient
+    await page.goto('/orient')
     await expect(page.getByTestId('graph-manual-center')).toBeVisible()
 
-    // Ensure neighborhood rich enough for select≠expand — expand via secondary pick if needed
-    let centerBefore = await page.getByTestId('graph-center-id').innerText()
-    if ((await selectButtons.count()) < 2) {
-      await page.getByTestId('graph-manual-center').locator('summary').click()
-      await page.getByTestId(`graph-pick-task-${taskId}`).click()
-      await expect(page.getByTestId('graph-center-id')).toHaveText(taskId, { timeout: 15_000 })
-      centerBefore = taskId
-    }
+    // Drill into neighborhood via Orient task pick
+    await page.getByTestId(`graph-pick-task-${taskId}`).click()
+    await expect(page.getByTestId('graph-center-id')).toHaveText(taskId, { timeout: 15_000 })
+    const centerBefore = taskId
 
-    await expect(page.getByTestId('graph-node-list')).toBeVisible()
-    const count = await selectButtons.count()
-    expect(count).toBeGreaterThanOrEqual(2)
+    await expect(page.getByTestId('graph-canvas')).toBeVisible()
+    expect(await canvasNodes.count()).toBeGreaterThanOrEqual(2)
 
     let other: string | null = null
+    const count = await canvasNodes.count()
     for (let i = 0; i < count; i++) {
-      const testId = await selectButtons.nth(i).getAttribute('data-testid')
-      const id = testId?.replace('graph-select-node-', '') ?? ''
+      const testId = await canvasNodes.nth(i).getAttribute('data-testid')
+      const id = testId?.replace('graph-canvas-node-', '') ?? ''
       if (id && id !== centerBefore) {
         other = id
-        await selectButtons.nth(i).click()
+        await canvasNodes.nth(i).click()
         break
       }
     }
@@ -119,7 +114,7 @@ test.describe('S03 depth', () => {
     // Select must not re-center
     await expect(page.getByTestId('graph-center-id')).toHaveText(centerBefore)
 
-    // Canvas click uses the same onSelect path as list pick
+    // Canvas click uses the same onSelect path
     await page.getByTestId(`graph-canvas-node-${other}`).click()
     await expect(page.getByTestId('inspector-selected-id')).toHaveText(other!, { timeout: 15_000 })
     await expect(page.getByTestId('graph-center-id')).toHaveText(centerBefore)

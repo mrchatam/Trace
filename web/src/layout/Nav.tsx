@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const LINKS = [
   { to: '/', label: 'Explore', end: true },
+  { to: '/orient', label: 'Orient' },
   { to: '/overview', label: 'Overview' },
   { to: '/tasks', label: 'Tasks' },
   { to: '/loop', label: 'Loop' },
