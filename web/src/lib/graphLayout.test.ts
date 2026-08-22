@@ -14,12 +14,15 @@ import {
   LOD_MINIMAL_MAX_ZOOM,
   computeForceLayout,
   computeOverviewPositions,
+  computeSemanticLayout,
   countNodesByKind,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForLod,
   filterNodesByKinds,
   getNodeLod,
+  inferGoalBands,
+  kindCssKey,
   shouldRenderEdges,
   shouldShowEdgeLabels,
   shouldShowFullNode,
@@ -200,6 +203,76 @@ describe('computeOverviewPositions', () => {
     const positions = computeOverviewPositions(ids, new Set(['s1']))
     assert.equal(positions.size, 3)
     for (const id of ids) assert.ok(positions.get(id))
+  })
+})
+
+describe('kindCssKey', () => {
+  it('maps underscores to hyphens for CSS tokens', () => {
+    assert.equal(kindCssKey('plan_change'), 'plan-change')
+    assert.equal(kindCssKey('task'), 'task')
+  })
+})
+
+describe('inferGoalBands', () => {
+  it('assigns tasks to goal_id and propagates via edges', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal', title: 'G1' },
+      { id: 't1', kind: 'task', title: 'T1', goal_id: 'g1' },
+      { id: 'd1', kind: 'discovery', title: 'D1' },
+    ]
+    const edges = [
+      { from: 't1', to: 'd1' },
+      { from: 'g1', to: 't1' },
+    ]
+    const bands = inferGoalBands(nodes, edges)
+    assert.equal(bands.get('g1'), 'g1')
+    assert.equal(bands.get('t1'), 'g1')
+    assert.equal(bands.get('d1'), 'g1')
+  })
+})
+
+describe('computeSemanticLayout', () => {
+  it('returns deterministic positions for every node', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal', title: 'Alpha goal' },
+      { id: 't1', kind: 'task', title: 'Task A', goal_id: 'g1', work_state: 'PENDING' },
+      { id: 't2', kind: 'task', title: 'Task B', goal_id: 'g1', work_state: 'IN_PROGRESS' },
+      { id: 'd1', kind: 'decision', title: 'Decide' },
+    ]
+    const edges = [
+      { from: 'g1', to: 't1' },
+      { from: 'g1', to: 't2' },
+      { from: 't1', to: 'd1' },
+    ]
+    const a = computeSemanticLayout(nodes, edges)
+    const b = computeSemanticLayout(nodes, edges)
+    assert.equal(a.size, 4)
+    for (const id of ['g1', 't1', 't2', 'd1']) {
+      assert.deepEqual(a.get(id), b.get(id))
+    }
+  })
+
+  it('places kind lanes left-to-right (goal before task before decision)', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal', title: 'G' },
+      { id: 't1', kind: 'task', title: 'T', goal_id: 'g1' },
+      { id: 'd1', kind: 'decision', title: 'D' },
+    ]
+    const edges = [{ from: 'g1', to: 't1' }, { from: 't1', to: 'd1' }]
+    const pos = computeSemanticLayout(nodes, edges)
+    assert.ok(pos.get('g1')!.x < pos.get('t1')!.x)
+    assert.ok(pos.get('t1')!.x < pos.get('d1')!.x)
+  })
+
+  it('clusters nodes under the same goal on similar Y bands', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal', title: 'G' },
+      { id: 't1', kind: 'task', title: 'T', goal_id: 'g1' },
+    ]
+    const edges = [{ from: 'g1', to: 't1' }]
+    const pos = computeSemanticLayout(nodes, edges)
+    const yDelta = Math.abs(pos.get('g1')!.y - pos.get('t1')!.y)
+    assert.ok(yDelta < 200)
   })
 })
 

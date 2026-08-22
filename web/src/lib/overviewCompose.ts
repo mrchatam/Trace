@@ -35,6 +35,7 @@ export type GraphNodeMeta = {
   kind: string
   title: string
   work_state?: string
+  goal_id?: string
 }
 
 export type MergedOverview = {

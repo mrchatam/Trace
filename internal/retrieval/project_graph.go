@@ -90,7 +90,11 @@ func (e *Engine) collectProjectNodes() ([]GraphNode, error) {
 		return nil, err
 	}
 	for _, t := range tasks {
-		nodes = append(nodes, GraphNode{ID: t.ID, Kind: "task", Title: t.Title})
+		gn := GraphNode{ID: t.ID, Kind: "task", Title: t.Title}
+		if t.GoalID != nil && *t.GoalID != "" {
+			gn.GoalID = *t.GoalID
+		}
+		nodes = append(nodes, gn)
 	}
 
 	decisions, err := e.store.ListDecisions()

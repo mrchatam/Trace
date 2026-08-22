@@ -1,3 +1,5 @@
+import { kindCssKey } from '../lib/graphLayout'
+
 type GraphCommunitiesPanelProps = {
   counts: Map<string, number>
   enabledKinds: Set<string>
@@ -52,7 +54,7 @@ export function GraphCommunitiesPanel({
                   data-testid={`graph-community-${kind}`}
                   onChange={() => onToggle(kind)}
                 />
-                <span className="graph-communities__dot" data-kind={kind} aria-hidden />
+                <span className="graph-communities__dot" data-kind={kindCssKey(kind)} aria-hidden />
                 <span className="graph-communities__kind">{kind}</span>
                 <span className="graph-communities__count">{count}</span>
               </label>

@@ -20,9 +20,10 @@ type BoundedGraph struct {
 
 // GraphNode is one node in a bounded graph response.
 type GraphNode struct {
-	ID    string `json:"id"`
-	Kind  string `json:"kind"`
-	Title string `json:"title"`
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Title  string `json:"title"`
+	GoalID string `json:"goal_id,omitempty"`
 }
 
 // GraphEdge is one edge in a bounded graph response.
@@ -132,11 +133,18 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 
 	nodes := make([]GraphNode, 0, len(seen))
 	for _, h := range seen {
-		nodes = append(nodes, GraphNode{
+		gn := GraphNode{
 			ID:    h.EntityID,
 			Kind:  h.EntityType,
 			Title: h.Title,
-		})
+		}
+		if h.EntityType == "task" {
+			t, err := e.store.GetTask(h.EntityID)
+			if err == nil && t.GoalID != nil && *t.GoalID != "" {
+				gn.GoalID = *t.GoalID
+			}
+		}
+		nodes = append(nodes, gn)
 	}
 
 	return &BoundedGraph{

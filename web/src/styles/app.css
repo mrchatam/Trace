@@ -126,6 +126,13 @@ button {
   color: var(--warn);
 }
 
+.pill--subtle {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
 .pill[data-kind='goal'] {
   border-color: color-mix(in srgb, var(--kind-goal) 55%, var(--border));
   color: var(--kind-goal);
@@ -789,6 +796,12 @@ button {
 .graph-communities__dot[data-kind='review'] {
   background: var(--kind-review);
 }
+.graph-communities__dot[data-kind='change'] {
+  background: var(--kind-change);
+}
+.graph-communities__dot[data-kind='regression'] {
+  background: var(--kind-regression);
+}
 
 .graph-communities__kind {
   color: var(--text);
@@ -879,6 +892,14 @@ button {
 .graph-node-dot[data-kind='review'] .graph-node-dot__circle {
   background: var(--kind-review);
   border-color: color-mix(in srgb, var(--kind-review) 60%, var(--border));
+}
+.graph-node-dot[data-kind='change'] .graph-node-dot__circle {
+  background: var(--kind-change);
+  border-color: color-mix(in srgb, var(--kind-change) 60%, var(--border));
+}
+.graph-node-dot[data-kind='regression'] .graph-node-dot__circle {
+  background: var(--kind-regression);
+  border-color: color-mix(in srgb, var(--kind-regression) 60%, var(--border));
 }
 
 .graph-node-dot__label {
@@ -1291,6 +1312,16 @@ button {
   border-left-color: var(--kind-review);
   background: color-mix(in srgb, var(--kind-review) 14%, var(--bg-elevated));
 }
+.react-flow__node.graph-node .graph-node__inner[data-kind='change'],
+.graph-node[data-kind='change'] {
+  border-left-color: var(--kind-change);
+  background: color-mix(in srgb, var(--kind-change) 14%, var(--bg-elevated));
+}
+.react-flow__node.graph-node .graph-node__inner[data-kind='regression'],
+.graph-node[data-kind='regression'] {
+  border-left-color: var(--kind-regression);
+  background: color-mix(in srgb, var(--kind-regression) 14%, var(--bg-elevated));
+}
 
 .react-flow__node.graph-node .graph-node__inner[data-kind='goal'] .graph-node__kind,
 .graph-node[data-kind='goal'] .graph-node__kind {
@@ -1331,6 +1362,14 @@ button {
 .react-flow__node.graph-node .graph-node__inner[data-kind='review'] .graph-node__kind,
 .graph-node[data-kind='review'] .graph-node__kind {
   color: var(--kind-review);
+}
+.react-flow__node.graph-node .graph-node__inner[data-kind='change'] .graph-node__kind,
+.graph-node[data-kind='change'] .graph-node__kind {
+  color: var(--kind-change);
+}
+.react-flow__node.graph-node .graph-node__inner[data-kind='regression'] .graph-node__kind,
+.graph-node[data-kind='regression'] .graph-node__kind {
+  color: var(--kind-regression);
 }
 
 /* Center keeps moss fill; kind left strip color still from [data-kind] rules */

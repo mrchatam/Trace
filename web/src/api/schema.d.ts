@@ -893,6 +893,8 @@ export interface components {
             id: string;
             kind: string;
             title: string;
+            /** Format: uuid */
+            goal_id?: string;
         };
         GraphEdge: {
             rel: string;

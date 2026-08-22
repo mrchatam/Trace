@@ -55,6 +55,8 @@
   --kind-evidence: #3a5a2a;
   --kind-capability: #4a3d6b;
   --kind-review: #6b2e3a;
+  --kind-change: #4a5248;
+  --kind-regression: #6e3a4a;
   --kind-unknown: #5a6356;
 
   /* State chroma (S01 DESIGN → S04) */
@@ -93,6 +95,8 @@
   --kind-evidence: #9bc47f;
   --kind-capability: #b0a0d4;
   --kind-review: #d4899a;
+  --kind-change: #a8b0a4;
+  --kind-regression: #c48a9a;
   --kind-unknown: #9aa494;
 
   --state-in-progress: #7cbc8a;

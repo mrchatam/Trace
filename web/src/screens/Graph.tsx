@@ -38,15 +38,17 @@ import {
   type TaskRow,
 } from '../api/ops'
 import {
-  computeForceLayout,
   computeOverviewPositions,
+  computeSemanticLayout,
   countNodesByKind,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForLod,
   filterNodesByKinds,
   getNodeLod,
+  kindCssKey,
   PROJECT_FIT_PADDING,
+  SEMANTIC_LAYOUT_LABEL,
   shouldShowEdgeLabels,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
@@ -86,7 +88,7 @@ const GraphNodeView = memo(function GraphNodeView({
       <div
         className="graph-node__inner"
         data-testid={`graph-canvas-node-${id}`}
-        data-kind={data.kind}
+        data-kind={kindCssKey(data.kind)}
         data-state={data.work_state || undefined}
         tabIndex={selected ? 0 : -1}
         role="button"
@@ -113,7 +115,7 @@ const GraphNodeView = memo(function GraphNodeView({
     <div
       className={`graph-node-dot${minimal ? ' graph-node-dot--minimal' : ''}`}
       data-testid={`graph-canvas-node-${id}`}
-      data-kind={data.kind}
+      data-kind={kindCssKey(data.kind)}
       data-state={data.work_state || undefined}
       tabIndex={selected ? 0 : -1}
       role="button"
@@ -153,11 +155,12 @@ function computeLayoutPositions(
   seedIds: Set<string>,
   layoutMode: 'project' | 'neighborhood',
 ): Map<string, { x: number; y: number }> {
+  const metaEdges = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e) => ({
+    from: e.from,
+    to: e.to,
+  }))
   if (layoutMode === 'project') {
-    return computeForceLayout(
-      nodesMeta.map((n) => n.id),
-      (Array.isArray(edgesMeta) ? edgesMeta : []).map((e) => ({ from: e.from, to: e.to })),
-    )
+    return computeSemanticLayout(nodesMeta, metaEdges)
   }
   return computeOverviewPositions(
     nodesMeta.map((n) => n.id),
@@ -474,7 +477,11 @@ export function Graph() {
     return nodes.map((n) => {
       const t = byId.get(n.id)
       if (!t) return n
-      return { ...n, work_state: t.work_state ?? n.work_state }
+      return {
+        ...n,
+        work_state: t.work_state ?? n.work_state,
+        goal_id: n.goal_id ?? t.goal_id ?? n.goal_id,
+      }
     })
   }, [])
 
@@ -518,7 +525,12 @@ export function Graph() {
       }
 
       const nodes = applyTaskWorkState(
-        (graphRes.nodes ?? []).map((n) => ({ id: n.id, kind: n.kind, title: n.title })),
+        (graphRes.nodes ?? []).map((n) => ({
+          id: n.id,
+          kind: n.kind,
+          title: n.title,
+          goal_id: n.goal_id ?? (n.kind === 'goal' ? n.id : undefined),
+        })),
         taskItems,
       )
       setNodesMeta(nodes)
@@ -559,7 +571,12 @@ export function Graph() {
         }
         const g = await getGraph(centerId, capped, DEPTH, { token })
         const withMeta = applyTaskWorkState(
-          g.nodes.map((n) => ({ id: n.id, kind: n.kind, title: n.title })),
+          g.nodes.map((n) => ({
+            id: n.id,
+            kind: n.kind,
+            title: n.title,
+            goal_id: n.goal_id ?? (n.kind === 'goal' ? n.id : undefined),
+          })),
           taskItems,
         )
         setNodesMeta(withMeta)
@@ -623,6 +640,11 @@ export function Graph() {
         <span className="pill" data-testid="graph-mode-pill">
           {layoutMode === 'project' ? 'project' : 'neighborhood'}
         </span>
+        {layoutMode === 'project' ? (
+          <span className="pill pill--subtle" data-testid="graph-layout-hint">
+            Layout: {SEMANTIC_LAYOUT_LABEL}
+          </span>
+        ) : null}
         <span className="mono graph-page__meta" data-testid="graph-budget-line">
           center=<span data-testid="graph-center-id">{center || '—'}</span> · nodes=
           {visibleNodes.length}
