@@ -3,7 +3,7 @@
 # Trace — local-first project graph CLI + MCP (CGO / tree-sitter required).
 # Targets: trace (default), trace-mcp
 
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
