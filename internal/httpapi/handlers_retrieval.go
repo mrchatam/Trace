@@ -156,20 +156,16 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
+	mode := strings.TrimSpace(r.URL.Query().Get("mode"))
 	center := strings.TrimSpace(r.URL.Query().Get("center"))
 	maxRaw := strings.TrimSpace(r.URL.Query().Get("max_nodes"))
-	if center == "" || maxRaw == "" {
-		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "center and max_nodes are required", nil)
+	if maxRaw == "" {
+		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "max_nodes is required", nil)
 		return
 	}
 	maxNodes, err := queryInt(r, "max_nodes", 0)
 	if err != nil || maxNodes < 1 {
 		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "max_nodes must be a positive integer", nil)
-		return
-	}
-	depth, err := queryInt(r, "depth", 2)
-	if err != nil {
-		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid depth", nil)
 		return
 	}
 	st, err := s.openStore()
@@ -178,7 +174,37 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer st.Close()
-	g, err := retrieval.New(st).Neighborhood(r.Context(), retrieval.NeighborhoodOpts{
+	eng := retrieval.New(st)
+
+	if mode == "project" {
+		g, err := eng.ProjectGraph(r.Context(), retrieval.ProjectGraphOpts{MaxNodes: maxNodes})
+		if err != nil {
+			var bud *retrieval.ErrBudgetExceeded
+			if errors.As(err, &bud) {
+				writeEnvelope(w, http.StatusBadRequest, "BUDGET_EXCEEDED", bud.Error(), nil)
+				return
+			}
+			if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "max_nodes") {
+				writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+				return
+			}
+			mapDomainErr(w, err)
+			return
+		}
+		writeBoundedGraph(w, g)
+		return
+	}
+
+	if center == "" {
+		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "center is required unless mode=project", nil)
+		return
+	}
+	depth, err := queryInt(r, "depth", 2)
+	if err != nil {
+		writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid depth", nil)
+		return
+	}
+	g, err := eng.Neighborhood(r.Context(), retrieval.NeighborhoodOpts{
 		Center: center, MaxNodes: maxNodes, Depth: depth,
 	})
 	if err != nil {
@@ -198,6 +224,10 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
+	writeBoundedGraph(w, g)
+}
+
+func writeBoundedGraph(w http.ResponseWriter, g *retrieval.BoundedGraph) {
 	if g.Nodes == nil {
 		g.Nodes = []retrieval.GraphNode{}
 	}

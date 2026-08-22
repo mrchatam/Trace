@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeMouseHandler,
@@ -23,6 +24,7 @@ import { useApiToken } from '../context/AppChrome'
 import {
   getGraph,
   getProject,
+  getProjectGraph,
   listTasks,
   search,
   type BoundedGraph,
@@ -33,18 +35,9 @@ import {
 import {
   DEPTH,
   EXPAND_MAX_NODES,
-  SEARCH_FILL_QUERIES,
-  SEED_CAP,
-  SEED_MAX_NODES,
-  SEED_TARGET,
+  PROJECT_MAX_NODES,
   UI_CAP,
-  applySeedMeta,
-  collectSearchFill,
-  composeSeedsFromParts,
-  mergeOverviewGraphs,
-  partitionSettledGraphs,
   type GraphNodeMeta,
-  type SeedCandidate,
 } from '../lib/overviewCompose'
 
 type KindFilter = 'all' | string
@@ -82,6 +75,43 @@ function GraphNodeView({ data, id, selected }: NodeProps & { data: GraphNodeData
 }
 
 const nodeTypes = { graphNode: GraphNodeView }
+
+function layoutProject(
+  nodesMeta: GraphNodeMeta[],
+  edgesMeta: BoundedGraph['edges'],
+  centerId: string,
+  selectedId: string | null,
+): { nodes: Node[]; edges: Edge[] } {
+  const count = Math.max(nodesMeta.length, 1)
+  const cols = Math.ceil(Math.sqrt(count))
+  const nodes: Node[] = nodesMeta.map((node, i) => {
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    const classes = ['graph-node']
+    if (node.id === centerId) classes.push('graph-node--center')
+    if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
+    return {
+      id: node.id,
+      type: 'graphNode',
+      position: { x: col * 200, y: row * 88 },
+      data: {
+        label: node.title,
+        kind: node.kind,
+        work_state: node.work_state,
+      },
+      className: classes.join(' '),
+      selected: selectedId === node.id,
+      focusable: true,
+    }
+  })
+  const edges: Edge[] = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e, i) => ({
+    id: `${e.from}-${e.rel}-${e.to}-${i}`,
+    source: e.from,
+    target: e.to,
+    label: e.rel,
+  }))
+  return { nodes, edges }
+}
 
 function layoutOverview(
   nodesMeta: GraphNodeMeta[],
@@ -164,6 +194,7 @@ function GraphCanvas({
   seedIds,
   center,
   selectedId,
+  layoutMode,
   onSelect,
   onExpand,
 }: {
@@ -172,12 +203,17 @@ function GraphCanvas({
   seedIds: Set<string>
   center: string
   selectedId: string | null
+  layoutMode: 'project' | 'neighborhood'
   onSelect: (id: string) => void
   onExpand: (id: string) => void
 }) {
+  const { fitView } = useReactFlow()
   const laid = useMemo(
-    () => layoutOverview(nodesMeta, edgesMeta, seedIds, center, selectedId),
-    [nodesMeta, edgesMeta, seedIds, center, selectedId],
+    () =>
+      layoutMode === 'project'
+        ? layoutProject(nodesMeta, edgesMeta, center, selectedId)
+        : layoutOverview(nodesMeta, edgesMeta, seedIds, center, selectedId),
+    [nodesMeta, edgesMeta, seedIds, center, selectedId, layoutMode],
   )
   const [nodes, setNodes, onNodesChange] = useNodesState(laid.nodes)
   const flowEdges = Array.isArray(laid.edges) ? laid.edges : []
@@ -187,6 +223,14 @@ function GraphCanvas({
     setNodes(laid.nodes)
     setEdges(Array.isArray(laid.edges) ? laid.edges : [])
   }, [laid, setNodes, setEdges])
+
+  useEffect(() => {
+    if (laid.nodes.length === 0) return
+    const t = window.setTimeout(() => {
+      void fitView({ padding: 0.12, duration: 200 })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [laid.nodes.length, layoutMode, fitView])
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_: MouseEvent, node: Node) => {
@@ -245,7 +289,7 @@ export function Graph() {
   const token = useApiToken()
   const [center, setCenter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [maxNodes, setMaxNodes] = useState(EXPAND_MAX_NODES)
+  const [maxNodes, setMaxNodes] = useState(PROJECT_MAX_NODES)
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [searchItems, setSearchItems] = useState<SearchItem[]>([])
   const [q, setQ] = useState('')
@@ -253,19 +297,18 @@ export function Graph() {
   const [nodesMeta, setNodesMeta] = useState<GraphNodeMeta[]>([])
   const [edgesMeta, setEdgesMeta] = useState<BoundedGraph['edges']>([])
   const [graphTruncated, setGraphTruncated] = useState(false)
+  const [totalEntities, setTotalEntities] = useState<number | null>(null)
   const [omitted, setOmitted] = useState(0)
-  const [seedIds, setSeedIds] = useState<string[]>([])
+  const [layoutMode, setLayoutMode] = useState<'project' | 'neighborhood'>('project')
   const [project, setProject] = useState<ProjectResponse | null>(null)
   const [error, setError] = useState<unknown>(null)
-  const [partialFailed, setPartialFailed] = useState<string[]>([])
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [expandLoading, setExpandLoading] = useState(false)
-  const [noSeeds, setNoSeeds] = useState(false)
+  const [emptyProject, setEmptyProject] = useState(false)
   const [orientDismissed, setOrientDismissed] = useState(() => isOrientDismissed())
-  const seedsRef = useRef<SeedCandidate[]>([])
   const bootstrapped = useRef(false)
 
-  const seedSet = useMemo(() => new Set(seedIds), [seedIds])
+  const seedSet = useMemo(() => new Set<string>(), [])
   const selectionOutOfView =
     selectedId != null && !nodesMeta.some((n) => n.id === selectedId)
 
@@ -299,98 +342,54 @@ export function Graph() {
     return meta.filter((e) => ids.has(e.from) && ids.has(e.to))
   }, [edgesMeta, visibleNodes, kind])
 
-  const applyMerged = useCallback(
-    (
-      merged: ReturnType<typeof mergeOverviewGraphs>,
-      seeds: SeedCandidate[],
-      nextCenter?: string,
-    ) => {
-      const withMeta = applySeedMeta(merged.nodes, seeds)
-      setNodesMeta(withMeta)
-      setEdgesMeta(merged.edges)
-      setGraphTruncated(merged.truncated)
-      setOmitted(merged.omitted)
-      setSeedIds(seeds.map((s) => s.id))
-      seedsRef.current = seeds
-      const c = nextCenter ?? merged.center
-      setCenter(c)
-      setMaxNodes(Math.min(UI_CAP, merged.max_nodes || SEED_MAX_NODES))
-    },
-    [],
-  )
+  const applyTaskWorkState = useCallback((nodes: GraphNodeMeta[], taskItems: TaskRow[]) => {
+    const byId = new Map(taskItems.map((t) => [t.id, t]))
+    return nodes.map((n) => {
+      const t = byId.get(n.id)
+      if (!t) return n
+      return { ...n, work_state: t.work_state ?? n.work_state }
+    })
+  }, [])
 
-  const loadOverview = useCallback(async () => {
+  const loadProjectGraphView = useCallback(async () => {
     setOverviewLoading(true)
     setError(null)
-    setPartialFailed([])
-    setNoSeeds(false)
+    setEmptyProject(false)
+    setLayoutMode('project')
     setNodesMeta([])
     setEdgesMeta([])
+    setTotalEntities(null)
+    setOmitted(0)
     try {
-      const [projSettled, taskRes] = await Promise.all([
+      const [projSettled, taskRes, graphRes] = await Promise.all([
         getProject({ token }).catch(() => null),
-        listTasks({ limit: 50 }, { token }),
+        listTasks({ limit: 100 }, { token }),
+        getProjectGraph(PROJECT_MAX_NODES, { token }),
       ])
       if (projSettled) setProject(projSettled)
       const taskItems = taskRes.items ?? []
       setTasks(taskItems)
 
-      const taskSeeds = composeSeedsFromParts(taskItems, [], {
-        target: SEED_TARGET,
-        cap: SEED_CAP,
-      })
-      const need = Math.max(0, SEED_TARGET - taskSeeds.length)
-      const batches: SearchItem[][] = []
-      if (need > 0) {
-        for (const qFill of SEARCH_FILL_QUERIES) {
-          if (collectSearchFill(batches, new Set(taskSeeds.map((s) => s.id)), need).length >= need) {
-            break
-          }
-          try {
-            const res = await search(qFill, 20, { token })
-            batches.push(res.items ?? [])
-          } catch {
-            batches.push([])
-          }
-        }
-      }
-      const fillHits = collectSearchFill(
-        batches,
-        new Set(taskSeeds.map((s) => s.id)),
-        Math.max(need, SEED_CAP - taskSeeds.length),
-      )
-      const seeds = composeSeedsFromParts(taskItems, fillHits, {
-        target: SEED_TARGET,
-        cap: SEED_CAP,
-      })
-
-      if (seeds.length === 0) {
-        setNoSeeds(true)
+      if ((graphRes.nodes ?? []).length === 0) {
+        setEmptyProject(true)
         setOverviewLoading(false)
         return
       }
 
-      const results = await Promise.allSettled(
-        seeds.map((s) => getGraph(s.id, SEED_MAX_NODES, DEPTH, { token })),
+      const nodes = applyTaskWorkState(
+        (graphRes.nodes ?? []).map((n) => ({ id: n.id, kind: n.kind, title: n.title })),
+        taskItems,
       )
-      const { graphs, failedSeedIds, hardFail } = partitionSettledGraphs(
-        results,
-        seeds.map((s) => s.id),
+      setNodesMeta(nodes)
+      setEdgesMeta(graphRes.edges ?? [])
+      setGraphTruncated(graphRes.truncated)
+      const total = (graphRes as BoundedGraph & { total_entities?: number }).total_entities
+      setTotalEntities(typeof total === 'number' ? total : nodes.length)
+      setOmitted(
+        typeof total === 'number' && total > nodes.length ? total - nodes.length : 0,
       )
-      if (hardFail) {
-        setError(new Error(`Overview failed for all ${seeds.length} seeds`))
-        setPartialFailed(failedSeedIds)
-        setOverviewLoading(false)
-        return
-      }
-      if (failedSeedIds.length > 0) setPartialFailed(failedSeedIds)
-
-      const merged = mergeOverviewGraphs(
-        graphs,
-        seeds.map((s) => s.id),
-        { uiCap: UI_CAP, depth: DEPTH },
-      )
-      applyMerged(merged, seeds)
+      setCenter(graphRes.center || nodes[0]?.id || '')
+      setMaxNodes(Math.min(UI_CAP, graphRes.max_nodes || PROJECT_MAX_NODES))
     } catch (err) {
       setError(err)
       setNodesMeta([])
@@ -398,13 +397,13 @@ export function Graph() {
     } finally {
       setOverviewLoading(false)
     }
-  }, [token, applyMerged])
+  }, [token, applyTaskWorkState])
 
   useEffect(() => {
     if (bootstrapped.current) return
     bootstrapped.current = true
-    void loadOverview()
-  }, [loadOverview])
+    void loadProjectGraphView()
+  }, [loadProjectGraphView])
 
   async function runSearch(e: FormEvent) {
     e.preventDefault()
@@ -422,22 +421,21 @@ export function Graph() {
     const capped = Math.min(Math.max(1, budget), EXPAND_MAX_NODES, UI_CAP)
     setMaxNodes(capped)
     setExpandLoading(true)
+    setLayoutMode('neighborhood')
     setError(null)
+    setTotalEntities(null)
+    setOmitted(0)
     try {
       const g = await getGraph(centerId, capped, DEPTH, { token })
-      const seeds = seedsRef.current
-      const withMeta = applySeedMeta(
+      const withMeta = applyTaskWorkState(
         g.nodes.map((n) => ({ id: n.id, kind: n.kind, title: n.title })),
-        seeds,
+        tasks,
       )
       setNodesMeta(withMeta)
       setEdgesMeta(g.edges ?? [])
       setGraphTruncated(g.truncated)
-      setOmitted(0)
       setCenter(centerId)
       setSelectedId(centerId)
-      // Prefer replace neighborhood; keep seed pin set for styling
-      setSeedIds(seeds.map((s) => s.id))
     } catch (err) {
       setError(err)
     } finally {
@@ -466,8 +464,8 @@ export function Graph() {
       <h1 className="page-title">Graph</h1>
       {!orientDismissed ? <GraphOrientPanel onDismiss={handleDismissOrient} /> : null}
       <p className="page-lead">
-        Project overview graph (seed-composed). Click to inspect; double-click or “Use as center” to
-        re-center. Seeds ≤{SEED_CAP} · per-seed {SEED_MAX_NODES}/depth {DEPTH} · UI cap {UI_CAP} ·
+        Full project graph on first load (bounded). Click to inspect; double-click or “Use as center”
+        for a focused neighborhood. Project cap {PROJECT_MAX_NODES} · neighborhood depth {DEPTH} ·
         expand ≤{EXPAND_MAX_NODES}.
       </p>
 
@@ -482,8 +480,20 @@ export function Graph() {
         <span className="confidence-label" data-testid="graph-law-banner-confidence">
           Confidence: high — bounded read
         </span>{' '}
-        · Always passes <code className="mono">center</code> +{' '}
-        <code className="mono">max_nodes</code> — not a full-project dump (Laws 6–7).
+        · Always passes <code className="mono">max_nodes</code> (Laws 6–7). First view uses{' '}
+        <code className="mono">mode=project</code>; drill-down uses <code className="mono">center</code>.
+      </div>
+
+      <div className="filters" style={{ marginBottom: '0.75rem' }}>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          data-testid="graph-reload-project"
+          disabled={overviewLoading}
+          onClick={() => void loadProjectGraphView()}
+        >
+          Reload project graph
+        </button>
       </div>
 
       <details className="panel" data-testid="graph-manual-center">
@@ -574,65 +584,65 @@ export function Graph() {
       {error ? (
         <div>
           <ErrorBanner error={error} />
-          <button type="button" className="btn" onClick={() => void loadOverview()}>
+          <button type="button" className="btn" onClick={() => void loadProjectGraphView()}>
             Retry
           </button>
         </div>
       ) : null}
 
-      {partialFailed.length > 0 && !error ? (
-        <div className="banner banner--warn" role="status" data-testid="graph-partial-fail">
-          Partial overview: {partialFailed.length} seed(s) failed (
-          {partialFailed.slice(0, 3).join(', ')}
-          {partialFailed.length > 3 ? '…' : ''}). Showing successful neighborhoods.{' '}
-          <button type="button" className="btn btn--ghost" onClick={() => void loadOverview()}>
-            Retry failed seeds
-          </button>
-        </div>
-      ) : null}
-
       <div className="panel">
-        <h2>Neighborhood</h2>
+        <h2>{layoutMode === 'project' ? 'Project graph' : 'Neighborhood'}</h2>
         {overviewLoading ? (
           <p role="status" data-testid="graph-overview-loading">
-            Building project overview…
+            Loading project graph…
           </p>
         ) : null}
         {expandLoading && !overviewLoading ? (
           <p role="status">Loading neighborhood…</p>
         ) : null}
 
-        {noSeeds && !overviewLoading ? (
-          <EmptyState title="Nothing to seed yet. Add tasks or entities, or pick a center to explore a neighborhood.">
+        {emptyProject && !overviewLoading ? (
+          <EmptyState title="No entities yet. Add tasks or goals, or pick a center to explore a neighborhood.">
             <Link className="btn btn--primary" to="/tasks" data-testid="explore-empty-open-tasks">
               Open Tasks
             </Link>
           </EmptyState>
         ) : null}
 
-        {!overviewLoading && !noSeeds && !showCanvas && !error && !loading ? (
-          <EmptyState title="Overview unavailable — retry or pick a center below." />
+        {!overviewLoading && !emptyProject && !showCanvas && !error && !loading ? (
+          <EmptyState title="Project graph unavailable — retry or pick a center below." />
         ) : null}
 
         {showCanvas ? (
           <div className="stack">
             {graphTruncated ? (
-              <div className="banner banner--warn" role="status">
+              <div className="banner banner--warn" role="status" data-testid="graph-truncation-banner">
                 <span className="confidence-label" data-testid="graph-truncation-confidence">
                   Confidence: partial — budget exceeded
                 </span>{' '}
-                · Truncated: neighborhood exceeded budget
-                {omitted > 0 ? ` (+${omitted} omitted)` : ''} (max_nodes≤{UI_CAP}). Budgeted
-                neighborhood — not the full project graph.
+                ·{' '}
+                {layoutMode === 'project' && totalEntities != null && totalEntities > visibleNodes.length
+                  ? `Showing ${visibleNodes.length} of ${totalEntities} entities`
+                  : 'Truncated: neighborhood exceeded budget'}
+                {omitted > 0 ? ` (+${omitted} omitted)` : ''} (max_nodes≤{maxNodes}).
+                {layoutMode === 'project' ? (
+                  <>
+                    {' '}
+                    Increase max_nodes or use search to drill down.
+                  </>
+                ) : (
+                  <> Budgeted neighborhood — reload project graph for full view.</>
+                )}
               </div>
             ) : null}
             <div className="mono" data-testid="graph-budget-line">
               <span className="confidence-label" data-testid="graph-budget-confidence">
                 {graphTruncated ? 'Confidence: partial' : 'Confidence: high within budget'}
               </span>{' '}
-              · seeds={seedIds.length}/{SEED_CAP} · center=
-              <span data-testid="graph-center-id">{center}</span> · nodes={visibleNodes.length}/
-              {UI_CAP} · edges={visibleEdges.length} · depth={DEPTH} · max_nodes=
+              · mode={layoutMode} · center=
+              <span data-testid="graph-center-id">{center || '—'}</span> · nodes={visibleNodes.length}
+              {totalEntities != null && layoutMode === 'project' ? `/${totalEntities}` : ''} · edges=
+              {visibleEdges.length} · depth={layoutMode === 'project' ? '—' : DEPTH} · max_nodes=
               <span id="graph-budget">{maxNodes}</span>
             </div>
             {selectionOutOfView && selectedId ? (
@@ -673,11 +683,6 @@ export function Graph() {
                       center
                     </span>
                   )}
-                  {seedSet.has(n.id) ? (
-                    <span className="pill" style={{ marginLeft: '0.35rem' }}>
-                      seed
-                    </span>
-                  ) : null}
                 </li>
               ))}
             </ul>
@@ -689,6 +694,7 @@ export function Graph() {
                   seedIds={seedSet}
                   center={center}
                   selectedId={selectedId}
+                  layoutMode={layoutMode}
                   onSelect={onSelect}
                   onExpand={onExpand}
                 />

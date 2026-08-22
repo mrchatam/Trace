@@ -630,20 +630,28 @@ paths:
     get:
       tags: [graph]
       operationId: getGraph
-      summary: Budgeted subgraph / neighborhood (never full dump)
+      summary: Budgeted subgraph — neighborhood or project-wide
       description: |
-        Requires explicit `max_nodes` and a center entity id. Servers MUST reject
-        unbounded requests. Default full-graph export is forbidden.
+        Requires explicit `max_nodes`. For neighborhood drill-down, pass `center` (entity id).
+        For the full project graph (Explore default), pass `mode=project` without `center`.
+        Servers MUST reject unbounded requests (hard cap 5000 nodes).
       x-trace-wave: p0
       x-trace-gui: true
       parameters:
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [project]
+          description: When `project`, returns all entities (bounded by max_nodes) with edges between them
         - name: center
           in: query
-          required: true
+          required: false
           schema:
             type: string
             format: uuid
-          description: Center entity id
+          description: Center entity id (required unless mode=project)
         - name: max_nodes
           in: query
           required: true
@@ -660,6 +668,7 @@ paths:
             minimum: 1
             maximum: 8
             default: 2
+          description: Hop depth for neighborhood mode only
       responses:
         "200":
           description: Budgeted nodes and edges
@@ -1512,11 +1521,18 @@ components:
       type: object
       required: [center, max_nodes, nodes, edges, truncated]
       properties:
+        mode:
+          type: string
+          enum: [project]
+          description: Present when mode=project was requested
         center:
           type: string
           format: uuid
         max_nodes:
           type: integer
+        total_entities:
+          type: integer
+          description: Total project entities before truncation (mode=project only)
         nodes:
           type: array
           items:
@@ -1527,7 +1543,7 @@ components:
             $ref: "#/components/schemas/GraphEdge"
         truncated:
           type: boolean
-          description: True if neighborhood exceeded budget
+          description: True if neighborhood or project graph exceeded budget
 
     ReviewSummary:
       type: object

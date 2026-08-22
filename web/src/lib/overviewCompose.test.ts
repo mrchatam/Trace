@@ -84,7 +84,7 @@ describe('mergeOverviewGraphs', () => {
       nodes,
       edges,
     }
-    const merged = mergeOverviewGraphs([g], seedIds, { uiCap: UI_CAP })
+    const merged = mergeOverviewGraphs([g], seedIds, { uiCap: 100 })
     assert.ok(merged.nodes.length <= UI_CAP)
     assert.ok(merged.nodes.some((n) => n.id === 's0'))
     assert.ok(merged.nodes.some((n) => n.id === 's1'))

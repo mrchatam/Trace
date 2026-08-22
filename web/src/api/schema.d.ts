@@ -902,12 +902,16 @@ export interface components {
             to: string;
         };
         BoundedGraph: {
+            /** @enum {string} */
+            mode?: "project";
             /** Format: uuid */
             center: string;
             max_nodes: number;
+            /** @description Total project entities before truncation (mode=project only) */
+            total_entities?: number;
             nodes: components["schemas"]["GraphNode"][];
             edges: components["schemas"]["GraphEdge"][];
-            /** @description True if neighborhood exceeded budget */
+            /** @description True if neighborhood or project graph exceeded budget */
             truncated: boolean;
         };
         ReviewSummary: {
@@ -1452,10 +1456,13 @@ export interface operations {
     getGraph: {
         parameters: {
             query: {
-                /** @description Center entity id */
-                center: string;
+                /** @description When `project`, returns all entities (bounded by max_nodes) with edges between them */
+                mode?: "project";
+                /** @description Center entity id (required unless mode=project) */
+                center?: string;
                 /** @description Hard node budget (required; no implicit unlimited) */
                 max_nodes: number;
+                /** @description Hop depth for neighborhood mode only */
                 depth?: number;
             };
             header?: never;

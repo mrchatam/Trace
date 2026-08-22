@@ -9,11 +9,13 @@ const MaxNeighborhoodNodes = 5000
 
 // BoundedGraph is a hop-limited neighborhood for HTTP GET /v1/graph.
 type BoundedGraph struct {
-	Center    string      `json:"center"`
-	MaxNodes  int         `json:"max_nodes"`
-	Nodes     []GraphNode `json:"nodes"`
-	Edges     []GraphEdge `json:"edges"`
-	Truncated bool        `json:"truncated"`
+	Mode          string      `json:"mode,omitempty"`
+	Center        string      `json:"center"`
+	MaxNodes      int         `json:"max_nodes"`
+	TotalEntities int         `json:"total_entities,omitempty"`
+	Nodes         []GraphNode `json:"nodes"`
+	Edges         []GraphEdge `json:"edges"`
+	Truncated     bool        `json:"truncated"`
 }
 
 // GraphNode is one node in a bounded graph response.
@@ -102,47 +104,13 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 	for d := 1; d <= depth && !truncated; d++ {
 		var next []frontierItem
 		for _, fi := range frontier {
-			fromLinks, err := e.store.ListLinksFrom(fi.h.EntityType, fi.h.EntityID)
+			neighbors, err := e.graphWalkNeighbors(fi.h)
 			if err != nil {
 				return nil, err
 			}
-			for _, l := range fromLinks {
-				addEdge(l.Rel, l.FromID, l.ToID)
-				nh, err := e.hitFromLinkNeighbor(l.ToType, l.ToID, l.Rel, 0.5)
-				if err != nil {
-					if isNotFound(err) {
-						continue
-					}
-					return nil, err
-				}
-				nh.Distance = d
-				k := hitKey(nh.EntityType, nh.EntityID)
-				if _, ok := seen[k]; ok {
-					continue
-				}
-				if len(seen) >= opts.MaxNodes {
-					truncated = true
-					break
-				}
-				seen[k] = nh
-				next = append(next, frontierItem{h: nh})
-			}
-			if truncated {
-				break
-			}
-			toLinks, err := e.store.ListLinksTo(fi.h.EntityType, fi.h.EntityID)
-			if err != nil {
-				return nil, err
-			}
-			for _, l := range toLinks {
-				addEdge(l.Rel, l.FromID, l.ToID)
-				nh, err := e.hitFromLinkNeighbor(l.FromType, l.FromID, l.Rel, 0.5)
-				if err != nil {
-					if isNotFound(err) {
-						continue
-					}
-					return nil, err
-				}
+			for _, nb := range neighbors {
+				addEdge(nb.edge.Rel, nb.edge.From, nb.edge.To)
+				nh := nb.neighbor
 				nh.Distance = d
 				k := hitKey(nh.EntityType, nh.EntityID)
 				if _, ok := seen[k]; ok {

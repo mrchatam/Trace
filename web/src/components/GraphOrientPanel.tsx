@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { dismissOrient } from '../lib/orientDismiss'
-import { DEPTH, EXPAND_MAX_NODES, SEED_CAP, SEED_MAX_NODES, UI_CAP } from '../lib/overviewCompose'
+import { DEPTH, EXPAND_MAX_NODES, PROJECT_MAX_NODES } from '../lib/overviewCompose'
 
 type Props = {
   onDismiss: () => void
@@ -52,10 +52,10 @@ export function GraphOrientPanel({ onDismiss }: Props) {
         <span className="graph-orient__confidence" data-testid="graph-orient-confidence">
           Confidence: high within budget
         </span>{' '}
-        — every graph read passes <code className="mono">center</code> +{' '}
-        <code className="mono">max_nodes</code> (Laws 6–7). Seeds ≤{SEED_CAP} · per-seed{' '}
-        {SEED_MAX_NODES}/depth {DEPTH} · UI cap {UI_CAP} · expand ≤{EXPAND_MAX_NODES}. Truncation
-        banners mean partial neighborhoods — not the full project.
+        — Explore opens on the full project graph (<code className="mono">mode=project</code>, cap{' '}
+        {PROJECT_MAX_NODES}) with explicit <code className="mono">max_nodes</code> (Laws 6–7).
+        Double-click or “Use as center” for a bounded neighborhood (depth {DEPTH}, expand ≤
+        {EXPAND_MAX_NODES}). Truncation banners show how many entities were omitted.
       </p>
     </aside>
   )

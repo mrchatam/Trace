@@ -5,10 +5,11 @@
 
 import type { BoundedGraph, SearchItem, TaskRow } from '../api/ops'
 
+export const PROJECT_MAX_NODES = 500
 export const SEED_TARGET = 6
 export const SEED_CAP = 8
 export const SEED_MAX_NODES = 40
-export const UI_CAP = 100
+export const UI_CAP = PROJECT_MAX_NODES
 export const EXPAND_MAX_NODES = 50
 export const DEPTH = 2
 

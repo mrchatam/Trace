@@ -123,6 +123,15 @@ export async function getGraph(center: string, maxNodes: number, depth?: number,
   return normalizeBoundedGraph(raw)
 }
 
+/** getProjectGraph — mode=project; bounded full-project graph (Explore default). */
+export async function getProjectGraph(maxNodes: number, opt: TokenOpt = {}) {
+  const raw = await apiFetch<BoundedGraph>('/v1/graph', {
+    ...opt,
+    query: { mode: 'project', max_nodes: maxNodes },
+  })
+  return normalizeBoundedGraph(raw)
+}
+
 /** createTransition — denials are API envelope only */
 export function createTransition(body: CreateTransitionRequest, opt: TokenOpt = {}) {
   return apiFetch<TransitionResult>('/v1/transitions', { ...opt, method: 'POST', body })

@@ -321,6 +321,17 @@ func TestGraphBudgetAndDefer(t *testing.T) {
 	}
 
 	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=50", nil))
+	if rr.Code != 200 {
+		t.Fatalf("project graph: %d %s", rr.Code, rr.Body.String())
+	}
+	var proj map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &proj)
+	if proj["mode"] != "project" {
+		t.Fatalf("mode: %#v", proj["mode"])
+	}
+
+	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/v1/backup", nil))
 	if rr.Code != 501 {
 		t.Fatalf("defer: %d", rr.Code)
