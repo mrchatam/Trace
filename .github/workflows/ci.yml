@@ -96,6 +96,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: test -f api/openapi.yaml && grep -q 'BoundedGraph' api/openapi.yaml
 
+  # Advisory extended gates (compat Phase 29 HTTP policy + perf ladder).
+  # Required merge path: go-test, web, embed-gui, openapi above.
   evals-extended:
     name: Evals (compat + perf gates)
     runs-on: ubuntu-latest

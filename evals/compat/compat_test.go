@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/mrchatam/Trace/internal/analyzers"
+	"github.com/mrchatam/Trace/internal/httpapi"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	_ "modernc.org/sqlite"
@@ -627,32 +627,74 @@ func checkNoDaemonHTTPPrimary(t *testing.T, moduleRoot string) bool {
 	t.Helper()
 	ok := true
 
-	// cmd/trace and cmd/trace-mcp must not import net/http or start listeners.
-	for _, cmdPkg := range []string{"cmd/trace", "cmd/trace-mcp"} {
-		dir := filepath.Join(moduleRoot, cmdPkg)
-		entries, err := os.ReadDir(dir)
+	// trace-mcp must remain stdio-only — no net/http imports (Phase 29 HTTP is CLI opt-in only).
+	mcpDir := filepath.Join(moduleRoot, "cmd", "trace-mcp")
+	entries, err := os.ReadDir(mcpDir)
+	if err != nil {
+		t.Fatalf("ReadDir %s: %v", mcpDir, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		path := filepath.Join(mcpDir, name)
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
-			t.Fatalf("ReadDir %s: %v", dir, err)
+			t.Fatalf("parse %s: %v", path, err)
 		}
-		for _, e := range entries {
-			name := e.Name()
-			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-				continue
-			}
-			path := filepath.Join(dir, name)
-			fset := token.NewFileSet()
-			f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-			if err != nil {
-				t.Fatalf("parse %s: %v", path, err)
-			}
-			for _, imp := range f.Imports {
-				pathLit := strings.Trim(imp.Path.Value, `"`)
-				if pathLit == "net/http" || pathLit == "net/http/httptest" {
-					t.Errorf("daemon/HTTP primary: %s imports %s", path, pathLit)
-					ok = false
-				}
+		for _, imp := range f.Imports {
+			pathLit := strings.Trim(imp.Path.Value, `"`)
+			if pathLit == "net/http" || pathLit == "net/http/httptest" {
+				t.Errorf("trace-mcp must not import %s (%s)", pathLit, path)
+				ok = false
 			}
 		}
+	}
+
+	// Phase 29 carve-out: opt-in local HTTP (trace serve/gui) — loopback default, refuse remote without flag.
+	if httpapi.DefaultAddr != "127.0.0.1:7432" {
+		t.Errorf("DefaultAddr=%q want loopback 127.0.0.1:7432", httpapi.DefaultAddr)
+		ok = false
+	}
+	if err := httpapi.RefuseRemote("0.0.0.0", false); err == nil {
+		t.Error("RefuseRemote must reject 0.0.0.0 without --allow-remote")
+		ok = false
+	}
+	if err := httpapi.RefuseRemote("127.0.0.1", false); err != nil {
+		t.Errorf("RefuseRemote must allow loopback: %v", err)
+		ok = false
+	}
+
+	// ListenAndServe only in the HTTP adapter + CLI wiring (not trace-mcp, not library internals).
+	allowedListen := map[string]bool{
+		"internal/httpapi/server.go": true,
+		"cmd/trace/local_http.go":    true,
+	}
+	err = filepath.WalkDir(moduleRoot, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return walkErr
+		}
+		rel, _ := filepath.Rel(moduleRoot, path)
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		if !strings.HasPrefix(rel, "cmd"+string(os.PathSeparator)) && !strings.HasPrefix(rel, "internal"+string(os.PathSeparator)) {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(b), "ListenAndServe") && !allowedListen[filepath.ToSlash(rel)] {
+			t.Errorf("ListenAndServe outside Phase 29 adapter paths: %s", rel)
+			ok = false
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk for ListenAndServe: %v", err)
 	}
 
 	// MCP must remain the locked six tools — no auth/backup tools.
@@ -673,41 +715,6 @@ func checkNoDaemonHTTPPrimary(t *testing.T, moduleRoot string) bool {
 		if !strings.Contains(body, required) {
 			t.Errorf("expected MCP tool missing: %s", required)
 			ok = false
-		}
-	}
-
-	// Spot-check: no ListenAndServe in product cmd/internal (stdio MCP only).
-	cmd := exec.Command("rg", "-n", `ListenAndServe|http\.ListenAndServe`, "cmd", "internal")
-	cmd.Dir = moduleRoot
-	out, err := cmd.CombinedOutput()
-	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
-		t.Errorf("ListenAndServe found (daemon/HTTP primary risk):\n%s", out)
-		ok = false
-	} else if err != nil {
-		// rg exit 1 = no matches (good); other errors: fall back to walk
-		if ee, okExit := err.(*exec.ExitError); !okExit || ee.ExitCode() != 1 {
-			// Fallback without rg
-			_ = filepath.WalkDir(moduleRoot, func(path string, d os.DirEntry, err error) error {
-				if err != nil || d.IsDir() {
-					return err
-				}
-				rel, _ := filepath.Rel(moduleRoot, path)
-				if !strings.HasPrefix(rel, "cmd"+string(os.PathSeparator)) && !strings.HasPrefix(rel, "internal"+string(os.PathSeparator)) {
-					return nil
-				}
-				if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-					return nil
-				}
-				b, err := os.ReadFile(path)
-				if err != nil {
-					return err
-				}
-				if strings.Contains(string(b), "ListenAndServe") {
-					t.Errorf("ListenAndServe in %s", rel)
-					ok = false
-				}
-				return nil
-			})
 		}
 	}
 	return ok

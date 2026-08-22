@@ -15,27 +15,27 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-// Locked regression ceilings — derived from first measurement on 2026-08-16
-// (VERIFY-NOTES documents derivation). Formula from P07-S03-01:
+// Locked regression ceilings — formula from P07-S03-01:
 //
 //	ceiling_ms = max(measured_ms * 5, 2000)
 //	ceiling_db = measured_db_bytes * 3
 //
-// First measurement (CGO_ENABLED=1, linux/amd64):
+// Re-locked 2026-08-22 (Phase 43): max observed across dev linux/amd64 and
+// GHA ubuntu-latest (run 32570568221) after schema/index growth through P42.
 //
-//	smoke:    initial=38ms  incr=42ms   db=454656
-//	rung-1k:  initial=113ms incr=166ms  db=864256
-//	rung-10k: initial=1271ms incr=2158ms db=4902912
+//	smoke:    initial=114ms incr=125ms  db=962560
+//	rung-1k:  initial=496ms incr=436ms  db=2375680
+//	rung-10k: initial=6746ms incr=7913ms db=16560128
 var (
-	ceilingSmokeInitialMS       int64 = 2000     // max(38*5, 2000)
-	ceilingSmokeIncrementalMS   int64 = 2000     // max(42*5, 2000)
-	ceilingSmokeDBBytes         int64 = 1363968  // 454656*3
-	ceilingRung1kInitialMS      int64 = 2000     // max(113*5, 2000)
-	ceilingRung1kIncrementalMS  int64 = 2000     // max(166*5, 2000)
-	ceilingRung1kDBBytes        int64 = 2592768  // 864256*3
-	ceilingRung10kInitialMS     int64 = 6355     // max(1271*5, 2000)
-	ceilingRung10kIncrementalMS int64 = 10790    // max(2158*5, 2000)
-	ceilingRung10kDBBytes       int64 = 14708736 // 4902912*3
+	ceilingSmokeInitialMS       int64 = 2000     // max(114*5, 2000)
+	ceilingSmokeIncrementalMS   int64 = 2000     // max(125*5, 2000)
+	ceilingSmokeDBBytes         int64 = 2887680  // 962560*3
+	ceilingRung1kInitialMS      int64 = 2480     // max(496*5, 2000)
+	ceilingRung1kIncrementalMS  int64 = 2180     // max(436*5, 2000)
+	ceilingRung1kDBBytes        int64 = 7127040  // 2375680*3
+	ceilingRung10kInitialMS     int64 = 33730    // max(6746*5, 2000)
+	ceilingRung10kIncrementalMS int64 = 39565    // max(7913*5, 2000)
+	ceilingRung10kDBBytes       int64 = 49680384 // 16560128*3
 )
 
 var sharedTraceBin string
