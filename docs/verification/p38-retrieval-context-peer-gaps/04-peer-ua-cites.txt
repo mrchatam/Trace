@@ -1,0 +1,6 @@
+17:### ChatContext shape (`context-builder.ts` L9–18)
+32:### Build pipeline (`context-builder.ts` L25–79)
+39:### SearchEngine (`search.ts` L14–58)
+45:| Optional semantic | `embedding-search.ts` L1+ | Cosine similarity when embeddings exist |
+59:| FTS input | Agent query via Fuse L36–58 | **`task.Title` only** — `compiler.go` L146–151 |
+161:| **H1 partial** | **supported** | UA `buildChatContext` L25–79 (query + 1-hop + layers); MP `wake_up()` L404–431 (L0+L1 packet) | TRACE-AUDIT H1 — no query on `trace_context`; compose required; PEER-CG CG leg | **high** |

@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go-test:
+    name: Go (CGO tests + vet + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install CGO toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc g++
+
+      - name: Run Go CI script
+        run: bash scripts/ci-go-test.sh
+
+  web:
+    name: Web (build + unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: npm ci + build
+        run: |
+          npm ci
+          npm run build
+
+      - name: overviewCompose node tests
+        run: node --experimental-strip-types --test src/lib/overviewCompose.test.ts
+
+  embed-gui:
+    name: Embed GUI (SPA → go:embed)
+    runs-on: ubuntu-latest
+    needs: [web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install CGO toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc g++
+
+      - name: embed-gui + compile check
+        run: |
+          bash scripts/embed-gui.sh
+          test -f internal/httpapi/embeddist/index.html
+          CGO_ENABLED=1 go build -o /dev/null ./cmd/trace
+
+      - name: Assert embeddist tracked (no drift on main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git diff --exit-code internal/httpapi/embeddist/ || (
+            echo "::error::embeddist out of date — run scripts/embed-gui.sh and commit"
+            exit 1
+          )
+
+  openapi:
+    name: OpenAPI sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test -f api/openapi.yaml && grep -q 'BoundedGraph' api/openapi.yaml
+
+  evals-extended:
+    name: Evals (compat + perf gates)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install CGO toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc g++
+
+      - name: compat + perf evals
+        run: CGO_ENABLED=1 go test ./evals/compat/... ./evals/perf/... -count=1 -timeout=20m

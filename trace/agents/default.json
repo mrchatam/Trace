@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-08-18",
+  "agents": [
+    {
+      "slug": "agent:code-reviewer",
+      "title": "Code Reviewer",
+      "description": "Standards/maintainability review of a diff.",
+      "subagent_type": "code-reviewer",
+      "deliberation_phases": ["CRITIQUE", "VERIFY"],
+      "task_keywords": [],
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "requirements": ["skill:code-review-and-quality"]
+    },
+    {
+      "slug": "agent:performance-reviewer",
+      "title": "Performance Reviewer",
+      "description": "Latency and scalability review for perf-sensitive work.",
+      "subagent_type": "performance-reviewer",
+      "deliberation_phases": ["VERIFY", "EVALUATE"],
+      "task_keywords": ["perf", "performance", "latency", "benchmark"],
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "requirements": ["skill:performance-optimization"]
+    },
+    {
+      "slug": "agent:security-reviewer",
+      "title": "Security Reviewer",
+      "description": "OWASP-oriented security review for auth and data-handling changes.",
+      "subagent_type": "security-reviewer",
+      "deliberation_phases": ["CRITIQUE", "VERIFY"],
+      "task_keywords": ["security", "auth", "injection", "owasp"],
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "requirements": ["skill:security-and-hardening"]
+    },
+    {
+      "slug": "agent:nested-reviewer",
+      "title": "Nested Reviewer",
+      "description": "Adversarial find-then-refute review for high-stakes diffs.",
+      "subagent_type": "nested-reviewer",
+      "deliberation_phases": ["CRITIQUE"],
+      "task_keywords": [],
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "requirements": ["skill:code-review-and-quality"]
+    },
+    {
+      "slug": "agent:explore",
+      "title": "Explore",
+      "description": "Fast codebase exploration for investigation and orientation.",
+      "subagent_type": "explore",
+      "deliberation_phases": ["INVESTIGATE", "ORIENT"],
+      "task_keywords": [],
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "requirements": ["mcp:codegraph_explore"]
+    },
+    {
+      "slug": "agent:generalPurpose",
+      "title": "General Purpose",
+      "description": "Fallback harness agent when no phase or keyword match applies.",
+      "subagent_type": "generalPurpose",
+      "deliberation_phases": [],
+      "task_keywords": [],
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "requirements": []
+    }
+  ]
+}

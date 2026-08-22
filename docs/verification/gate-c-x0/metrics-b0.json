@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "experiment": "X0",
+  "condition": "B0",
+  "fixture": "fixtures/x0",
+  "dry_run": false,
+  "trace_version": "0.0.0-dev",
+  "runs": [
+    {
+      "run_id": "b0-gatec-1",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 1200,
+        "tokens": 900
+      },
+      "quality": {
+        "understanding_accuracy": 0,
+        "correct": 0,
+        "total": 5,
+        "critical_misses": 4,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q2",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q3",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q4",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q5",
+            "grade": "critical_miss"
+          }
+        ]
+      },
+      "notes": "src-only brief; no seed/README oracle; no trace why/context"
+    },
+    {
+      "run_id": "b0-gatec-2",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 1350,
+        "tokens": 950
+      },
+      "quality": {
+        "understanding_accuracy": 0,
+        "correct": 0,
+        "total": 5,
+        "critical_misses": 3,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q2",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q3",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q4",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q5",
+            "grade": "critical_miss"
+          }
+        ]
+      },
+      "notes": "src-only brief; no seed/README oracle; no trace why/context"
+    },
+    {
+      "run_id": "b0-gatec-3",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 1100,
+        "tokens": 870
+      },
+      "quality": {
+        "understanding_accuracy": 0,
+        "correct": 0,
+        "total": 5,
+        "critical_misses": 2,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q2",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q3",
+            "grade": "critical_miss"
+          },
+          {
+            "id": "q4",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q5",
+            "grade": "incorrect"
+          }
+        ]
+      },
+      "notes": "src-only brief; no seed/README oracle; no trace why/context"
+    }
+  ],
+  "tools_used": [
+    "read_file",
+    "grep"
+  ],
+  "model": "recorded-operator-sim/v1",
+  "seed": "fixtures/x0/seed/gt.json",
+  "git_sha": "15fe50a18dd4c970202822591d9d0759a43d4227bdfadf5ec612270338b06d22"
+}

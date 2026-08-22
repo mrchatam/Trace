@@ -1,0 +1,25 @@
+---
+description: E01 ab-incident-tracker — workspace guard (forbid wrong roots)
+alwaysApply: true
+---
+
+## E01 workspace guard
+
+You are running experiment **E01 — ab-incident-tracker**. Your **only** writable project root is the Cursor workspace folder you opened:
+
+- B0 arm: `experiments/ab-incident-tracker/runs/B0`
+- G1 arm: `experiments/ab-incident-tracker/runs/G1`
+
+### Turn 1 (mandatory)
+
+Run `pwd` and confirm it ends with `runs/B0` or `runs/G1` under `ab-incident-tracker`. **Stop** if not — ask the operator to File → Open Folder on the correct run directory.
+
+### Forbidden
+
+- Editing under `/home/ali/Desktop/Trace` except reading `bin/trace` (G1 operator)
+- Editing the **sibling arm** (`runs/B0` when you are G1, or vice versa)
+- Using any path outside your arm folder for product code, tests, or docs
+
+### Multitask subagents
+
+Every delegation MUST repeat the absolute workspace path and: **do not use any other directory**. Subagents run `pwd` before work.

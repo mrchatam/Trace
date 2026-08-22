@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "e0200000-0000-4000-8000-000000000001",
+      "title": "Ship equipment checkout desk",
+      "body": "Build an equipment checkout desk from vague stakeholder requirements. Staff check assets in/out; requesters reserve items; admins manage inventory. Support asset catalog, checkout/return lifecycle, roles (requester, desk staff, admin), REST API, desk admin UI, public availability page, and audit log. Stack is agent choice."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "e0200000-0000-4000-8000-000000000010",
+      "title": "Design architecture and data model",
+      "body": "Choose stack. Design schema: assets, users/roles, checkout records, availability, audit events. Define REST API. Produce SPEC.md and PLANNING-MATRIX.md before implementation.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000020",
+      "title": "Implement REST API and auth",
+      "body": "Backend: login/session, asset CRUD, checkout/return, role-based access. Tests for all routes.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000030",
+      "title": "Implement desk admin UI",
+      "body": "Browser UI for desk staff and admins: asset list, checkout/return flows, filters, audit visible.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000040",
+      "title": "Implement public availability page",
+      "body": "Read-only page showing which assets are available now. No visitor login.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000050",
+      "title": "End-to-end verification",
+      "body": "Full test suite. Manual verify checkout/return, roles, public page, audit. Document VERIFY.md.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    }
+  ],
+  "decisions": [],
+  "assumptions": [
+    {
+      "id": "e0200000-0000-4000-8000-0000000000a1",
+      "title": "Stack is agent choice",
+      "body": "No technology stack prescribed."
+    },
+    {
+      "id": "e0200000-0000-4000-8000-0000000000a2",
+      "title": "Public page is read-only",
+      "body": "Visitors see availability only — no writes."
+    }
+  ],
+  "discoveries": [],
+  "plan_changes": [],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {
+      "rel": "goal_has_task",
+      "from": "e0200000-0000-4000-8000-000000000001",
+      "to": "e0200000-0000-4000-8000-000000000010"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "e0200000-0000-4000-8000-000000000001",
+      "to": "e0200000-0000-4000-8000-000000000020"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "e0200000-0000-4000-8000-000000000001",
+      "to": "e0200000-0000-4000-8000-000000000030"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "e0200000-0000-4000-8000-000000000001",
+      "to": "e0200000-0000-4000-8000-000000000040"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "e0200000-0000-4000-8000-000000000001",
+      "to": "e0200000-0000-4000-8000-000000000050"
+    }
+  ],
+  "findings": [],
+  "alternatives": [],
+  "plan_phases": [
+    {
+      "id": "f706251e-da14-40f2-93fd-1aeb4fe4fca9",
+      "goal_id": "e0200000-0000-4000-8000-000000000001",
+      "title": "Verify",
+      "body": "",
+      "ord": 0,
+      "status": "ACTIVE"
+    }
+  ],
+  "plan_scopes": [
+    {
+      "id": "88a37688-749b-4c77-bbce-6e85c9169981",
+      "phase_id": "f706251e-da14-40f2-93fd-1aeb4fe4fca9",
+      "title": "Spot",
+      "body": "",
+      "ord": 0,
+      "status": "ACTIVE",
+      "auto_replan_count": 0
+    }
+  ],
+  "scope_deep_plans": [
+    {
+      "id": "8394529c-0b14-457b-9471-2774c9ff2087",
+      "scope_id": "88a37688-749b-4c77-bbce-6e85c9169981",
+      "content_json": "{\"scope_id\":\"88a37688-749b-4c77-bbce-6e85c9169981\",\"exit_criteria\":[\"verify\"],\"constraints\":[],\"work_items\":[{\"title\":\"spot-check\",\"notes\":\"\"}],\"lookahead_scope_id\":\"\",\"lookahead_summary\":\"\"}",
+      "status": "ACTIVE"
+    }
+  ],
+  "goal_plan_state": [
+    {
+      "goal_id": "e0200000-0000-4000-8000-000000000001",
+      "current_scope_id": "88a37688-749b-4c77-bbce-6e85c9169981"
+    }
+  ],
+  "deliberation_states": [
+    {
+      "task_id": "e0200000-0000-4000-8000-000000000050",
+      "goal_id": "e0200000-0000-4000-8000-000000000001",
+      "current_phase": "STOP",
+      "hop_count": 2,
+      "last_phase": "CRITIQUE",
+      "plan_critiqued": false,
+      "stopped": true,
+      "stop_reason": "p19_saturated",
+      "consecutive_empty_applies": 2,
+      "updated_at": "2026-08-20T08:50:00Z"
+    }
+  ],
+  "changes": [
+    {
+      "id": "2c0c52f9-5c97-47f7-8349-14d2d0e6f30d",
+      "task_id": "trace:vcs-capture",
+      "git_commit": "fbf0a6817022530c44bdc4624dec50a8b884c7cb",
+      "parent_change_id": "",
+      "actor": "",
+      "reason": "init G1 starter (E02 checkout desk)",
+      "status": "RECORDED",
+      "source_type": "VCS",
+      "confidence": 0,
+      "created_at": "2026-08-20T08:48:05Z",
+      "updated_at": "2026-08-20T08:48:05Z",
+      "paths": [
+        {
+          "path": "cmd/checkoutd/main.go",
+          "status": "A",
+          "symbol_id": ""
+        }
+      ]
+    }
+  ],
+  "exported_at_commit": "fbf0a6817022530c44bdc4624dec50a8b884c7cb"
+}

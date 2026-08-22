@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "e0100000-0000-4000-8000-000000000001",
+      "title": "Ship a working incident tracker",
+      "body": "Build an on-call incident tracker from vague stakeholder requirements. Teams report production incidents, responders acknowledge and resolve them, and leadership needs a read-only status view. Support severity levels, assignment, status lifecycle, comments/timeline, search, REST API, responder/admin dashboard, public status page, audit log, and authentication. Technology stack is not prescribed — the agent decides."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "e0100000-0000-4000-8000-000000000010",
+      "title": "Design system architecture and data model",
+      "body": "Choose stack (language, framework, DB). Design schema: incidents, users/roles, severity, status machine, assignment, comments/timeline, audit events. Define REST API surface. Produce SPEC.md and PLANNING-MATRIX.md before implementation.",
+      "goal_id": "e0100000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0100000-0000-4000-8000-000000000020",
+      "title": "Implement REST API and auth",
+      "body": "Build backend API: login/session, incident CRUD, status transitions, assignment, comments, search/filter. Enforce role-based access (reporter, responder, admin). All routes must have tests.",
+      "goal_id": "e0100000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0100000-0000-4000-8000-000000000030",
+      "title": "Implement responder/admin dashboard",
+      "body": "Browser UI for responders and admins: incident list with filters, detail view, assign/unassign, status updates, add comments, audit trail visible. Must work against the live API.",
+      "goal_id": "e0100000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0100000-0000-4000-8000-000000000040",
+      "title": "Implement public status page",
+      "body": "Minimal read-only public page: summary of active/open incidents (title, severity, status, started time). No auth for visitors. Must reflect live API data.",
+      "goal_id": "e0100000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0100000-0000-4000-8000-000000000050",
+      "title": "End-to-end verification",
+      "body": "Run full test suite. Manually verify reporter create, responder acknowledge/assign/resolve, public status view, admin audit. Document in VERIFY.md.",
+      "goal_id": "e0100000-0000-4000-8000-000000000001"
+    }
+  ],
+  "decisions": [],
+  "assumptions": [
+    {
+      "id": "e0100000-0000-4000-8000-0000000000a1",
+      "title": "Stack is agent choice",
+      "body": "No technology stack is prescribed. The agent chooses language, framework, and database."
+    },
+    {
+      "id": "e0100000-0000-4000-8000-0000000000a2",
+      "title": "Public status page is read-only",
+      "body": "The public page displays active incident summary only — no visitor login or write actions."
+    },
+    {
+      "id": "e0100000-0000-4000-8000-0000000000a3",
+      "title": "At least three severity levels required",
+      "body": "Incidents must support at minimum three distinct severity levels (e.g. P1/P2/P3 or critical/high/medium)."
+    }
+  ],
+  "discoveries": [],
+  "plan_changes": [],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {"rel": "goal_has_task", "from": "e0100000-0000-4000-8000-000000000001", "to": "e0100000-0000-4000-8000-000000000010"},
+    {"rel": "goal_has_task", "from": "e0100000-0000-4000-8000-000000000001", "to": "e0100000-0000-4000-8000-000000000020"},
+    {"rel": "goal_has_task", "from": "e0100000-0000-4000-8000-000000000001", "to": "e0100000-0000-4000-8000-000000000030"},
+    {"rel": "goal_has_task", "from": "e0100000-0000-4000-8000-000000000001", "to": "e0100000-0000-4000-8000-000000000040"},
+    {"rel": "goal_has_task", "from": "e0100000-0000-4000-8000-000000000001", "to": "e0100000-0000-4000-8000-000000000050"}
+  ],
+  "transitions": [
+    {
+      "task_id": "e0100000-0000-4000-8000-000000000010",
+      "to": "IN_PROGRESS",
+      "actor": "seed",
+      "reason": "E01-incident-tracker",
+      "allow_done": false
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mrchatam/Trace/evals/honesty/schema-gate-g.json",
+  "title": "Trace Gate G preliminary honesty escape-rate metrics",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "suite",
+    "prelim",
+    "dry_run",
+    "attempts",
+    "escapes",
+    "caught",
+    "escape_rate",
+    "open_residuals_total",
+    "paths_abc_test",
+    "named_test",
+    "s01_hooks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "gate": {
+      "type": "string",
+      "const": "G"
+    },
+    "suite": {
+      "type": "string",
+      "const": "honesty"
+    },
+    "prelim": {
+      "type": "boolean",
+      "const": true
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "escapes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "caught": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "escape_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "open_residuals_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "open_residuals_by_scope": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "paths_abc_test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "named_test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "s01_hooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "trace_version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

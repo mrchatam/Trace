@@ -1,0 +1,11 @@
+13:Single source of truth for **evidence-backed gaps**, **non-gaps**, and **deferrals** from Phase 38 S01–S03 investigations. Cross-matrix columns: **Trace | CG | UA | GF | MP | moat row**.
+38:| **M-001** | moat | Trace strengths peers lack (**non-gap**) |
+53:| **G-010** | H10 | `trace install detect` / AGENTS.md lead with board protocol — task/gate/evidence moat buried | CG README graph-first agent workflow | UA graph-chat orient | Graphify install hook narrative | MP memory-first MCP | **gap** | **medium** | Harness/docs — moat exists (M-001) | Trace: [h10-install-moat.md](../../../../../experiments/runs/2026-08-22-p38-s01-651/evidence/h10-install-moat.md) · Peers: PEER-CG §1, PEER-UA-GF §1/§2 intros |
+65:## §3 Moat row (M-001)
+67:**Verdict:** **non-gap** — Trace strengths peers lack.
+71:| **M-001** | **Ships:** progressive task packet (L0–1), task loop + gate + review, enforcement harness, `trace_why`, plan tree, local-first caps, explicit defer honesty | **Lacks:** task UUID, gates, evidence, backlog, plan tree — read-only graph | **Lacks:** task loop, enforcement, evidence chain | **Lacks:** same; graph-only orient | **Lacks:** task/plan/gate; `wake_up()` is identity not backlog |
+83:**Distinct from G-010:** M-001 confirms moat **exists**; G-010 is moat **under-promotion** in first-run messaging.
+95:| CG / UA / GF / MP: no task loop, gates, evidence, plan tree | Trace moat (M-001) | PEER-CG §5; PEER-UA-GF §5 |
+142:**S04 synthesis files:** `t1-trace-column-seed.md` · `t2-cg-column-seed.md` · `t3-ua-gf-mp-column-seed.md` · `t4-gap-id-registry.md` · `t5-matrix-h1-h4.md` · `t6-matrix-h5-h7.md` · `t7-matrix-h8-h10.md` · `h11-stack-docs.md` · `t9-moat-row-m001.md` · `t10-non-gaps-deferrals.md` · `t11-spawn-triggers.md`
+154:| **Moat (M-001)** | **1** non-gap | high |
+155:| **Peer-weaker non-gaps (§4)** | **5** items | high |

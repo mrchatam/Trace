@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "e0200000-0000-4000-8000-000000000001",
+      "title": "Ship equipment checkout desk",
+      "body": "Build an equipment checkout desk from vague stakeholder requirements. Staff check assets in/out; requesters reserve items; admins manage inventory. Support asset catalog, checkout/return lifecycle, roles (requester, desk staff, admin), REST API, desk admin UI, public availability page, and audit log. Stack is agent choice."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "e0200000-0000-4000-8000-000000000010",
+      "title": "Design architecture and data model",
+      "body": "Choose stack. Design schema: assets, users/roles, checkout records, availability, audit events. Define REST API. Produce SPEC.md and PLANNING-MATRIX.md before implementation.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000020",
+      "title": "Implement REST API and auth",
+      "body": "Backend: login/session, asset CRUD, checkout/return, role-based access. Tests for all routes.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000030",
+      "title": "Implement desk admin UI",
+      "body": "Browser UI for desk staff and admins: asset list, checkout/return flows, filters, audit visible.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000040",
+      "title": "Implement public availability page",
+      "body": "Read-only page showing which assets are available now. No visitor login.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e0200000-0000-4000-8000-000000000050",
+      "title": "End-to-end verification",
+      "body": "Full test suite. Manual verify checkout/return, roles, public page, audit. Document VERIFY.md.",
+      "goal_id": "e0200000-0000-4000-8000-000000000001"
+    }
+  ],
+  "decisions": [],
+  "assumptions": [
+    {
+      "id": "e0200000-0000-4000-8000-0000000000a1",
+      "title": "Stack is agent choice",
+      "body": "No technology stack prescribed."
+    },
+    {
+      "id": "e0200000-0000-4000-8000-0000000000a2",
+      "title": "Public page is read-only",
+      "body": "Visitors see availability only — no writes."
+    }
+  ],
+  "discoveries": [],
+  "plan_changes": [],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {"rel": "goal_has_task", "from": "e0200000-0000-4000-8000-000000000001", "to": "e0200000-0000-4000-8000-000000000010"},
+    {"rel": "goal_has_task", "from": "e0200000-0000-4000-8000-000000000001", "to": "e0200000-0000-4000-8000-000000000020"},
+    {"rel": "goal_has_task", "from": "e0200000-0000-4000-8000-000000000001", "to": "e0200000-0000-4000-8000-000000000030"},
+    {"rel": "goal_has_task", "from": "e0200000-0000-4000-8000-000000000001", "to": "e0200000-0000-4000-8000-000000000040"},
+    {"rel": "goal_has_task", "from": "e0200000-0000-4000-8000-000000000001", "to": "e0200000-0000-4000-8000-000000000050"}
+  ],
+  "transitions": [
+    {
+      "task_id": "e0200000-0000-4000-8000-000000000010",
+      "to": "IN_PROGRESS",
+      "actor": "seed",
+      "reason": "E02-p25-gap-pass",
+      "allow_done": false
+    }
+  ]
+}

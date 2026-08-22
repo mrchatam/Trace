@@ -1,0 +1,10 @@
+15:**Trace moat (M-001) preserved:** Progressive task packet, task loop + gate + review, enforcement harness, causal `trace_why`, plan tree, local-first progressive caps (Laws 6–7), and explicit defer honesty remain **non-negotiable strengths** peers lack. Remediation merges peer read-orient patterns **into** the task moat — never replaces it.
+55:| **Risks** | Over-merge → dump risk (Law 6); query-only drift abandons moat (M-001). |
+66:| **Problem** | 16 MCP tools without ranked “start here”; moat under-promoted vs CG 1-tool + MP 44-tool extremes; Cursor session saw 9/16 tools (harness hygiene). |
+69:| **Phase sketch** | **Phase 39 — Harness orient:** MCP init playbook, install/bootstrap moat-first messaging (`trace_loop`/`trace_review` lead), Cursor 9/16 registration hygiene doc. |
+73:**Evidence:** [h6-mcp-surface.md](../../../../../experiments/runs/2026-08-22-p38-s01-651/evidence/h6-mcp-surface.md) · [h6-single-tool-ux.md](../../../../../experiments/runs/2026-08-22-p38-s02-654/evidence/h6-single-tool-ux.md) · [h10-install-moat.md](../../../../../experiments/runs/2026-08-22-p38-s01-651/evidence/h10-install-moat.md)
+122:| **Compose-first UX** (orient recipe + G1 merge + ranked read tools) | **Primary — Phase 39** | Preserves 16-tool write surface + task moat (M-001); lower effort; addresses G-006 discovery without mega-tool |
+196:- **G3 Harness orient** — MCP playbook, moat-first bootstrap, 9/16 Cursor hygiene
+224:| 4 | **Graph-only product direction** | Abandons task loop, gates, evidence moat (M-001) |
+230:| 10 | **Product default dual-index integration** | H11 investigation — blurs moat; doc-only accepted |
+242:| **M-001** task moat | **non-gap** | §1 executive — preserved, not remediated |

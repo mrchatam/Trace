@@ -1,0 +1,37 @@
+Phase 38 investigation is **saturated** (S05 6/6 PASS, `ready_for_REMEDIATION_PLAN: true`). Eleven evidence-backed gaps (G-001…G-011) consolidate into **nine ranked remediation themes (G1–G9)** for human-promoted **Phase 39+** implementation.
+**Trace moat (M-001) preserved:** Progressive task packet, task loop + gate + review, enforcement harness, causal `trace_why`, plan tree, local-first progressive caps (Laws 6–7), and explicit defer honesty remain **non-negotiable strengths** peers lack. Remediation merges peer read-orient patterns **into** the task moat — never replaces it.
+| 1 | **G1** Query+task orient merge | G-001, G-002 | 5 | 5 | 3 | 8.33 | Phase 39 |
+| 2 | **G3** MCP discovery & harness orient | G-006, G-010 | 5 | 5 | 2 | 12.50 | Phase 39 |
+| 3 | **G4** Dual-stack documentation (H11) | G-011 | 4 | 5 | 1 | 20.00 | Phase 39 docs |
+| 4 | **G5** Graph-first onboarding UX | G-008 | 4 | 4 | 3 | 5.33 | Phase 39–40 |
+| 5 | **G2** Read-surface strategy (H7) | G-007 | 5 | 4 | 4 | 5.00 | Phase 39 compose / 40+ explore |
+| 6 | **G6** Non-semantic concept retrieval | G-004b | 4 | 3 | 4 | 3.00 | Phase 40+ |
+| 7 | **G7** Index freshness & language coverage | G-005 | 3 | 4 | 4 | 3.00 | Phase 40+ |
+| 8 | **G8** Progressive layers L2–L3 | G-003 | 4 | 4 | 4 | 4.00 | Phase 41+ |
+| 9 | **G9** Intent pipeline | G-009 | 3 | 3 | 5 | 1.80 | Phase 41+ or doc-revise |
+**G1/G3 tie-breaker note:** G3 raw score (12.50) exceeds G1 (8.33) on lower effort, but G1 covers more agent-blocking gaps (G-001+G-002 cluster). **G1 ranks first** per planner lock and tie-breaker #1 (gap coverage).
+| **GAP ids** | G-001, G-002 |
+| **Risks** | Over-merge → dump risk (Law 6); query-only drift abandons moat (M-001). |
+**Evidence:** [h1-trace-partial.md](../../../../../experiments/runs/2026-08-22-p38-s01-651/evidence/h1-trace-partial.md) · [h2-compiler-fts.txt](../../../../../experiments/runs/2026-08-22-p38-s01-651/evidence/h2-compiler-fts.txt) · GAP-REGISTRY §2.2 G-001/G-002
+| **GAP ids** | G-006, G-010 (+ harness 9/16 fold) |
+| **GAP ids** | G-011 |
+| **GAP ids** | G-008 |
+| **GAP ids** | G-007 (+ G-006 partial via discovery cost) |
+| **Compose-first UX** (orient recipe + G1 merge + ranked read tools) | **Primary — Phase 39** | Preserves 16-tool write surface + task moat (M-001); lower effort; addresses G-006 discovery without mega-tool |
+| **GAP ids** | G-004b only (**G-004a vector → §4 defer, not theme**) |
+| **Risks** | DR-NOSSEM slip into embeddings (G-004a); semantic creep; packet bloat. |
+| **Not P38** | G-004a vector **reject** — not remediation theme. No retrieval implement in P38. |
+| **GAP ids** | G-005 |
+| **GAP ids** | G-003 |
+| **GAP ids** | G-009 |
+- **G6 Graph-label retrieval** — G-004b non-semantic channel
+| 4 | **Graph-only product direction** | Abandons task loop, gates, evidence moat (M-001) |
+| 5 | **Query-only replaces task packet** | Gap is *merge* query+task, not discard task scope (G-001) |
+| 7 | **Copy MP 44-tool MCP surface** | Opposite UX failure; no orient ranking (G-006) |
+| 8 | **Embedding/vector semantic channel (G-004a)** | DR-NOSSEM — product law defer, not backlog gap |
+| 15 | **Semantic embedding spike** | Law conflict — G-004a explicit defer |
+| **G-004a** vector/embedding | **defer** | Phase 41+ law review only if policy changes |
+| **M-001** task moat | **non-gap** | §1 executive — preserved, not remediated |
+- **Preserve M-001** in Phase 39 charter — all remediation themes merge peer patterns into task moat, never replace it.
+- [x] Every G-001…G-011 in theme or §4
+- [x] M-001 moat in §1 executive

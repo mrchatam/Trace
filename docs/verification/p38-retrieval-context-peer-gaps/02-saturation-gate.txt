@@ -1,0 +1,10 @@
+21:**Checklist score:** 6/6 PASS. Full walk: [t1-saturation-checklist.md](../../../../../experiments/runs/2026-08-22-p38-s05-663/evidence/t1-saturation-checklist.md).
+29:**Rationale:** All H1–H11 hypotheses were investigated through APPROVED S01–S03 scopes, synthesized in APPROVED GAP-REGISTRY (row 661), with dual-side mechanism cites for every gap row. The sole open spawn trigger from GAP-REGISTRY §6 (H7 compose-equivalence) was closed by T4 desk-check documenting **structural non-equivalence** across seven dimensions — no uncovered dimension requiring another S01/S02 row. Residual work (G-007 UX tradeoff ranking, harness 9/16 MCP visibility, optional symbol richness) is remediation/planning scope (S06), not new gap discovery. Another S01–S03 investigate row would re-produce known verdicts (title-only FTS, 16 tools, no `trace_explore`, layers 0–1 only, etc.).
+37:All residual angles triaged in [t5-residual-triage.md](../../../../../experiments/runs/2026-08-22-p38-s05-663/evidence/t5-residual-triage.md); none meet INVESTIGATION-INDEX §5 spawn thresholds post-APPROVE registry.
+60:| Re-audit S01–S03 live CLI wave | **duplicate** — GAP-REGISTRY row 661 APPROVE |
+65:| Full UA/GF/MP peer re-scan | **duplicate** — S03 row 658 APPROVE |
+77:**PROCEED_TO_S06**
+81:**Gate:** S05-02 reviewer must **APPROVE (saturated)** before S06 starts.
+85:## §7 ready_for_REMEDIATION_PLAN
+88:ready_for_REMEDIATION_PLAN: true
+91:**Gate note:** Boolean is `true` contingent on S05-02 APPROVE — S06 blocked until reviewer signs confident exit.

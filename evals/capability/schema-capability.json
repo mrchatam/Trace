@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mrchatam/Trace/evals/capability/schema-capability.json",
+  "title": "Trace capability-selection ablation precision/recall metrics",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "suite",
+    "ablation",
+    "dry_run",
+    "true_positives",
+    "false_positives",
+    "false_negatives",
+    "true_negatives",
+    "precision",
+    "recall",
+    "probes",
+    "named_test",
+    "mig",
+    "s01_hooks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "gate": {
+      "type": "string",
+      "const": "capability-selection"
+    },
+    "suite": {
+      "type": "string",
+      "const": "capability"
+    },
+    "ablation": {
+      "type": "boolean",
+      "const": true
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "true_positives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "false_positives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "false_negatives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "true_negatives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "precision": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "recall": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "probes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "named_test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mig": {
+      "type": "string",
+      "minLength": 1
+    },
+    "s01_hooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "probe_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "trace_version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

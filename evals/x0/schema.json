@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mrchatam/Trace/evals/x0/schema.json",
+  "title": "Trace Experiment X0 metrics",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "experiment",
+    "condition",
+    "fixture",
+    "dry_run",
+    "trace_version",
+    "runs",
+    "tools_used"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "experiment": {
+      "type": "string",
+      "const": "X0"
+    },
+    "condition": {
+      "type": "string",
+      "enum": ["B0", "G1"]
+    },
+    "fixture": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "trace_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["run_id", "task_family", "ok"],
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_family": {
+            "type": "string",
+            "enum": ["understanding", "implementation", "honesty"]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "efficiency": {
+            "type": "object",
+            "properties": {
+              "latency_ms": {
+                "type": "number"
+              },
+              "tokens": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": true
+          },
+          "quality": {
+            "type": ["object", "number", "null"]
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "tools_used": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,1551 @@
+openapi: 3.1.0
+info:
+  title: Trace HTTP API
+  version: 1.0.0
+  summary: Local-first JSON API for Trace (opt-in via `trace serve`)
+  description: |
+    Versioned HTTP/JSON contract for Trace core. Default bind is loopback
+    (`127.0.0.1`). Handlers and the browser GUI are adapters only (Law 19) —
+    they call the canonical Go library / `.trace/` SQLite; they must not fork
+    business logic or create a second source of truth.
+
+    **Non-goals (explicit):**
+    - No `POST /rpc` / MCP tools/call mirror for the browser (MCP stays stdio-local)
+    - No default unbounded / full-graph dump (including seed export body over HTTP)
+    - No multi-tenant hosting, OAuth, or billing routes in this phase
+    - No CORS `Access-Control-Allow-Origin: *` (deny by default; same-origin SPA)
+
+    Wave tags: `x-trace-wave: p0 | p1 | defer`. GUI relevance: `x-trace-gui: true`.
+  contact:
+    name: Trace
+  license:
+    name: See repository LICENSE
+
+servers:
+  - url: http://127.0.0.1:7432
+    description: Local opt-in `trace serve` (placeholder port; CLI may choose another)
+
+tags:
+  - name: health
+    description: Liveness
+  - name: version
+    description: API and binary identity
+  - name: project
+    description: Bound project / store readiness
+  - name: tasks
+    description: Task board list and detail
+  - name: loop
+    description: Loop next / apply / status (CLI/MCP parity)
+  - name: entities
+    description: Semantic entity create/get (`trace add` parity)
+  - name: links
+    description: Relation create (`trace link` parity)
+  - name: transitions
+    description: Work-state transitions (`trace transition` parity)
+  - name: context
+    description: Bounded progressive context packets
+  - name: why
+    description: Bounded causal explanation packets
+  - name: search
+    description: Search entry
+  - name: seed
+    description: Seed export/import status and summaries (not full-graph body)
+  - name: graph
+    description: Budgeted subgraph for GUI
+  - name: reviews
+    description: Review records (P1)
+  - name: plans
+    description: Plan tree (P1)
+  - name: capability
+    description: Capability catalog / decisions (P1)
+  - name: impact
+    description: Impact reports (P1)
+  - name: changes
+    description: Change listing (P1)
+  - name: regressions
+    description: Regression listing (P1)
+  - name: agents
+    description: Agent list / recommend (P1)
+  - name: index
+    description: Index status / reindex (P1 / defer UI)
+  - name: auth
+    description: Local token issue/rotate (P1)
+  - name: deferred
+    description: Explicitly deferred surfaces (backup, install, knowledge, eval, SSE)
+
+security:
+  - {}
+  - bearerAuth: []
+
+paths:
+  /v1/health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness probe
+      x-trace-wave: p0
+      x-trace-gui: true
+      security: []
+      responses:
+        "200":
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/version:
+    get:
+      tags: [version]
+      operationId: getVersion
+      summary: API and Trace binary versions
+      x-trace-wave: p0
+      x-trace-gui: true
+      security: []
+      responses:
+        "200":
+          description: Version identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/project:
+    get:
+      tags: [project]
+      operationId: getProject
+      summary: Bound project root, store readiness, safe UI flags
+      x-trace-wave: p0
+      x-trace-gui: true
+      responses:
+        "200":
+          description: Project meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/tasks:
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      summary: List tasks (mirrors `trace tasks` / `trace_tasks`)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: goal_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional goal UUID filter
+        - name: work_state
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional work_state filter
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor (optional; S03 may start unpaginated)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskListResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/tasks/{task_id}:
+    get:
+      tags: [tasks]
+      operationId: getTask
+      summary: Get one task by id
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPath"
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskRow"
+        "404":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/loop/status:
+    get:
+      tags: [loop]
+      operationId: getLoopStatus
+      summary: Loop status for a seed task (mirrors `trace_loop` action=status)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: goal_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional; derived from task when omitted
+      responses:
+        "200":
+          description: Loop status payload (library-shaped; schema TODO align S03)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatusResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/loop/next:
+    get:
+      tags: [loop]
+      operationId: getLoopNext
+      summary: Build next-work packet (mirrors `trace_loop` action=next)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Next packet (bounded; library-shaped)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopNextResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/loop/apply:
+    post:
+      tags: [loop]
+      operationId: postLoopApply
+      summary: Apply loop envelope `trace.loop.apply.v1` (mirrors `trace_loop` action=apply)
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoopApplyEnvelope"
+      responses:
+        "200":
+          description: Apply result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopApplyResult"
+        "409":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/loop/gate:
+    get:
+      tags: [loop]
+      operationId: getLoopGate
+      summary: Deliberation gate check (mirrors `trace loop gate`)
+      description: |
+        CLI-parity gate (`trace.loop.gate.v1`). MCP `trace_loop` does not expose gate;
+        HTTP includes it because the library/CLI surface exists and the GUI loop console needs it.
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: for
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [orient, edit, execute, done, export]
+            default: edit
+          description: Gate context (CLI `--for`)
+      responses:
+        "200":
+          description: Gate envelope (allowed + violations; schema TODO align S03)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopGateResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/loop/reset:
+    post:
+      tags: [loop]
+      operationId: postLoopReset
+      summary: Reset deliberation / saturation state (mirrors `trace loop reset`)
+      description: |
+        CLI-parity reset. MCP does not expose reset; HTTP includes it for GUI loop console.
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id]
+              properties:
+                task_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Post-reset deliberation state (schema TODO align S03)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopResetResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/entities:
+    post:
+      tags: [entities]
+      operationId: createEntity
+      summary: Create entity (`trace add` / `trace_add` parity)
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEntityRequest"
+      responses:
+        "201":
+          description: Created entity summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntitySummary"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/entities/{entity_id}:
+    get:
+      tags: [entities]
+      operationId: getEntity
+      summary: Get entity by id
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Entity summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntitySummary"
+        "404":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/links:
+    post:
+      tags: [links]
+      operationId: createLink
+      summary: Create relation (`trace link` / `trace_link` parity)
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+      responses:
+        "201":
+          description: Created link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkSummary"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/transitions:
+    post:
+      tags: [transitions]
+      operationId: createTransition
+      summary: Apply work_state transition (`trace transition` / `trace_transition` parity)
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransitionRequest"
+      responses:
+        "200":
+          description: Transition applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransitionResult"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/context:
+    get:
+      tags: [context]
+      operationId: getContext
+      summary: Bounded context packet (mirrors `trace context` / `trace_context`)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+            default: 1
+          description: 1=TaskContext 2=ExpandContext; max 2
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, markdown, both]
+            default: json
+        - name: include_why
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Bounded context packet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextPacket"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/why:
+    get:
+      tags: [why]
+      operationId: getWhy
+      summary: Bounded why packet (mirrors `trace why` / `trace_why`)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: entity_type
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Bounded causal neighborhood
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhyPacket"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/search:
+    get:
+      tags: [search]
+      operationId: search
+      summary: Search query (mirrors `trace search` / `trace_search`)
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Search hits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/seed/status:
+    get:
+      tags: [seed]
+      operationId: getSeedStatus
+      summary: Seed export/import readiness summary (not a full graph body)
+      x-trace-wave: p0
+      x-trace-gui: true
+      responses:
+        "200":
+          description: Seed status / summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedStatus"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/seed/export:
+    post:
+      tags: [seed]
+      operationId: postSeedExport
+      summary: Start or request seed export job; returns status/summary — not default full-graph body
+      description: |
+        HTTP must not return an unbounded full-graph document as the default success body.
+        Prefer job status + path/size/summary fields; file write remains a local/CLI concern unless
+        a future bounded artifact download is explicitly designed.
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeedExportRequest"
+      responses:
+        "200":
+          description: Export status / summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedJobStatus"
+        "202":
+          description: Export accepted (async)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedJobStatus"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/seed/import:
+    post:
+      tags: [seed]
+      operationId: postSeedImport
+      summary: Start or request seed import; returns status/summary
+      x-trace-wave: p0
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeedImportRequest"
+      responses:
+        "200":
+          description: Import status / summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedJobStatus"
+        "202":
+          description: Import accepted (async)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedJobStatus"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/graph:
+    get:
+      tags: [graph]
+      operationId: getGraph
+      summary: Budgeted subgraph / neighborhood (never full dump)
+      description: |
+        Requires explicit `max_nodes` and a center entity id. Servers MUST reject
+        unbounded requests. Default full-graph export is forbidden.
+      x-trace-wave: p0
+      x-trace-gui: true
+      parameters:
+        - name: center
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Center entity id
+        - name: max_nodes
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+          description: Hard node budget (required; no implicit unlimited)
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 8
+            default: 2
+      responses:
+        "200":
+          description: Budgeted nodes and edges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoundedGraph"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  # --- P1 ---
+  /v1/reviews:
+    get:
+      tags: [reviews]
+      operationId: listReviews
+      summary: List reviews
+      x-trace-wave: p1
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Review list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReviewSummary"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [reviews]
+      operationId: createReview
+      summary: Create review (`trace review` create)
+      x-trace-wave: p1
+      x-trace-gui: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                task_id:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: Created review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewSummary"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/reviews/{review_id}:
+    get:
+      tags: [reviews]
+      operationId: getReview
+      summary: Get review
+      x-trace-wave: p1
+      x-trace-gui: true
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewSummary"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/plans:
+    get:
+      tags: [plans]
+      operationId: listPlans
+      summary: Plan tree / plan listing (separate from budgeted graph)
+      x-trace-wave: p1
+      x-trace-gui: true
+      responses:
+        "200":
+          description: Plan tree summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Schema TODO — align to library plan tree in S03/S05
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/plans/bootstrap:
+    post:
+      tags: [plans]
+      operationId: bootstrapPlan
+      summary: Bootstrap progressive plan from goal-linked plan_changes
+      x-trace-wave: p1
+      x-trace-gui: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanBootstrapRequest"
+      responses:
+        "200":
+          description: Bootstrap result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanBootstrapResult"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/capability:
+    get:
+      tags: [capability]
+      operationId: listCapability
+      summary: Capability list / decisions
+      x-trace-wave: p1
+      x-trace-gui: true
+      parameters:
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [list, missing]
+        - name: task_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Capability payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/impact:
+    get:
+      tags: [impact]
+      operationId: getImpact
+      summary: Impact report
+      x-trace-wave: p1
+      x-trace-gui: true
+      parameters:
+        - name: task_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Impact report
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/changes:
+    get:
+      tags: [changes]
+      operationId: listChanges
+      summary: Change listing
+      x-trace-wave: p1
+      x-trace-gui: true
+      responses:
+        "200":
+          description: Changes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/regressions:
+    get:
+      tags: [regressions]
+      operationId: listRegressions
+      summary: Regression listing
+      x-trace-wave: p1
+      x-trace-gui: true
+      responses:
+        "200":
+          description: Regressions
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      summary: List / recommend agents
+      x-trace-wave: p1
+      x-trace-gui: true
+      parameters:
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [list, recommend]
+            default: list
+        - name: task_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agents payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/index:
+    get:
+      tags: [index]
+      operationId: getIndexStatus
+      summary: Index status
+      x-trace-wave: p1
+      x-trace-gui: false
+      responses:
+        "200":
+          description: Index status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [index]
+      operationId: postIndexReindex
+      summary: Trigger reindex (ops)
+      x-trace-wave: defer
+      x-trace-gui: false
+      responses:
+        "202":
+          description: Reindex accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/auth/token:
+    post:
+      tags: [auth]
+      operationId: postAuthToken
+      summary: Issue or rotate local serve bearer token (non-loopback / optional)
+      x-trace-wave: p1
+      x-trace-gui: false
+      responses:
+        "200":
+          description: Token issued (printed once; treat as secret)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        default:
+          $ref: "#/components/responses/Error"
+
+  # --- Deferred (explicit stubs) ---
+  /v1/backup:
+    post:
+      tags: [deferred]
+      operationId: postBackup
+      summary: Backup (deferred — CLI-first)
+      x-trace-wave: defer
+      x-trace-cloud: true
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/restore:
+    post:
+      tags: [deferred]
+      operationId: postRestore
+      summary: Restore (deferred — CLI-first)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/migrate:
+    post:
+      tags: [deferred]
+      operationId: postMigrate
+      summary: Migrate (deferred — CLI-first)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/install:
+    post:
+      tags: [deferred]
+      operationId: postInstall
+      summary: Install harness hooks (deferred — CLI-first)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/patterns:
+    get:
+      tags: [deferred]
+      operationId: listPatterns
+      summary: Patterns browse (deferred)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/knowledge:
+    get:
+      tags: [deferred]
+      operationId: listKnowledge
+      summary: Knowledge deep browse (deferred)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/eval:
+    get:
+      tags: [deferred]
+      operationId: getEval
+      summary: Eval / outcomes (deferred)
+      x-trace-wave: defer
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /v1/events:
+    get:
+      tags: [deferred]
+      operationId: getEventsSSE
+      summary: SSE / push event stream (deferred product feature)
+      description: Not in Phase 29 MVP. Reserved path only.
+      x-trace-wave: defer
+      x-trace-cloud: true
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: |
+        Required when `trace serve` binds non-loopback (`--allow-remote`).
+        On loopback, authentication may be omitted (loopback-trust). Optional
+        loopback token is not required for MVP.
+
+  parameters:
+    TaskIdPath:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable code (e.g. VALIDATION_ERROR)
+            message:
+              type: string
+            details:
+              description: Optional structured context
+              nullable: true
+
+    HealthResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          const: true
+
+    VersionResponse:
+      type: object
+      required: [ok, name, api_version, trace_version]
+      properties:
+        ok:
+          type: boolean
+        name:
+          type: string
+          example: trace
+        api_version:
+          type: string
+          description: HTTP contract version
+          example: "1.0.0"
+        trace_version:
+          type: string
+          description: Trace binary / build version
+
+    ProjectResponse:
+      type: object
+      required: [root, store_ready]
+      properties:
+        root:
+          type: string
+          description: Absolute project root
+        store_path:
+          type: string
+          description: Path to `.trace/` (may be omitted if sensitive in remote mode)
+        store_ready:
+          type: boolean
+        flags:
+          type: object
+          additionalProperties: true
+          description: Safe UI feature flags only
+
+    TaskRow:
+      type: object
+      required: [id, title, work_state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        work_state:
+          type: string
+        goal_id:
+          type: string
+          format: uuid
+          nullable: true
+        body:
+          type: string
+          nullable: true
+
+    TaskListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskRow"
+        next_cursor:
+          type: string
+          nullable: true
+
+    EntitySummary:
+      type: object
+      required: [id, kind, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: goal|task|decision|assumption|discovery|plan-change|claim|evidence|…
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        work_state:
+          type: string
+          nullable: true
+
+    CreateEntityRequest:
+      type: object
+      required: [kind, title]
+      properties:
+        kind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        confidence:
+          type: number
+        status:
+          type: string
+
+    CreateLinkRequest:
+      type: object
+      required: [rel, from, to]
+      properties:
+        rel:
+          type: string
+        from:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+
+    LinkSummary:
+      type: object
+      required: [rel, from, to]
+      properties:
+        rel:
+          type: string
+        from:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: uuid
+
+    CreateTransitionRequest:
+      type: object
+      required: [task_id, to_state, reason]
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        to_state:
+          type: string
+        reason:
+          type: string
+        actor:
+          type: string
+          description: Provenance label only — not authorization
+        allow_done:
+          type: boolean
+        as_operator:
+          type: boolean
+        allow_missing_caps:
+          type: boolean
+        evidence_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    TransitionResult:
+      type: object
+      required: [task_id, work_state]
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        work_state:
+          type: string
+        warning:
+          type: string
+          nullable: true
+
+    LoopStatusResponse:
+      type: object
+      additionalProperties: true
+      description: Maps from loop.Status library JSON (trace.loop.status.v1)
+      properties:
+        advisories:
+          type: array
+          items:
+            $ref: "#/components/schemas/LoopStatusAdvisory"
+
+    LoopStatusAdvisory:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Advisory code (e.g. goal_structure_warning, bootstrap_recommended)
+        message:
+          type: string
+
+    PlanBootstrapRequest:
+      type: object
+      required: [goal_id]
+      properties:
+        goal_id:
+          type: string
+          format: uuid
+
+    PlanBootstrapResult:
+      type: object
+      required: [goal_id, already_exists]
+      properties:
+        goal_id:
+          type: string
+          format: uuid
+        scope_id:
+          type: string
+          format: uuid
+        already_exists:
+          type: boolean
+        note:
+          type: string
+
+    LoopNextResponse:
+      type: object
+      additionalProperties: true
+      description: Schema TODO — map 1:1 from loop.BuildNextPacket JSON in S03
+
+    LoopApplyEnvelope:
+      type: object
+      required: [schema_version, apply_id, seed]
+      properties:
+        schema_version:
+          type: string
+          description: Expected trace.loop.apply.v1
+        apply_id:
+          type: string
+          format: uuid
+        seed:
+          type: object
+          required: [task_id]
+          properties:
+            task_id:
+              type: string
+              format: uuid
+            goal_id:
+              type: string
+              format: uuid
+        writes:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+      description: Align field names to loop.ApplyEnvelope in S03; do not invent silent forks
+
+    LoopApplyResult:
+      type: object
+      additionalProperties: true
+      description: Schema TODO — map from loop.Apply result in S03
+
+    LoopGateResponse:
+      type: object
+      additionalProperties: true
+      description: Schema TODO — map 1:1 from trace.loop.gate.v1 / loop.EvaluateGate in S03
+
+    LoopResetResponse:
+      type: object
+      additionalProperties: true
+      description: Schema TODO — map from deliberation reset result in S03
+
+    ContextPacket:
+      type: object
+      additionalProperties: true
+      description: Bounded packet; depth/format params constrain size (Law 7)
+
+    WhyPacket:
+      type: object
+      additionalProperties: true
+      description: Bounded causal neighborhood (Law 6–7)
+
+    SearchResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, kind, title]
+            properties:
+              id:
+                type: string
+                format: uuid
+              kind:
+                type: string
+              title:
+                type: string
+              snippet:
+                type: string
+                nullable: true
+
+    SeedStatus:
+      type: object
+      required: [ready]
+      properties:
+        ready:
+          type: boolean
+        last_export_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_import_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      description: Summary only — not a graph dump
+
+    SeedExportRequest:
+      type: object
+      properties:
+        output_path:
+          type: string
+          description: |
+            Optional local path hint for CLI-parity export. Must resolve under the
+            bound project root (or an explicit allowlisted export dir). Absolute
+            paths outside the project MUST be rejected — especially under `--allow-remote`.
+        strict:
+          type: boolean
+        task_id:
+          type: string
+          format: uuid
+
+    SeedImportRequest:
+      type: object
+      required: [input_path]
+      properties:
+        input_path:
+          type: string
+          description: |
+            Local path to seed JSON (server-local filesystem). Must resolve under
+            the bound project root; path traversal / escape MUST be rejected.
+            Prefer project-relative paths in clients.
+
+    SeedJobStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, pending, failed]
+        summary:
+          type: string
+          nullable: true
+        path:
+          type: string
+          nullable: true
+        entity_count:
+          type: integer
+          nullable: true
+        link_count:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      description: Status/summary — must not embed full seed document by default
+
+    GraphNode:
+      type: object
+      required: [id, kind, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        title:
+          type: string
+
+    GraphEdge:
+      type: object
+      required: [rel, from, to]
+      properties:
+        rel:
+          type: string
+        from:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: uuid
+
+    BoundedGraph:
+      type: object
+      required: [center, max_nodes, nodes, edges, truncated]
+      properties:
+        center:
+          type: string
+          format: uuid
+        max_nodes:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        truncated:
+          type: boolean
+          description: True if neighborhood exceeded budget
+
+    ReviewSummary:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        result:
+          type: string
+          enum: [PASS, FAIL, UNCERTAIN]
+          nullable: true
+        task_id:
+          type: string
+          format: uuid
+          nullable: true

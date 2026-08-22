@@ -1,0 +1,21 @@
+=== E02 score: arm G1 ===
+workspace: /home/ali/Desktop/Trace/experiments/ab-p25-gap-pass-validation/runs/G1
+p25 arm: directed
+
+PASS  G1 .trace/ present
+PASS  G2 graph export
+PASS  G2 graph honesty --strict --enforce
+PASS  FM-07 git-sparsity — export SHA matches HEAD
+PASS  G3 graph has goal + tasks (goals=1 tasks=5)
+      graph counts: decisions=1 discoveries=1
+PASS  E1 cursor rules
+PASS  E2 cursor-hook
+PASS  E3 config enforce strict
+PASS  P25-1 GapPassPrompt in installed rules
+PASS  P25-2 Parent orchestrator rule in installed rules
+PASS  P25-3b graph richness (discoveries=1 decisions=1)
+SKIP  P25-4 operator attestation — record in RESULTS.md (arm=directed)
+?   	github.com/example/checkoutdesk/cmd/checkoutd	[no test files]
+PASS  G-opt go test ./...
+
+VERDICT: PASS

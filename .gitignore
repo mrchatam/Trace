@@ -1,0 +1,34 @@
+# Trace local store (never commit)
+.trace/
+/trace.db
+
+# Build artifacts
+bin/
+.tools/
+*.exe
+trace-bin
+
+# Frontend
+web/node_modules/
+web/dist/
+web/test-results/
+
+# Local peer clones for investigation (see docs/phases/phase-38 PEER-FIXTURES.md)
+similar projects/
+
+# Verify / agent scratch (keep evals + fixtures)
+experiments/runs/
+experiments/**/runs/
+.agent-state/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Env / secrets
+.env
+.env.*
+*.pem

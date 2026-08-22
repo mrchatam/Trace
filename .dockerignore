@@ -1,0 +1,20 @@
+.git
+.github
+.trace
+bin
+trace-bin
+web/node_modules
+web/dist
+similar projects
+experiments/runs
+.agent-state
+**/*~
+**/*.swp
+.DS_Store
+.idea
+.vscode
+docs/TODO
+docs/phases
+evals
+fixtures
+experiments

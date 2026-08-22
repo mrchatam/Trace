@@ -1,0 +1,5 @@
+verify_id=P38-S07-01
+date=2026-08-22
+git_sha=unknown
+precondition=P38-S06-02 APPROVE high confidence
+phase=P38 investigation-only

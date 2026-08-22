@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mrchatam/Trace/evals/compat/schema-compat.json",
+  "title": "Trace Phase 08 compatibility + security checklist metrics",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "suite",
+    "dry_run",
+    "named_test",
+    "language_adapter_api_version",
+    "language_adapter_api_version_ok",
+    "path_local_bind_ok",
+    "trace_lock_ok",
+    "migrate_status_ok",
+    "backup_restore_ok",
+    "no_blob_columns_ok",
+    "local_auth_fail_closed_ok",
+    "g19_ok",
+    "no_daemon_http_primary_ok",
+    "no_011_mig_ok",
+    "s01_hooks",
+    "s02_hooks",
+    "s03_hooks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "gate": {
+      "type": "string",
+      "const": "compat-security"
+    },
+    "suite": {
+      "type": "string",
+      "const": "compat"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "named_test": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language_adapter_api_version": {
+      "type": "integer"
+    },
+    "language_adapter_api_version_ok": {
+      "type": "boolean"
+    },
+    "path_local_bind_ok": {
+      "type": "boolean"
+    },
+    "trace_lock_ok": {
+      "type": "boolean"
+    },
+    "migrate_status_ok": {
+      "type": "boolean"
+    },
+    "backup_restore_ok": {
+      "type": "boolean"
+    },
+    "no_blob_columns_ok": {
+      "type": "boolean"
+    },
+    "local_auth_fail_closed_ok": {
+      "type": "boolean"
+    },
+    "g19_ok": {
+      "type": "boolean"
+    },
+    "no_daemon_http_primary_ok": {
+      "type": "boolean"
+    },
+    "no_011_mig_ok": {
+      "type": "boolean"
+    },
+    "s01_hooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "s02_hooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "s03_hooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "trace_version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "eaa53c51-5bda-4eb1-8d7f-65c7fe848134",
+      "title": "Dogfood Trace",
+      "body": ""
+    },
+    {
+      "id": "rl010000-0000-4000-8000-000000000001",
+      "title": "Relay project: v2 baseline + tags + search with overlap",
+      "body": "Three-agent relay with overlapping ownership on handlers/store/contracts."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "rl010000-0000-4000-8000-000000000010",
+      "title": "A1: v2 baseline (cursor + Bearer)",
+      "body": "Implement cursor pagination on GET /notes and Bearer auth on POST /notes.",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "rl010000-0000-4000-8000-000000000020",
+      "title": "A2: tags endpoints with overlap",
+      "body": "Add POST/GET tags endpoints without regressing A1 contract.",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "rl010000-0000-4000-8000-000000000030",
+      "title": "A3: search + tag filter with overlap",
+      "body": "Add GET /notes/search?q=\u0026tag= and preserve pagination/auth/tag semantics.",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "6eb156e9-a3ca-4975-b6da-f2742b68812b",
+      "title": "e2e-promoted-1787306814320",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "cdd8acbf-6144-4789-b0b1-abd6a24dadb5",
+      "title": "e2e-promoted-1787306860669",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "ff9862bc-2f0c-4eef-b7ce-3138e61dd466",
+      "title": "ui-disc-1787306861013-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "224d5bc9-bf0c-4dda-ae26-0eb0a6ee3d24",
+      "title": "ui-disc-1787306958380-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "33dc89f3-e0bd-45c4-b640-e7f7efbbe85f",
+      "title": "e2e-promoted-1787306958036",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e146553e-4a38-4e3e-97c1-28a8b2aa3e99",
+      "title": "e2e-promoted-1787307653728",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "bb3ecf1d-1ccf-49a3-ac7f-7a59d8efd23a",
+      "title": "ui-disc-1787307654106-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "5edbd66d-3288-4152-a3a3-efca8c05d76a",
+      "title": "e2e-promoted-1787308189518",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "4d48bbce-e04a-4efd-a283-7c90189c1eaa",
+      "title": "ui-disc-1787318058703-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "baea6103-8118-41a0-80a8-60fbf680a927",
+      "title": "e2e-promoted-1787318058082",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "5153660e-af81-4c74-8f18-408983daecb8",
+      "title": "e2e-promoted-1787318157239",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "9f45097a-6d1e-44d4-8694-ef3cff242e64",
+      "title": "ui-disc-1787318157567-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "1e6f0fda-21fb-4718-b815-19164e7af4bd",
+      "title": "ui-disc-1787318179329-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "9341b9c0-4db6-459b-8d8d-4c45e0eb201c",
+      "title": "e2e-promoted-1787318179006",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "a17e8ef7-5995-47ae-a5d8-ecb5743e275e",
+      "title": "e2e-promoted-1787318299901",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "58a3319e-fa8b-4b35-b922-e36234a0eed2",
+      "title": "ui-disc-1787318300244-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "b62b3975-654c-469d-bc26-eea225ebd292",
+      "title": "e2e-promoted-1787318730130",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "db09081f-e9ea-410c-bf65-a1bd633099de",
+      "title": "ui-disc-1787318730501-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "55156fd7-f337-4980-9b1e-1ca7032155b0",
+      "title": "e2e-promoted-1787318816959",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "7970dac6-e709-4a3d-bf71-5d27f3b6803a",
+      "title": "ui-disc-1787318817469-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "4512966e-0ef9-4de8-86a8-96c3102014fa",
+      "title": "e2e-promoted-1787319535227",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "04966adf-e337-4382-bac9-ad76e0753335",
+      "title": "e2e-promoted-1787319619036",
+      "body": "from discovery",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "6c29119d-3049-4a17-8021-aeb1c060dbe7",
+      "title": "ui-disc-1787319619405-task",
+      "body": "ui promote smoke",
+      "goal_id": "rl010000-0000-4000-8000-000000000001"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "rl010000-0000-4000-8000-0000000000a1",
+      "title": "Shared list envelope contract",
+      "body": "Endpoints returning note collections use items + next_cursor."
+    },
+    {
+      "id": "rl010000-0000-4000-8000-0000000000a2",
+      "title": "Cursor over offset",
+      "body": "Offset/page params are rejected to avoid drift regressions."
+    },
+    {
+      "id": "rl010000-0000-4000-8000-0000000000a3",
+      "title": "Bearer on mutating routes",
+      "body": "Mutations require Authorization: Bearer NOTES_API_KEY; query api_key is rejected."
+    },
+    {
+      "id": "cbcd38c6-461c-419a-80df-24a367f816c1",
+      "title": "P32-S03-02 depth review PASS",
+      "body": "Independent review APPROVE high. Graph-home hybrid C, inspector depth map, select≠expand, budgets, getImpact only, no /v1/path verified. Build + e2e 6 passed. No spawns. Next P32-S04-00."
+    }
+  ],
+  "assumptions": [],
+  "discoveries": [
+    {
+      "id": "58879e17-6906-4827-abf3-7351d86cac98",
+      "title": "#6228 fix gap review",
+      "body": "Primary client_traffics expiry/enable merge addresses #6228 without breaking #4917 same-expiry latch. Remaining gaps: (1) !dirty still adopts snapIb.Settings wholesale so stale enable=false/old expiry can overwrite master post-extend; (2) SyncInbound path keeps settings-derived clients.enable=false when nodeDisableIsStale (only skips cs.Enable latch); (3) intentional shorten vs longer stale node still loses (pre-existing monotonic adoption); (4) clearing expiry to 0 still loses to positive node expiry."
+    },
+    {
+      "id": "5ac9bd0d-a42e-430a-9add-6feb0204783e",
+      "title": "e2e-disc-1787306814208",
+      "body": "playwright promote"
+    },
+    {
+      "id": "f75f82f1-4514-4a61-926e-51eb9acb28b0",
+      "title": "ui-disc-1787306815248",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "d262e6bf-eaa0-4b28-ac96-b10a2a8de7af",
+      "title": "e2e-disc-1787306860619",
+      "body": "playwright promote"
+    },
+    {
+      "id": "7394a265-f107-4eff-8789-27803b3fbaf8",
+      "title": "ui-disc-1787306861013",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "06c001f7-a48b-448f-87a3-ab4253f01a1d",
+      "title": "e2e-disc-1787306957976",
+      "body": "playwright promote"
+    },
+    {
+      "id": "91945f23-ba61-482d-b28f-b73b54305aaf",
+      "title": "ui-disc-1787306958380",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "b19f74cb-81ab-476f-aa4b-f9295102edb4",
+      "title": "e2e-disc-1787307653677",
+      "body": "playwright promote"
+    },
+    {
+      "id": "0e7e71f6-fbf6-4398-ad29-9696d677cb59",
+      "title": "ui-disc-1787307654106",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "dab8911f-8a23-4cf9-b619-cc4044c8d10f",
+      "title": "e2e-disc-1787308189472",
+      "body": "playwright promote"
+    },
+    {
+      "id": "01b3de00-e667-4ab2-be15-b0ecc2dc93d4",
+      "title": "ui-disc-1787318058703",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "09851263-e855-4e5f-8929-05f7c8140d9a",
+      "title": "e2e-disc-1787318058026",
+      "body": "playwright promote"
+    },
+    {
+      "id": "0a7ecd89-9766-4376-af16-ef4f365455a8",
+      "title": "e2e-disc-1787318157193",
+      "body": "playwright promote"
+    },
+    {
+      "id": "71aa8f99-2d5d-4171-9d38-045242c98cf9",
+      "title": "ui-disc-1787318157567",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "a2d2159e-41e6-4d2f-a114-0613fda9c990",
+      "title": "e2e-disc-1787318178964",
+      "body": "playwright promote"
+    },
+    {
+      "id": "079e5425-a0a8-4b69-bbbc-51d41d2f7d02",
+      "title": "ui-disc-1787318179329",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "9547151b-8815-4390-b1c4-84ded90cfe11",
+      "title": "e2e-disc-1787318299851",
+      "body": "playwright promote"
+    },
+    {
+      "id": "10fd636b-b1e7-4a20-b8bb-e46a07658a45",
+      "title": "ui-disc-1787318300244",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "e6115f22-733a-4f53-93b3-1f6267d3f82d",
+      "title": "ui-disc-1787318730501",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "f02720fa-35a6-4854-bfc1-07b36e04dd25",
+      "title": "e2e-disc-1787318730084",
+      "body": "playwright promote"
+    },
+    {
+      "id": "8b27fa6c-bef1-43fe-acaa-19e256b5418e",
+      "title": "e2e-disc-1787318816886",
+      "body": "playwright promote"
+    },
+    {
+      "id": "7764bf17-0365-4967-abff-3d71f5f377b4",
+      "title": "ui-disc-1787318817469",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "31e3ed98-8527-479a-853f-2b60a07f62bd",
+      "title": "e2e-disc-1787319535172",
+      "body": "playwright promote"
+    },
+    {
+      "id": "91ae692f-01fa-4f46-b0ad-3bd8082aef75",
+      "title": "ui-disc-1787319619405",
+      "body": "ui promote smoke"
+    },
+    {
+      "id": "f3df08b1-f04c-4071-a9a1-385a9326b28b",
+      "title": "e2e-disc-1787319618989",
+      "body": "playwright promote"
+    },
+    {
+      "id": "0afba57c-a018-4dfa-9d43-ca36e141a998",
+      "title": "P35-00 phase plan: active-task default is tasks[0] when all DONE",
+      "body": "Phase planner P35-00: feet-seller has 123 DONE tasks; Overview pickActiveTask and Loop items[0] bind Step 1. HTTP handleListTasks currently ignores client limit:100. Scopes S00–S03 thickened; no product code."
+    }
+  ],
+  "plan_changes": [],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "rl010000-0000-4000-8000-000000000010"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "rl010000-0000-4000-8000-000000000020"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "rl010000-0000-4000-8000-000000000030"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "6eb156e9-a3ca-4975-b6da-f2742b68812b"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "cdd8acbf-6144-4789-b0b1-abd6a24dadb5"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "ff9862bc-2f0c-4eef-b7ce-3138e61dd466"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "224d5bc9-bf0c-4dda-ae26-0eb0a6ee3d24"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "33dc89f3-e0bd-45c4-b640-e7f7efbbe85f"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "e146553e-4a38-4e3e-97c1-28a8b2aa3e99"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "bb3ecf1d-1ccf-49a3-ac7f-7a59d8efd23a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "5edbd66d-3288-4152-a3a3-efca8c05d76a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "4d48bbce-e04a-4efd-a283-7c90189c1eaa"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "baea6103-8118-41a0-80a8-60fbf680a927"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "5153660e-af81-4c74-8f18-408983daecb8"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "9f45097a-6d1e-44d4-8694-ef3cff242e64"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "1e6f0fda-21fb-4718-b815-19164e7af4bd"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "9341b9c0-4db6-459b-8d8d-4c45e0eb201c"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "a17e8ef7-5995-47ae-a5d8-ecb5743e275e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "58a3319e-fa8b-4b35-b922-e36234a0eed2"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "b62b3975-654c-469d-bc26-eea225ebd292"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "db09081f-e9ea-410c-bf65-a1bd633099de"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "55156fd7-f337-4980-9b1e-1ca7032155b0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "7970dac6-e709-4a3d-bf71-5d27f3b6803a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "4512966e-0ef9-4de8-86a8-96c3102014fa"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "04966adf-e337-4382-bac9-ad76e0753335"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "rl010000-0000-4000-8000-000000000001",
+      "to": "6c29119d-3049-4a17-8021-aeb1c060dbe7"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a3",
+      "to": "rl010000-0000-4000-8000-000000000010"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a1",
+      "to": "rl010000-0000-4000-8000-000000000020"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a2",
+      "to": "rl010000-0000-4000-8000-000000000010"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a1",
+      "to": "rl010000-0000-4000-8000-000000000010"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a1",
+      "to": "rl010000-0000-4000-8000-000000000030"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a2",
+      "to": "rl010000-0000-4000-8000-000000000030"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a3",
+      "to": "rl010000-0000-4000-8000-000000000030"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a3",
+      "to": "rl010000-0000-4000-8000-000000000020"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "rl010000-0000-4000-8000-0000000000a2",
+      "to": "rl010000-0000-4000-8000-000000000020"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "5ac9bd0d-a42e-430a-9add-6feb0204783e",
+      "to": "6eb156e9-a3ca-4975-b6da-f2742b68812b"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "d262e6bf-eaa0-4b28-ac96-b10a2a8de7af",
+      "to": "cdd8acbf-6144-4789-b0b1-abd6a24dadb5"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "7394a265-f107-4eff-8789-27803b3fbaf8",
+      "to": "ff9862bc-2f0c-4eef-b7ce-3138e61dd466"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "06c001f7-a48b-448f-87a3-ab4253f01a1d",
+      "to": "33dc89f3-e0bd-45c4-b640-e7f7efbbe85f"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "91945f23-ba61-482d-b28f-b73b54305aaf",
+      "to": "224d5bc9-bf0c-4dda-ae26-0eb0a6ee3d24"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "b19f74cb-81ab-476f-aa4b-f9295102edb4",
+      "to": "e146553e-4a38-4e3e-97c1-28a8b2aa3e99"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "0e7e71f6-fbf6-4398-ad29-9696d677cb59",
+      "to": "bb3ecf1d-1ccf-49a3-ac7f-7a59d8efd23a"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "dab8911f-8a23-4cf9-b619-cc4044c8d10f",
+      "to": "5edbd66d-3288-4152-a3a3-efca8c05d76a"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "09851263-e855-4e5f-8929-05f7c8140d9a",
+      "to": "baea6103-8118-41a0-80a8-60fbf680a927"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "01b3de00-e667-4ab2-be15-b0ecc2dc93d4",
+      "to": "4d48bbce-e04a-4efd-a283-7c90189c1eaa"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "0a7ecd89-9766-4376-af16-ef4f365455a8",
+      "to": "5153660e-af81-4c74-8f18-408983daecb8"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "71aa8f99-2d5d-4171-9d38-045242c98cf9",
+      "to": "9f45097a-6d1e-44d4-8694-ef3cff242e64"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "079e5425-a0a8-4b69-bbbc-51d41d2f7d02",
+      "to": "1e6f0fda-21fb-4718-b815-19164e7af4bd"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "a2d2159e-41e6-4d2f-a114-0613fda9c990",
+      "to": "9341b9c0-4db6-459b-8d8d-4c45e0eb201c"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "9547151b-8815-4390-b1c4-84ded90cfe11",
+      "to": "a17e8ef7-5995-47ae-a5d8-ecb5743e275e"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "10fd636b-b1e7-4a20-b8bb-e46a07658a45",
+      "to": "58a3319e-fa8b-4b35-b922-e36234a0eed2"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "f02720fa-35a6-4854-bfc1-07b36e04dd25",
+      "to": "b62b3975-654c-469d-bc26-eea225ebd292"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "e6115f22-733a-4f53-93b3-1f6267d3f82d",
+      "to": "db09081f-e9ea-410c-bf65-a1bd633099de"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "8b27fa6c-bef1-43fe-acaa-19e256b5418e",
+      "to": "55156fd7-f337-4980-9b1e-1ca7032155b0"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "7764bf17-0365-4967-abff-3d71f5f377b4",
+      "to": "7970dac6-e709-4a3d-bf71-5d27f3b6803a"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "31e3ed98-8527-479a-853f-2b60a07f62bd",
+      "to": "4512966e-0ef9-4de8-86a8-96c3102014fa"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "91ae692f-01fa-4f46-b0ad-3bd8082aef75",
+      "to": "6c29119d-3049-4a17-8021-aeb1c060dbe7"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "f3df08b1-f04c-4071-a9a1-385a9326b28b",
+      "to": "04966adf-e337-4382-bac9-ad76e0753335"
+    }
+  ],
+  "findings": [],
+  "alternatives": [],
+  "plan_phases": [],
+  "plan_scopes": [],
+  "scope_deep_plans": [],
+  "goal_plan_state": [],
+  "harness_agents": [
+    {
+      "id": "a990b11e-8f0c-4396-a2a1-287582bbb9bf",
+      "slug": "agent:code-reviewer",
+      "title": "Code Reviewer",
+      "description": "Standards/maintainability review of a diff.",
+      "subagent_type": "code-reviewer",
+      "deliberation_phases": "[\"CRITIQUE\",\"VERIFY\"]",
+      "task_keywords": "[]",
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:21Z",
+      "updated_at": "2026-08-18T19:24:21Z",
+      "requirements": [
+        {
+          "required_capability_slug": "skill:code-review-and-quality"
+        }
+      ]
+    },
+    {
+      "id": "b574b58d-5bd3-4c85-bf6b-a34b73abe6d2",
+      "slug": "agent:explore",
+      "title": "Explore",
+      "description": "Fast codebase exploration for investigation and orientation.",
+      "subagent_type": "explore",
+      "deliberation_phases": "[\"INVESTIGATE\",\"ORIENT\"]",
+      "task_keywords": "[]",
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:22Z",
+      "updated_at": "2026-08-18T19:24:21Z",
+      "requirements": [
+        {
+          "required_capability_slug": "mcp:codegraph_explore"
+        }
+      ]
+    },
+    {
+      "id": "d75a1de8-c4dd-4e23-b678-e127ec599e54",
+      "slug": "agent:generalPurpose",
+      "title": "General Purpose",
+      "description": "Fallback harness agent when no phase or keyword match applies.",
+      "subagent_type": "generalPurpose",
+      "deliberation_phases": "[]",
+      "task_keywords": "[]",
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:22Z",
+      "updated_at": "2026-08-18T19:24:21Z"
+    },
+    {
+      "id": "5f5e0d90-eefe-45d7-a677-82a0b63fa7ee",
+      "slug": "agent:nested-reviewer",
+      "title": "Nested Reviewer",
+      "description": "Adversarial find-then-refute review for high-stakes diffs.",
+      "subagent_type": "nested-reviewer",
+      "deliberation_phases": "[\"CRITIQUE\"]",
+      "task_keywords": "[]",
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:22Z",
+      "updated_at": "2026-08-18T19:24:21Z",
+      "requirements": [
+        {
+          "required_capability_slug": "skill:code-review-and-quality"
+        }
+      ]
+    },
+    {
+      "id": "f968200c-36c6-450c-8e5e-c1db6f1cc7e8",
+      "slug": "agent:performance-reviewer",
+      "title": "Performance Reviewer",
+      "description": "Latency and scalability review for perf-sensitive work.",
+      "subagent_type": "performance-reviewer",
+      "deliberation_phases": "[\"VERIFY\",\"EVALUATE\"]",
+      "task_keywords": "[\"perf\",\"performance\",\"latency\",\"benchmark\"]",
+      "recommend_subagent": false,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:22Z",
+      "updated_at": "2026-08-18T19:24:21Z",
+      "requirements": [
+        {
+          "required_capability_slug": "skill:performance-optimization"
+        }
+      ]
+    },
+    {
+      "id": "875223c9-f8cc-4d36-9537-4cce2fe13ecc",
+      "slug": "agent:security-reviewer",
+      "title": "Security Reviewer",
+      "description": "OWASP-oriented security review for auth and data-handling changes.",
+      "subagent_type": "security-reviewer",
+      "deliberation_phases": "[\"CRITIQUE\",\"VERIFY\"]",
+      "task_keywords": "[\"security\",\"auth\",\"injection\",\"owasp\"]",
+      "recommend_subagent": true,
+      "registry_source": "bundled",
+      "registry_version": "2026-08-18",
+      "created_at": "2026-08-18T19:18:22Z",
+      "updated_at": "2026-08-18T19:24:21Z",
+      "requirements": [
+        {
+          "required_capability_slug": "skill:security-and-hardening"
+        }
+      ]
+    }
+  ]
+}

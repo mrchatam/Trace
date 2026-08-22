@@ -1,0 +1,2 @@
+{"schema_version":"trace.loop.gate.v1","task_id":"33247e2d-aa10-4b25-b194-4b7afb5a6359","for":"done","allowed":true,"violations":[{"code":"goal_plan_gap_advisory","for":"done","message":"goal 353b12a4-57dd-4d68-8379-b2024e064733 lacks progressive plan (work already terminal); run trace plan bootstrap --goal 353b12a4-57dd-4d68-8379-b2024e064733 or MCP trace_plan action=bootstrap","reason_code":"goal_plan_gap_terminal_advisory"}]}
+exit_code=0

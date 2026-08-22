@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "experiment": "X0",
+  "condition": "G1",
+  "fixture": "fixtures/x0",
+  "dry_run": false,
+  "trace_version": "0.0.0-dev",
+  "runs": [
+    {
+      "run_id": "g1-gatec-1",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 450,
+        "tokens": 1200
+      },
+      "quality": {
+        "understanding_accuracy": 0.8,
+        "correct": 4,
+        "total": 5,
+        "critical_misses": 0,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "correct"
+          },
+          {
+            "id": "q2",
+            "grade": "correct"
+          },
+          {
+            "id": "q3",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q4",
+            "grade": "correct"
+          },
+          {
+            "id": "q5",
+            "grade": "correct"
+          }
+        ]
+      },
+      "notes": "Asserts from live why+context on task 2222…; discovery→plan_change not in why/context depth"
+    },
+    {
+      "run_id": "g1-gatec-2",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 480,
+        "tokens": 1180
+      },
+      "quality": {
+        "understanding_accuracy": 0.8,
+        "correct": 4,
+        "total": 5,
+        "critical_misses": 0,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "correct"
+          },
+          {
+            "id": "q2",
+            "grade": "correct"
+          },
+          {
+            "id": "q3",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q4",
+            "grade": "correct"
+          },
+          {
+            "id": "q5",
+            "grade": "correct"
+          }
+        ]
+      },
+      "notes": "Asserts from live why+context on task 2222…"
+    },
+    {
+      "run_id": "g1-gatec-3",
+      "task_family": "understanding",
+      "ok": true,
+      "efficiency": {
+        "latency_ms": 420,
+        "tokens": 1100
+      },
+      "quality": {
+        "understanding_accuracy": 0.8,
+        "correct": 4,
+        "total": 5,
+        "critical_misses": 0,
+        "per_query": [
+          {
+            "id": "q1",
+            "grade": "correct"
+          },
+          {
+            "id": "q2",
+            "grade": "correct"
+          },
+          {
+            "id": "q3",
+            "grade": "incorrect"
+          },
+          {
+            "id": "q4",
+            "grade": "correct"
+          },
+          {
+            "id": "q5",
+            "grade": "correct"
+          }
+        ]
+      },
+      "notes": "Asserts from live why+context on task 2222…"
+    }
+  ],
+  "tools_used": [
+    "trace why",
+    "trace context",
+    "read_file"
+  ],
+  "model": "recorded-operator-sim/v1",
+  "seed": "fixtures/x0/seed/gt.json",
+  "git_sha": "15fe50a18dd4c970202822591d9d0759a43d4227bdfadf5ec612270338b06d22"
+}

@@ -1,0 +1,10 @@
+# R10 browser spot-check (P37-S03-01)
+GUI: http://127.0.0.1:7434/ (feet-seller fixture; existing trace serve)
+Active task: Loop 112 (99d8fb92-65ac-462c-82c4-21bcf198c09e) DONE
+
+- Overview Plan advisories banner: no (advisories[] empty post-bootstrap); GateStrip + status violations banner yes
+- Overview gate/status surfaces: GateStrip shows plan_uncritiqued (edit blocked → CRITIQUE); status violations count 1
+- TaskDetail bootstrap paragraph: no (post-bootstrap; goal_plan_gap_terminal_advisory not present — P36 terminal case covered by TestEvaluateGate_Done_TerminalPlanGapAdvisory)
+- TaskDetail DONE gate strip: yes — Loop 112 shows "Gate blocked" plan_uncritiqued (screenshot r10-taskdetail-loop112-done-gate.png)
+- GateStrip DONE tone: error/red for plan_uncritiqued (allowed=false) — expected post-bootstrap; P36 terminal honesty (warn for goal_plan_gap_terminal_advisory) verified in Block 0 regression test
+- API cross-check (Law 19): GET /v1/loop/status advisories null, violations plan_uncritiqued; matches UI GateStrip + status violation banner

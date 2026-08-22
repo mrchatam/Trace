@@ -1,0 +1,7 @@
+OK scopes/scope-00-investigation-index/INVESTIGATION-INDEX.md
+OK scopes/scope-01-trace-audit/TRACE-AUDIT.md
+OK scopes/scope-02-codegraph-peer/PEER-CG.md
+OK scopes/scope-03-ua-graphify-peer/PEER-UA-GF.md
+OK scopes/scope-04-gap-registry/GAP-REGISTRY.md
+OK scopes/scope-05-saturation-gate/SATURATION-NOTES.md
+OK scopes/scope-06-remediation-plan/REMEDIATION-PLAN.md

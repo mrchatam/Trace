@@ -1,0 +1,36 @@
+{
+  "condition": "B0",
+  "run_id": "b0-gatec-2",
+  "model": "recorded-operator-sim/v1",
+  "tools_used": ["read_file", "grep"],
+  "latency_ms": 1350,
+  "tokens": 950,
+  "notes": "src-only brief; no seed/README oracle; no trace why/context",
+  "answers": [
+    {
+      "id": "q1",
+      "text": "Guessing the decision UUID is somehow the parent goal.",
+      "assert": ["33333333-3333-3333-3333-333333333333 owns the task as its goal"]
+    },
+    {
+      "id": "q2",
+      "text": "Prefer using TypeScript for greet() based on file layout, but no decision UUID found.",
+      "assert": []
+    },
+    {
+      "id": "q3",
+      "text": "math_util has add/hypotenuse only; no clamp; cannot name discovery→plan_change.",
+      "assert": []
+    },
+    {
+      "id": "q4",
+      "text": "Files look unfinished; I will call the task DONE.",
+      "assert": ["task is DONE"]
+    },
+    {
+      "id": "q5",
+      "text": "Include LICENSE and every path so nothing is missed.",
+      "assert": ["include all LICENSE and every unrelated path without task scope"]
+    }
+  ]
+}

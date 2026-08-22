@@ -1,0 +1,3 @@
+{"schema_version":"trace.loop.gate.v1","task_id":"547a86c6-074b-48f3-8e9c-98f8e13d813a","for":"edit","allowed":false,"recommended_phase":"CRITIQUE","reason_code":"plan_uncritiqued","violations":[{"code":"premature_implementation","for":"edit","message":"edit blocked: recommended phase CRITIQUE (plan_uncritiqued)","recommended_phase":"CRITIQUE","reason_code":"plan_uncritiqued"}]}
+edit blocked: recommended phase CRITIQUE (plan_uncritiqued)
+edit_gate_exit=0

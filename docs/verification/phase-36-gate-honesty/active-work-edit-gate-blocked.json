@@ -1,0 +1,2 @@
+{"schema_version":"trace.loop.gate.v1","task_id":"63ede7e2-6230-4614-8345-48b7b7f5a241","for":"edit","allowed":false,"recommended_phase":"PLAN","reason_code":"plan_missing","violations":[{"code":"premature_implementation","for":"edit","message":"edit blocked: recommended phase PLAN (plan_missing)","recommended_phase":"PLAN","reason_code":"plan_missing"}]}
+exit_code=0

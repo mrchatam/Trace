@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "title": "Anonymized mega-goal fixture",
+      "body": "Phase 36 test fixture"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "title": "Anonymized DONE task",
+      "body": "",
+      "goal_id": "a1111111-1111-4111-8111-111111111111"
+    }
+  ],
+  "decisions": [],
+  "assumptions": [],
+  "discoveries": [],
+  "plan_changes": [
+    {
+      "id": "c00000001-0000-4000-8000-000000000001",
+      "title": "Architecture plan: TMA adult marketplace Stars-first",
+      "body": "Recommended architecture plan: Feet-first anonymous adult marketplace as Telegram Mini App + Bot. Stack: React/Vite TMA, Nest/Fastify API, grammY bot, Postgres+Redis, private R2/S3 media with signed URLs and watermarks. Payments: Stars-only in-app; seller ledger; Fragment ops for withdrawal; platform fee 10-15%. Anonymity: public pseudonym + private seller KYC. MVP: auth, profiles, PPV, tips, escrow customs, messaging, moderation, feet tags. P1: subs, analytics, payouts, forensic WM. P2: broader"
+    },
+    {
+      "id": "c00000002-0000-4000-8000-000000000002",
+      "title": "Production-ready MVP plan: scopes ops scaffold",
+      "body": "Supersedes/extends plan-change afe6766c-3c51-426e-abc8-b41e4f5df74e. Changes: (1) MVP bar raised to production-ready including ops/admin/observability/CI/CD/backups; (2) fine-grained scopes with gap analysis under docs/SCOPES/; (3) VPS+Docker+scaling detailed; (4) GitHub CI/CD with gated migrations; (5) testing battery CI/nightly/pre-launch; (6) full admin scope; (7) monorepo scaffold docs/SCAFFOLD.md; (8) GAPS_REGISTER.md. Preserved: Stars-only, pseudonym+private KYC, feet-first, modular monoli"
+    },
+    {
+      "id": "c00000003-0000-4000-8000-000000000003",
+      "title": "Subscriptions\u2192MVP + glossary + skills matrix",
+      "body": "Docs updated: PRODUCTION_MVP_PLAN, RESEARCH_ARCHITECTURE, GAPS G16\u2013G22, ADR-002, GLOSSARY (Live/ZKP), SCOPES 06\u201309 + README waves, SKILLS_MATRIX (52 scopes), brainstorm spec, GRILLING_SESSION. No application code. Parent must continue grilling one question at a time."
+    },
+    {
+      "id": "c00000004-0000-4000-8000-000000000004",
+      "title": "Grilling closed: recommendations locked as MVP product decisions",
+      "body": "Grilling Q1\u2013Q13 locked via user directive (Q1=A; Q2\u2013Q13=document recommendations). Decisions: sub-default feed + rare PPV; single tier launch (flag\u21921\u20133 flat replace); hard cut at Telegram expiry; schedule cut analytics then multi-tier; price change=archive+new tier; cancel=TMA+Telegram native; refunds=case-by-case admin runbook; renew tests=CI fixtures+one staging live sub/cancel; watermark visible+forensic flag; buyer age=attestation; counsel hard gate; fee same 10\u201315% as PPV; Live/ZKP/agencies"
+    },
+    {
+      "id": "c00000005-0000-4000-8000-000000000005",
+      "title": "Implementation plan supersedes design-only phase",
+      "body": "Transition: approved design \u2192 implementation plan doc. Plan path docs/superpowers/plans/2026-08-21-production-mvp-implementation.md. Waves 1\u20139 per SCOPES README; subs 06\u201309 in Wave 6; Wave 1 scaffold/ops only; G01 counsel parallel track. No monorepo code this turn."
+    },
+    {
+      "id": "c00000006-0000-4000-8000-000000000006",
+      "title": "Demote large MVP plan to roadmap; execute via PIR loop plans",
+      "body": "Demote docs/superpowers/plans/2026-08-21-production-mvp-implementation.md from executable batch plan to ROADMAP INDEX. Execution moves to PIR micro-loop plan files under docs/superpowers/plans/loops/ (naming YYYY-MM-DD-<scope-slug>-loop-N-plan.md). Process documented in docs/PROCESS_PIR_LOOPS.md. Wave 1 W1.1 further split: first loop is workspace root package manager + pnpm-workspace.yaml + package name list only \u2014 no apps, no shared configs, no env schema."
+    },
+    {
+      "id": "c00000007-0000-4000-8000-000000000007",
+      "title": "Human gate: R2 not required early; MinIO unblocks media",
+      "body": "Human gate updated: Cloudflare R2 credentials are not an early blocker. MinIO on VPS unblocks media via S3 API. Live TMA path still blocked on BotFather token (+ Stars when paying). Documented in PROCESS_PIR_LOOPS.md and RESUME.md. Related decisions: MinIO early media, i18n en+fa."
+    },
+    {
+      "id": "c00000008-0000-4000-8000-000000000008",
+      "title": "BotFather gate partially unblocked; rotate chat-pasted token",
+      "body": "Human pasted BotFather token in chat. Token stored only in gitignored .env as FEETAPP_BOT_TOKEN. Must rotate before treating as production secret. Local initData HMAC wiring may proceed with rotated or interim local token. Username left unset until claimed. R2 still not early-required (MinIO)."
+    },
+    {
+      "id": "c00000009-0000-4000-8000-000000000009",
+      "title": "Display brand rename to Spiced (packages stay @feetapp)",
+      "body": "User locked brand to Spiced / preferred handle spiced_bot. Update display strings and docs to Spiced; keep npm @feetapp/* until a dedicated rename loop. RESUME naming assumption superseded."
+    },
+    {
+      "id": "c00000010-0000-4000-8000-000000000010",
+      "title": "Process pivot: local tests default; live TMA deferred",
+      "body": "PROCESS_PIR_LOOPS, TMA_LIVE_SMOKE, RESUME updated: local unit/integration/Playwright stub e2e is default until production-near; live Telegram + public tunnels deferred."
+    },
+    {
+      "id": "c00000011-0000-4000-8000-000000000011",
+      "title": "Loop 97: optional naming rename becomes active",
+      "body": "Optional backlog item opt (rename @feetapp to @spiced) promoted to Loop 97 by user choice (1) rename first then (2) product UI. This round is rename ONLY; product UI deferred to fresh agent."
+    }
+  ],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {
+      "rel": "goal_has_task",
+      "from": "a1111111-1111-4111-8111-111111111111",
+      "to": "b2222222-2222-4222-8222-222222222222"
+    }
+  ],
+  "findings": [],
+  "alternatives": [],
+  "plan_phases": [],
+  "plan_scopes": [],
+  "scope_deep_plans": [],
+  "goal_plan_state": []
+}

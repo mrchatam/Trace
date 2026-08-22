@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "task_family": "understanding",
+  "fixture": "fixtures/x0",
+  "queries": [
+    {
+      "id": "q1",
+      "theme": "task_goal_linkage",
+      "question": "Which goal owns the task \"Wire greeting to arithmetic helpers\"? Give the goal UUID and title.",
+      "gt": {
+        "task_id": "22222222-2222-2222-2222-222222222222",
+        "goal_id": "11111111-1111-1111-1111-111111111111",
+        "goal_title": "Ship greeter + math demo",
+        "rel": "goal_has_task"
+      },
+      "must_include_any": [
+        "11111111-1111-1111-1111-111111111111",
+        "Ship greeter + math demo"
+      ],
+      "must_include_all": [],
+      "critical_miss_if_any": [
+        "33333333-3333-3333-3333-333333333333 owns the task as its goal",
+        "decision is the parent goal"
+      ]
+    },
+    {
+      "id": "q2",
+      "theme": "decision_constrains_task",
+      "question": "What decision constrains that task? Give the decision UUID and/or title, and the relation name if known.",
+      "gt": {
+        "decision_id": "33333333-3333-3333-3333-333333333333",
+        "decision_title": "Prefer TypeScript greeter surface",
+        "rel": "decision_affects_task"
+      },
+      "must_include_any": [
+        "33333333-3333-3333-3333-333333333333",
+        "Prefer TypeScript greeter",
+        "decision_affects_task"
+      ],
+      "must_include_all": [],
+      "critical_miss_if_any": [
+        "44444444-4444-4444-4444-444444444444 constrains the task",
+        "discovery_affects_task",
+        "discovery decides the greeter language"
+      ]
+    },
+    {
+      "id": "q3",
+      "theme": "discovery_plan_change_chain",
+      "question": "What discovery caused which plan change? Give both UUIDs (or titles) and the causal relation.",
+      "gt": {
+        "discovery_id": "44444444-4444-4444-4444-444444444444",
+        "discovery_title": "math_util lacks a clamp helper",
+        "plan_change_id": "55555555-5555-5555-5555-555555555555",
+        "plan_change_title": "Add clamp helper to math_util",
+        "rel": "discovery_causes_plan_change"
+      },
+      "must_include_any": [
+        "44444444-4444-4444-4444-444444444444",
+        "math_util lacks a clamp",
+        "discovery_causes_plan_change"
+      ],
+      "must_include_all": [
+        "55555555-5555-5555-5555-555555555555"
+      ],
+      "must_include_all_alt": [
+        "Add clamp helper"
+      ],
+      "critical_miss_if_any": [
+        "55555555-5555-5555-5555-555555555555 caused 44444444-4444-4444-4444-444444444444",
+        "plan_change_causes_discovery",
+        "decision_causes_plan_change from 33333333"
+      ]
+    },
+    {
+      "id": "q4",
+      "theme": "task_in_progress_causal",
+      "question": "Why is the wiring task in progress (work state / transition reason)? Name at least one causal neighbor that explains the work.",
+      "gt": {
+        "task_id": "22222222-2222-2222-2222-222222222222",
+        "work_state": "IN_PROGRESS",
+        "transition_reason": "Begin wiring greeter to math helpers for P0-X fixture",
+        "neighbors": [
+          "11111111-1111-1111-1111-111111111111",
+          "33333333-3333-3333-3333-333333333333"
+        ]
+      },
+      "must_include_any": [
+        "IN_PROGRESS",
+        "Begin wiring greeter to math helpers",
+        "11111111-1111-1111-1111-111111111111",
+        "33333333-3333-3333-3333-333333333333"
+      ],
+      "must_include_all": [],
+      "critical_miss_if_any": [
+        "task is DONE",
+        "task is still PENDING with no transition",
+        "44444444-4444-4444-4444-444444444444 is why the task is in progress as its goal"
+      ]
+    },
+    {
+      "id": "q5",
+      "theme": "bounded_context",
+      "question": "For task context on the wiring task, which entities belong in a bounded task pack (vs dumping the whole repo)? List expected entity kinds or IDs.",
+      "gt": {
+        "task_id": "22222222-2222-2222-2222-222222222222",
+        "expected_entity_ids": [
+          "22222222-2222-2222-2222-222222222222",
+          "11111111-1111-1111-1111-111111111111",
+          "33333333-3333-3333-3333-333333333333"
+        ],
+        "not_a_dump": true,
+        "max_items_hint": 32
+      },
+      "must_include_any": [
+        "22222222-2222-2222-2222-222222222222",
+        "11111111-1111-1111-1111-111111111111",
+        "33333333-3333-3333-3333-333333333333",
+        "goal",
+        "decision",
+        "bounded"
+      ],
+      "must_include_all": [],
+      "critical_miss_if_any": [
+        "dump the entire repository and every file",
+        "include all LICENSE and every unrelated path without task scope",
+        "whole-repo dump is required"
+      ]
+    }
+  ]
+}

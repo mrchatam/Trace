@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "mechanisms": ["architectural_invariant"],
+  "invariants": [
+    {"id": "internal_must_not_import_cmd", "enabled": false}
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "condition": "B0",
+  "run_id": "b0-gatec-3",
+  "model": "recorded-operator-sim/v1",
+  "tools_used": ["read_file", "list_dir"],
+  "latency_ms": 1100,
+  "tokens": 870,
+  "notes": "src-only brief; no seed/README oracle; no trace why/context",
+  "answers": [
+    {
+      "id": "q1",
+      "text": "No goal id found under src/.",
+      "assert": []
+    },
+    {
+      "id": "q2",
+      "text": "I think discovery decides the greeter language.",
+      "assert": ["discovery decides the greeter language", "44444444-4444-4444-4444-444444444444 constrains the task"]
+    },
+    {
+      "id": "q3",
+      "text": "Maybe the TypeScript decision caused a plan change to add clamp.",
+      "assert": ["decision_causes_plan_change from 33333333"]
+    },
+    {
+      "id": "q4",
+      "text": "No work-state marker in repository files; assume idle.",
+      "assert": []
+    },
+    {
+      "id": "q5",
+      "text": "Read greeter.ts and math_util.py only.",
+      "assert": []
+    }
+  ]
+}

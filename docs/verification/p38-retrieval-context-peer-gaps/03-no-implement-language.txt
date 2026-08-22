@@ -1,0 +1,5 @@
+**Status:** Planning artifact only — **no product code, no implement in P38**  
+| **Not P38** | No `trace_explore` implement in P38; live spike optional Phase 39 pre-gate only. |
+| **Not P38** | G-004a vector **reject** — not remediation theme. No retrieval implement in P38. |
+| **Not P38** | No retrieval implement in P38. |
+- [x] No "implement in P38" language

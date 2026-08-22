@@ -1,0 +1,20 @@
+1:# PEER-UA-GF — UA + Graphify + Mempalace peer investigation
+9:**Peer roots:** UA · Graphify · **Mempalace** (read-only under `similar projects/`)
+108:## §3 Mempalace mechanism
+110:Mempalace (MP) provides **hybrid memory retrieval**, a **4-layer wake-up stack**, a **large MCP surface**, and a **shipped fact-checking pipeline**.
+116:| Design | `searcher.py` L5–9 | BM25 + vector semantic similarity |
+117:| `_hybrid_rank` | `searcher.py` L276–329 | vector_weight 0.6 / bm25_weight 0.4; Okapi-BM25 min-max normalized + vector similarity |
+118:| `search_memories` | `searcher.py` L1652–1718 | NL query; `candidate_strategy` vector/union; `vector_disabled` → BM25-only fallback |
+127:| READ_TOOLS | 20 | `service.py` L60–82 |
+128:| WRITE_TOOLS | 12 | `service.py` L85–99 |
+129:| MAINTENANCE_TOOLS | 3 | `service.py` L102 |
+132:**4-layer stack (`layers.py` L3–17, L404–431):**
+137:| L1 Essential Story | ~500–800 | `wake_up()` L404–431 — L0 + L1 single packet |
+148:| `check_text` | `fact_checker.py` L55–78 | Offline: `similar_name`, `relationship_mismatch`, `stale_fact` |
+151:Trace: `RETRIEVAL_AND_CONTEXT.md` §3 intent pipeline — **zero** `intent` in `internal/retrieval/` (TRACE-AUDIT H9). MP contrast only; S01 Trace verdict stands.
+161:| **H1 partial** | **supported** | UA `buildChatContext` L25–79 (query + 1-hop + layers); MP `wake_up()` L404–431 (L0+L1 packet) | TRACE-AUDIT H1 — no query on `trace_context`; compose required; PEER-CG CG leg | **high** |
+162:| **H4** | **supported** (defer vector leg) | GF EXTRACTED/INFERRED L289–370 + GRAPH_REPORT 90/10%; MP `_hybrid_rank` L276–329 | `doc.go` L8–9 DR-NOSSEM; title FTS only — embedding channel **law defer**; label/summary graph gap **real** | **high** |
+163:| **H6 (MP slice)** | **supported** | MP 35 categorized / 44 TOOLS (`service.py` L60–102; `mcp_server.py` L4765+) | TRACE-AUDIT H6 — 16 tools; CG 1-tool (PEER-CG) — MP opposite extreme, no orient ranking | **high** |
+164:| **H8** | **supported** | GF committed `graph.html` + `/graphify` hook; UA `onboard-builder.ts` L7+; MP `onboarding.py` + `wake_up()` | TRACE-AUDIT H8 inconclusive → **resolved supported**; App.tsx L21–22 graph route only | **high** |
+165:| **H9 (MP contrast)** | **supported** | MP `fact_checker.py` L55–78 shipped pipeline | TRACE-AUDIT H9 — doc-only intent; zero retrieval code | **high** |
+189:| **Mempalace** | Task/plan/gate/evidence | Memory-first MCP; `wake_up()` is identity/story not backlog |

@@ -1,0 +1,16 @@
+---
+description: E03 workspace guard — agent must stay in assigned run folder
+globs: "**/*"
+alwaysApply: true
+---
+
+# E03 workspace guard
+
+You are running dogfood experiment **E03**. Your workspace root must be exactly one of:
+
+- `.../ab-library-hold-desk/runs/B0` (baseline)
+- `.../ab-library-hold-desk/runs/G1` (Trace arm)
+
+**Turn 1:** Run `pwd` and confirm. If wrong, stop and ask the operator to Open Folder on the correct run directory.
+
+Never edit under the Trace monorepo root or sibling experiment paths.

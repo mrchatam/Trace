@@ -1,0 +1,116 @@
+:root,
+[data-theme='light'] {
+  --bg: #f4f5f3;
+  --bg-elevated: #ffffff;
+  --bg-muted: #e8eae6;
+  --border: #c9cec6;
+  --text: #1a1f18;
+  --text-muted: #5a6356;
+  --accent: #2f5d3a;
+  --accent-hover: #244a2e;
+  --accent-subtle: #dce8df;
+  --danger: #8b2e2e;
+  --danger-bg: #f5e4e4;
+  --warn: #7a5a12;
+  --warn-bg: #f5edd8;
+  --ok: #1f5c38;
+  --ok-bg: #dceee3;
+  --focus: #2f5d3a;
+  --nav-width: 12rem;
+  --chrome-height: 2.75rem;
+  --radius: 4px;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Consolas', ui-monospace, monospace;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Inspector / graph craft (S04) */
+  --font-size-inspector-title: 0.7rem;
+  --font-size-inspector-body: 0.8125rem;
+  --font-size-inspector-key: 0.6875rem;
+  --font-size-inspector-mono: 0.7rem;
+  --letter-spacing-section: 0.06em;
+  --graph-inspector-min: 18rem;
+  --graph-inspector-max: 26rem;
+  --graph-canvas-height: min(48rem, calc(100dvh - 14rem));
+  --duration-fast: 140ms;
+  --duration-settle: 200ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Kind chroma (S01 DESIGN → S04) */
+  --kind-goal: #1d4d6e;
+  --kind-task: #2f5d3a;
+  --kind-decision: #6b4a1a;
+  --kind-assumption: #5a4a6e;
+  --kind-discovery: #1a5c5c;
+  --kind-plan-change: #5c3d2e;
+  --kind-claim: #3d4a6b;
+  --kind-evidence: #3a5a2a;
+  --kind-capability: #4a3d6b;
+  --kind-review: #6b2e3a;
+  --kind-unknown: #5a6356;
+
+  /* State chroma (S01 DESIGN → S04) */
+  --state-in-progress: #2f5d3a;
+  --state-pending: #5a6356;
+  --state-done: #1f5c38;
+  --state-fail: #8b2e2e;
+  --state-blocked: #7a5a12;
+}
+
+[data-theme='dark'] {
+  --bg: #121512;
+  --bg-elevated: #1a1e19;
+  --bg-muted: #242a23;
+  --border: #3a4238;
+  --text: #e6ebe4;
+  --text-muted: #9aa494;
+  --accent: #7cbc8a;
+  --accent-hover: #9ad0a5;
+  --accent-subtle: #243328;
+  --danger: #e08a8a;
+  --danger-bg: #3a2222;
+  --warn: #e0c06a;
+  --warn-bg: #3a3220;
+  --ok: #8bc9a0;
+  --ok-bg: #1e3326;
+  --focus: #7cbc8a;
+
+  --kind-goal: #7eb6d4;
+  --kind-task: #7cbc8a;
+  --kind-decision: #d4a857;
+  --kind-assumption: #b5a4c9;
+  --kind-discovery: #6fc0bc;
+  --kind-plan-change: #c49a7c;
+  --kind-claim: #9aabc9;
+  --kind-evidence: #9bc47f;
+  --kind-capability: #b0a0d4;
+  --kind-review: #d4899a;
+  --kind-unknown: #9aa494;
+
+  --state-in-progress: #7cbc8a;
+  --state-pending: #9aa494;
+  --state-done: #8bc9a0;
+  --state-fail: #e08a8a;
+  --state-blocked: #e0c06a;
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: local('IBM Plex Sans'), local('IBMPlexSans');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: local('IBM Plex Mono'), local('IBMPlexMono');
+}

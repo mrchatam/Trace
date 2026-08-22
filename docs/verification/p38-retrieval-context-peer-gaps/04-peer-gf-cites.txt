@@ -1,0 +1,15 @@
+71:### EXTRACTED vs INFERRED (`validate.py` L5–7)
+74:VALID_CONFIDENCES = {"EXTRACTED", "INFERRED", "AMBIGUOUS"}
+79:| EXTRACTED | `symbol_resolution.py` L289–290, L498–499 | Import-guided or AST-proven edges; score 1.0 |
+80:| INFERRED | `symbol_resolution.py` L318–370 | Name-based unresolved calls; score 0.8; docstring L318 notes "not import proof" |
+86:- **90% EXTRACTED · 10% INFERRED** (393 INFERRED edges, avg confidence 0.62)
+88:Cross-language INFERRED critique: `review.md` L68–91 — Python `AuthError` --uses--> TS `Member` is name similarity, not runtime use.
+94:### Q4 — graph.html / worked examples vs Trace GUI
+98:| Committed artifact | `worked/rsl-siege-manager/graph.html` L68 — RAW_EDGES with `confidence: EXTRACTED` | No checked-in graph.html for dogfood |
+99:| Report | `GRAPH_REPORT.md` — community hubs, EXTRACTED/INFERRED ratio | No GRAPH_REPORT equivalent |
+162:| **H4** | **supported** (defer vector leg) | GF EXTRACTED/INFERRED L289–370 + GRAPH_REPORT 90/10%; MP `_hybrid_rank` L276–329 | `doc.go` L8–9 DR-NOSSEM; title FTS only — embedding channel **law defer**; label/summary graph gap **real** | **high** |
+164:| **H8** | **supported** | GF committed `graph.html` + `/graphify` hook; UA `onboard-builder.ts` L7+; MP `onboarding.py` + `wake_up()` | TRACE-AUDIT H8 inconclusive → **resolved supported**; App.tsx L21–22 graph route only | **high** |
+176:| Graphify label/summary + INFERRED concept edges | **Gap** — concept discovery beyond title FTS |
+215:| `h4-gf-extracted-inferred.md` | T3 | EXTRACTED/INFERRED mechanism |
+241:| Q3 GF EXTRACTED/INFERRED vs Trace | §2; `h4-gf-extracted-inferred.md` |
+242:| Q4 graph.html vs Trace GUI | §2 Q4; `h8-gf-onboarding-ux.md` |

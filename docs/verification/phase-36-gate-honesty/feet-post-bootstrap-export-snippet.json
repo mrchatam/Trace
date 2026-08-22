@@ -1,0 +1,2461 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "title": "Production Telegram Mini App: anonymous adult content marketplace",
+      "body": "Research and plan a complete production-ready Telegram Mini App architecture for an OnlyFans-like adult content marketplace, starting with feet pics but expanding to broader categories (feet-only, custom content, full anonymity). Deliver feature research, architecture, security/compliance, and phased roadmap. Research and plan only — no implementation."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "33247e2d-aa10-4b25-b194-4b7afb5a6359",
+      "title": "Step 1: Market and feature research",
+      "body": "Research popular requests and patterns from OnlyFans/Fansly/ManyVids/Fanvue/LoyalFans and Telegram adult bots; feet niches; buyer/seller pain points; content models; prioritization P0/P1/P2",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "0387bb4d-b3e8-412c-8073-339384077dd0",
+      "title": "Step 2: Telegram platform constraints",
+      "body": "Investigate Telegram Mini Apps / Bot API / WebApp constraints: Stars payments, initData, WebApp SDK limits, media, live features, ToS for adult content",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "2641a4fd-5586-4c9e-a3fd-dd47e95981ca",
+      "title": "Step 3: Production architecture design",
+      "body": "Design production architecture: frontend TMA stack, backend, media, DB, realtime, payments, moderation, deployment, scalability",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "cb6217be-8a5b-4da1-98f2-4b4697c746f5",
+      "title": "Step 4: Security and compliance",
+      "body": "Security threat model (STRIDE), anonymity model, payments/KYC tradeoffs, 18+ moderation, CSAM prevention policy architecture, compliance",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "f40bd8fd-f2d1-44ee-8cb0-778725c2a7eb",
+      "title": "Step 5: MVP to production roadmap",
+      "body": "MVP vs production phased roadmap with prioritized features and architecture milestones",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "9fbeb3e2-eb80-4539-8d46-712f1d72e3d0",
+      "title": "Redefine MVP as production-ready shippable bar",
+      "body": "Re-prioritize P0 so first shippable MVP includes all features required to operate safely and scalably at launch: auth, media, Stars monetization, customs escrow, messaging, moderation, full admin, paysupport/ToS, observability, backups, CI/CD to VPS, security baselines. Growth features (broader categories, live, ZKP, agencies, affiliates) remain post-MVP.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "12416514-a1b2-4dc4-bd17-7021be70346a",
+      "title": "VPS Docker CI/CD observability testing ops plan",
+      "body": "Document VPS+Docker compose topology, scaling path, GitHub CI/CD, testing battery (unit/integration/e2e/load/security), logging/monitoring/Sentry, backups, admin full scope, consistent monorepo scaffold. Deliver PRODUCTION_MVP_PLAN.md, SCAFFOLD.md, GAPS_REGISTER.md; refine RESEARCH_ARCHITECTURE.md.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "bb0ea399-fb21-45dc-9cbb-7aea31a43d36",
+      "title": "Fine-grained scopes + gap analysis for production MVP",
+      "body": "Decompose product and ops into small scopes (not frontend/backend buckets). For each: purpose/AC, in/out scope, dependencies, gaps/risks, planning follow-ups, test strategy, observability hooks. Deliver under docs/SCOPES/.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "4ca45835-d168-4cb9-8248-c24733f2fcd0",
+      "title": "Refine MVP: subscriptions must-ship + glossary + skills",
+      "body": "Move subscriptions/tiers into production MVP; add Live/ZKP glossary; add Recommended skills to every scope + SKILLS_MATRIX; run brainstorming+grilling doc outputs. Docs+Trace only; no implementation. Goal: 353b12a4-57dd-4d68-8379-b2024e064733. Supersedes aspects of plan-change f124bf2d-1d5b-4ad4-833f-8ae090fabe61 regarding subscriptions as P1.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "cb300aa4-3dff-4708-b385-4cd4867a2cc3",
+      "title": "Lock grilling Q1–Q13 recommendations as product decisions",
+      "body": "User: use recommendations for all remaining grill questions; Q1 already A. Close grilling frontier; update docs/ADRs/gaps; no code. Residual: counsel work (G01) still Open as hard launch gate.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "9513d802-c168-427c-a915-caae65c7c455",
+      "title": "Write production MVP implementation plan (writing-plans)",
+      "body": "User approved design §4.1–§4.5 and §7. Create detailed implementation plan per writing-plans skill at docs/superpowers/plans/. Waves match SCOPES README. No app code, no commits. Goal 353b12a4-57dd-4d68-8379-b2024e064733.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "cd76d94d-5811-4ccd-85f0-2c57df431e85",
+      "title": "Document PIR OS + Loop 01 plan (scaffold workspace root)",
+      "body": "Docs-only: author PROCESS_PIR_LOOPS.md, plans README, roadmap banner, Loop 01 plan artifact, Wave 1 micro-loop backlog. No Implement of scaffold. Awaiting user approval of Loop 01 before any code.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "213e1b52-bab7-4e9f-be33-15c506c1ce5e",
+      "title": "Loop 01 Implement+Review: scaffold workspace root",
+      "body": "PIR Loop 01 Implement+Review only. Permissions: root package.json (private, packageManager pnpm) + pnpm-workspace.yaml (apps/*, packages/*). No apps/packages dirs, no lockfile by default, no commit. Plan: docs/superpowers/plans/loops/2026-08-21-scaffold-workspace-root-loop-01-plan.md. User approved Loop 01.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d021887d-b73d-4cfe-9141-1b7ae2ecb97d",
+      "title": "Loop 02 Implement+Review: empty apps/packages dirs",
+      "body": "Create empty apps/{web,api,bot,admin,worker} and packages/{api-contract,shared,config,eslint-config,tsconfig,test-utils} with .gitkeep only. No package manifests or app code.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "dcf8b98b-fc97-43ce-8da7-7b2ebdf6aaac",
+      "title": "Loop 03 Implement+Review: gitignore + npmrc",
+      "body": "Root .gitignore + .npmrc only; no secrets; no package code.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "4cf0d26a-ad0f-4e14-aae2-3d88d3d9d31e",
+      "title": "Loop 04 Implement+Review: @feetapp/tsconfig stubs",
+      "body": "@feetapp/tsconfig base/node/react JSON stubs only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "7ea319bb-7441-4d1d-8460-c1d48688ef94",
+      "title": "Loop 05 Implement+Review: @feetapp/eslint-config stub",
+      "body": "@feetapp/eslint-config stub flat config export only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "024ed286-cd60-419d-a33a-2e0a450a0a59",
+      "title": "Loop 06 Implement+Review: @feetapp/config env zod",
+      "body": "@feetapp/config Zod FEETAPP_* env schema + Vitest TDD.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "e1a885c5-7715-4410-b959-886495639194",
+      "title": "Loop 07 Implement+Review: Makefile stub",
+      "body": "Root Makefile help + stub up/test/lint.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "3282efff-8c9b-4059-a1f2-0b0494b54279",
+      "title": "Loop 08 Implement+Review: shared + test-utils stubs",
+      "body": "Empty @feetapp/shared and @feetapp/test-utils package stubs.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "1c78da9a-90f9-48d3-ae81-f5a2691721c0",
+      "title": "Loop 09 Implement+Review: api-contract health OpenAPI",
+      "body": "OpenAPI /v1/health + generate script stub.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "655d6019-6060-4e51-89f8-fb5620ea4593",
+      "title": "Loop 10 Implement+Review: api health stub",
+      "body": "apps/api Fastify GET /v1/health + inject test only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "eff89f01-06f9-42d2-8f70-4113f08da5bf",
+      "title": "Loop 11 Implement+Review: bot + worker stubs",
+      "body": "apps/bot and apps/worker ready-log stubs; no Telegram/product.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "e05e3ede-2b69-4d92-be5c-f6a203524f78",
+      "title": "Loop 12 Implement+Review: web + admin Vite shells",
+      "body": "Vite+React placeholder shells for web and admin.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "c0c80036-8b44-42af-9249-7308f1a7a446",
+      "title": "Loop 13 Implement+Review: docker-compose skeleton",
+      "body": "infra/compose/docker-compose.yml postgres+redis + app service placeholders.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "5758d150-6e18-46b6-b734-bc5c96818005",
+      "title": "Loop 14 Implement+Review: Dockerfile stubs",
+      "body": "Five Dockerfile stubs under infra/docker with non-root users.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "16cad2c3-8dfc-470f-8586-603b190ec4cb",
+      "title": "Loop 15 Implement+Review: .env.example placeholders",
+      "body": ".env.example FEETAPP_* placeholders only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "7f457737-09cf-410d-86b9-db75c4e20b8a",
+      "title": "Loop 16 Implement+Review: CI workflow skeletons",
+      "body": "CI + security workflow YAML skeletons.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "ed46bb96-6938-4032-8c8b-2d3e900f90fe",
+      "title": "Loop 17 Implement+Review: Caddyfile stub",
+      "body": "infra/caddy/Caddyfile reverse-proxy stubs; localhost only; no real TLS/domain.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "fb420fac-ba39-4449-94ee-4d8a444070a7",
+      "title": "Loop 18 Implement+Review: Makefile up/test wire",
+      "body": "Wire Makefile up/test to compose + pnpm filters.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "29ba43be-b964-482e-adf7-7877a42ec7e4",
+      "title": "Loop 19 Implement+Review: db users migration",
+      "body": "packages/db migrate runner + users SQL migration.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "abfdd8a2-482a-4c52-a56c-ba687961ec81",
+      "title": "Loop 20 Implement+Review: initData HMAC validate",
+      "body": "Pure initData HMAC-SHA256 validation + skew; Vitest with fake bot token.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "20bf1bbc-a82c-4400-91c4-5e66dc7fcefe",
+      "title": "Loop 21 Implement+Review: auth telegram endpoint",
+      "body": "POST /v1/auth/telegram + idempotent users upsert.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a68f2114-0473-4d24-83ea-82683f9d6c44",
+      "title": "Loop 22 Implement+Review: session access/refresh",
+      "body": "Access+refresh session tokens with rotation; MemoryRefreshStore for tests.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8269666e-ab89-43e3-a15d-4aea11108822",
+      "title": "Loop 23 Implement+Review: age attest API",
+      "body": "POST /v1/me/age-attest with Bearer access token.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "c7be200c-87b9-455e-9550-b17d56a17b90",
+      "title": "Loop 24 Implement+Review: OpenAPI auth paths",
+      "body": "OpenAPI stubs for auth/telegram, auth/refresh, me/age-attest.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "70198eb5-e504-45ec-9a5c-2ab6671809b2",
+      "title": "Loop 25 Implement+Review: Redis refresh store",
+      "body": "RedisRefreshStore via FEETAPP_REDIS_URL; Memory fallback when unset.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "ee2937bf-2bcc-4ccf-9f03-25aa25cf139e",
+      "title": "Loop 26 Implement+Review: RBAC roles guard",
+      "body": "users.role + can() matrix + requireRole + seller/ping stub.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6087d0f2-835a-4e03-a103-1ad99a185fa3",
+      "title": "Loop 27 Implement+Review: KYC submission stub",
+      "body": "KYC submissions stub + seller submit + admin approve.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "e8f851b3-5c5d-4ffe-a1d6-61d9d87fe7e4",
+      "title": "Loop 28 Implement+Review: media upload-intent stub",
+      "body": "media_assets + upload-intent stub requiring KYC approved.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a376004f-dfa8-4498-921e-4573294cacfb",
+      "title": "Loop 29 Implement+Review: web onboarding stub",
+      "body": "Web onboarding welcome + age attest placeholder screens.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "592b6a73-3f85-44e8-b6b3-65816e0c4f15",
+      "title": "Loop 30 Implement+Review: API health smoke",
+      "body": "API listen smoke for /v1/health; document TMA e2e needs BotFather.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "c8ddb7ed-a208-48f9-9b17-ba1b8e8e329b",
+      "title": "Loop 31 Implement+Review: PPV unlock stub",
+      "body": "orders/entitlements + POST /v1/ppv/unlock pending_payment stub (no live Stars).",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "0357eaad-c1b4-4718-8c33-9a3b94b6279e",
+      "title": "Loop 33 Implement+Review: escrow stub",
+      "body": "escrow_orders + create/transition state machine stub.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "41fb3b56-3bfc-409b-b00e-125f06635847",
+      "title": "Loop 32 Implement+Review: tips stub",
+      "body": "POST /v1/tips pending_payment tip orders.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "b762ce47-2a2f-48aa-bbd6-58612ca6c946",
+      "title": "Loop 34 Implement+Review: Stars simulate-paid",
+      "body": "Dev simulate-paid grants PPV entitlement; no live Telegram.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "9716b4f2-feb8-41f8-bb06-0826a8bdbc49",
+      "title": "Loop 36 Implement+Review: messaging stub",
+      "body": "conversations + messages stub APIs.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "bbf189d6-9bd1-472f-95d1-398326aeba1e",
+      "title": "Loop 35 Implement+Review: subscription stubs",
+      "body": "subscription_tiers + subscribe pending_payment stub.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d878d969-85b8-4522-a3d9-46b39853fa66",
+      "title": "Loop 37 Implement+Review: ledger stub",
+      "body": "ledger_entries + credit on simulate-paid (10% fee) + GET /v1/seller/ledger.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "1d599ae5-c7f0-4f0f-b7e8-767c4da6d917",
+      "title": "Loop 38 Implement+Review: moderation queue stub",
+      "body": "Moderation reports queue + resolve stubs.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "0be4c1cb-b9db-4e1a-ac53-1b67865190ea",
+      "title": "Loop 39 Implement+Review: categories stub",
+      "body": "Categories seed + GET /v1/categories.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "5c052236-ccb3-4bc7-9402-a77892c227f4",
+      "title": "Loop 41 Implement+Review: Playwright local e2e",
+      "body": "Playwright local e2e: stub auth + web onboarding; no BotFather.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6f309bf0-923c-4b8b-8e1a-2cea6c9369e2",
+      "title": "Loop 40 Implement+Review: admin MFA stub",
+      "body": "Admin ping MFA stub via x-mfa-ok header.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "31870d9a-f8b7-474e-ad69-2fbb4d20e022",
+      "title": "Loop 42: MinIO Compose + S3 env for upload-intent",
+      "body": "Add MinIO service to docker compose; wire FEETAPP_S3_* into config/env.example; media upload-intent targets MinIO when configured. R2 not required.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8c749175-e386-41a1-a9b3-ec0a1a93df40",
+      "title": "Loop 44: Load FEETAPP_BOT_TOKEN from .env for initData HMAC",
+      "body": "Load local gitignored .env into API process so FEETAPP_BOT_TOKEN is available for Telegram initData HMAC validation. Use Node process.loadEnvFile (no new deps). Never log the token. Username optional/unset.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8acc9ca9-a09c-41a4-87a2-5077d8801fca",
+      "title": "Loop 43: i18n foundation en + fa RTL",
+      "body": "i18n foundation for apps/web: locales en + fa, RTL when fa active, minimal onboarding strings, locale toggle or document-dir. Fall back missing keys to en.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a16a287c-d49c-491a-8a6c-6c9d54ec387b",
+      "title": "Loop 43: i18n en+fa RTL foundation",
+      "body": "i18n foundation for apps/web: locales en + fa, RTL for fa, minimal onboarding strings, locale toggle, en fallback.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "0b14d28a-f22e-4941-81a4-9f93fe36bfcf",
+      "title": "Loop 47: Live TMA initData auth smoke wiring",
+      "body": "Wire web Mini App to POST /v1/auth/telegram with Telegram.WebApp.initData when inside Telegram; keep stub for local e2e; document BotFather HTTPS/Mini App URL; SOCKS for Bot API; stop if public HTTPS blocked.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "15fdf9b7-adfc-4ca5-852c-04eb0d31500b",
+      "title": "Loop 48: Seller creator profile API stub",
+      "body": "seller/02 slice: seller_profiles table + PUT/GET /v1/seller/profile + public GET /v1/profiles/:slug. Verified badge from kyc approved. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "c2f949b3-a615-49f3-90ff-7bdf903c9084",
+      "title": "Loop 49: Web seller profile edit UI stub",
+      "body": "Web seller profile edit UI stub after age attest; local_stub + i18n; optional PUT when session. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "f50a2e78-a27f-4756-8ea7-0fc3da86f543",
+      "title": "Loop 50: Perf P-01 DB indexes baseline",
+      "body": "P-01: migration 014 hot-path indexes on entitlements/orders/subs/escrow/messages. Posts indexes deferred (no posts table). Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "1ee256f1-c07d-4e0a-a2a3-16e791f6ce6f",
+      "title": "Loop 51: Perf P-02 API rate-limit stub",
+      "body": "P-02: fixed-window rate limit on auth telegram + ppv unlock + tips; Redis or memory; no new deps. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "ff650e65-1f97-4226-9ab2-8fea56661284",
+      "title": "Loop 52: Web public profile view by slug",
+      "body": "Web public profile view via ?p=slug; GET /v1/profiles/:slug or local stub fixture. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d31d6eed-2933-4559-83a6-f997841c0129",
+      "title": "Loop 53: Perf P-03 feed cursor pagination",
+      "body": "P-03: posts table + GET /v1/feed cursor pagination (created_at,id). Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "93150410-ad40-45f8-a075-cb5fb4622042",
+      "title": "Loop 54: Web feed + PPV unlock UI stub",
+      "body": "Web feed view ?view=feed\u0026stub=1 + PPV unlock CTA local_stub. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "277844a5-1b9e-4982-a461-985020457256",
+      "title": "Loop 55: Bot stub modes (no live poll)",
+      "body": "Bot stub modes: stub vs token_deferred; no live Telegram poll. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d798eb89-2b12-4f7b-8a0f-8a292073b6ce",
+      "title": "Loop 56: OpenAPI /v1/feed contract",
+      "body": "OpenAPI GET /v1/feed path + regenerate contract stub. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "31778850-07a0-4be0-aa1a-c0b06396931e",
+      "title": "Loop 57: Worker media job stub (P-05 shell)",
+      "body": "Worker media job stub with bounded concurrency; no real EXIF/CSAM. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "72a5ba68-8a16-47d9-9a77-0875bd4fc66d",
+      "title": "Loop 58: Perf P-04 local k6/health smoke",
+      "body": "P-04: k6 smoke script + Node local smoke (health + stub auth). No live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "613a110f-e80d-4f78-be5b-aeb27bdd61fc",
+      "title": "Loop 59: Seller create post stub",
+      "body": "POST /v1/seller/posts stub for sellers; buyer 403; appears in feed. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d33d175c-c669-4f2b-8196-3cb5018d826c",
+      "title": "Loop 60: Web post composer stub",
+      "body": "Web post composer stub (?view=compose) + local_stub save / live POST /v1/seller/posts. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "05addd42-5d55-4a58-95ea-4718a4bf3eff",
+      "title": "Loop 61: OpenAPI POST /seller/posts",
+      "body": "OpenAPI POST /seller/posts + generate check. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "5ec81427-334f-4889-aa07-5d5ee65b224e",
+      "title": "Loop 62: Rate-limit seller create post",
+      "body": "Rate-limit POST /v1/seller/posts via existing moneyRl. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "085eadcc-612c-40e8-9c77-b5f776bd405a",
+      "title": "Loop 63: Composer feed nav + legal FA stub",
+      "body": "Composer\to feed nav link + i18n; local stub only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "288581c7-8f17-4afb-b71f-c9169c687f62",
+      "title": "Loop 64: Admin shell MFA/ping stub",
+      "body": "Admin shell: MFA flag stub UI + local ping status without live auth. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8cf19976-747c-4c2b-a33e-3ee8c70ac14d",
+      "title": "Loop 65: P-05 JPEG EXIF APP1 strip",
+      "body": "P-05: pure-JS JPEG APP1 EXIF strip in worker; no new deps.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6c321016-5870-475f-91b7-6a925104863f",
+      "title": "Loop 66: Bot /terms + /paysupport stubs",
+      "body": "Bot /terms + /paysupport command stubs (no live poll). Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a2272c7b-2d11-4d08-a7db-dc803827a01d",
+      "title": "Loop 67: Worker JPEG COM watermark stub",
+      "body": "P-05: JPEG COM forensic watermark marker stub (no pixel WM). Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8e578b5c-9212-47bf-96e0-43f853ac3276",
+      "title": "Loop 68: CSAM content-hash stub",
+      "body": "P-05: CSAM content-hash stub interface (SHA-256 placeholder; empty blocklist). Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6f5b1567-9c2e-49f8-a27e-3a31851e9ca9",
+      "title": "Loop 69: MinIO getObject inject stub",
+      "body": "P-05: MinIO getObject inject stub for media jobs. Local only; no live S3 client.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "4f580978-01e1-4c6d-8b4a-9a39818f71bb",
+      "title": "Loop 70 pixel visible watermark stub",
+      "body": "P-05: applyPixelWatermark on FRGB RAW RGBA; wire processMediaJob after COM; JPEG skipped; no sharp; local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "b00106fe-0a21-4f60-8136-9e9a59e201d5",
+      "title": "Loop 71 MinIO/S3 GetObject client",
+      "body": "P-05: createGetObjectFn via @aws-sdk/client-s3; mock client in tests; no live MinIO; no secrets in Trace.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6ce13b47-b9a3-4785-9adf-e9d0899e122e",
+      "title": "Loop 72 worker S3 env getObject wire",
+      "body": "P-05: resolveS3ConfigFromEnv + startWorker wires createGetObjectFn when FEETAPP_S3_* complete; no secret logs; mock tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d0a87e3a-3760-44d9-8bf5-0191bf7a9005",
+      "title": "Loop 73 preview blur derivative stub",
+      "body": "P-05: FRGB preview blur stub; wire processMediaJob derivative step; JPEG skipped; no sharp.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "69e8b172-59f5-43d1-b6c3-949dc5c2e2c9",
+      "title": "Loop 74 sharp JPEG visible watermark",
+      "body": "PIR Loop 74: Add sharp-based JPEG visible watermark (text/corner overlay); wire processMediaJob; FRGB path unchanged; local tests only; no PhotoDNA this loop.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "07486305-8549-42ba-84d4-54ba1ebb2320",
+      "title": "Loop 75 PhotoDNA vendor CSAM interface stub",
+      "body": "PIR Loop 75: PhotoDNA-shaped vendor CSAM scanner interface + local stub adapter (no network, no secrets). Wire deferred to Loop 76.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "9502b371-0e30-47ad-b5a6-53786cf9d9f8",
+      "title": "Loop 76 wire CSAM vendor into mediaQueue",
+      "body": "PIR Loop 76: Wire createCsamVendorScanner into processMediaJob; keep csamBlocklist inject; steps csam_vendor_clear/hit; optional job.csamScanner inject for tests.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "ddd563f6-910d-4d10-a3d9-3dfe749969e7",
+      "title": "Loop 77 sharp JPEG preview blur",
+      "body": "PIR Loop 77: Sharp JPEG preview blur derivative (resize+blur); wire after FRGB blur skip; local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "34820e70-0627-4977-8616-baf97cb95451",
+      "title": "Loop 78 feed cache stub",
+      "body": "PIR Loop 78: short-TTL feed page cache stub (memory + optional Redis inject) for GET /v1/feed first-page / cursor keys. Local only. No PhotoDNA. No secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "3402feff-dfaa-44b0-89d2-a309a816b179",
+      "title": "Loop 79 request_id structured log stub",
+      "body": "PIR Loop 79: request_id / structured JSON log stub for Fastify API (ops/09 slice). Local only. No secrets/PII in logs.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "f2675e54-9f9b-4df0-8f80-91e8abf0a8d1",
+      "title": "Loop 80 feed cache invalidate on create-post",
+      "body": "PIR Loop 80: invalidate feed page cache after successful POST /v1/seller/posts. Local only. No Redis SCAN.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d1d57254-346f-42ad-9007-08c71058410f",
+      "title": "Loop 81 log PII redaction stub",
+      "body": "PIR Loop 81: pure PII redaction stub for structured log payloads (ops/09). Local only. No Sentry/Loki.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "3410234f-aa08-4d78-b7d5-0f7162b9f4e0",
+      "title": "Loop 82 structured log emit with redact",
+      "body": "PIR Loop 82: structured log emit helper that applies redactPii before sink. Local only. Access-log unchanged.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "09207302-7880-430d-85fb-c02a0df645ba",
+      "title": "Loop 83 request_id on error JSON bodies",
+      "body": "ops/09: Attach request_id to API error JSON response bodies (correlation for clients). Local only. No live TMA. No secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "49fe16c8-7e51-43d8-8913-1a57e344d379",
+      "title": "Loop 84 log retention policy stub",
+      "body": "ops/09: Document stub log retention tiers (local/dev vs VPS rotate) for structured logs. Local only. No live TMA. No secrets. No app code.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "f90ada2e-e4d0-422a-9e6e-b9821c63a729",
+      "title": "Loop 85 Redis feed-cache SCAN clear",
+      "body": "Replace createRedisFeedCache knownKeys-only clear with SCAN MATCH feed:* + DEL (ioredis-shaped inject). Memory path unchanged. Local only; no live TMA; no new deps.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "6c8c7a17-8121-4b2f-ba4b-61bcc445bb47",
+      "title": "Loop 86 backups RPO/RTO stub",
+      "body": "Document stub RPO/RTO + restore-drill notes for ops/12 backups (local artifact only; no cron scripts or VPS). Local only; no live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "ffd605a7-1c8f-499d-9b10-19a57d070466",
+      "title": "Loop 87 Pg pool sizing stub",
+      "body": "Document stub Postgres pool sizing / PgBouncer deferral notes closing PERFORMANCE.md connection-pool gap. Docs only; no app pool code. Local only; no live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a07a24d7-199f-4237-8005-74bf98df5654",
+      "title": "Loop 88 firewall hardening notes stub",
+      "body": "Document stub VPS firewall / SSH hardening checklist for ops/04 (UFW ports, fail2ban note). Docs only; no VPS scripts applied. Local only; no live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "85d0f09e-9e70-49c5-878c-e63fd4ddd835",
+      "title": "Loop 89 secrets management notes stub",
+      "body": "ops/03 slice: document local-only secrets management stub (env templates, VPS 0600, GH secrets, rotation notes). No real secrets. No live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "c1c32bca-77a3-4569-abfa-19e78f5c2c53",
+      "title": "Loop 90 CI security scans stub",
+      "body": "Document stub CI security scan policy (gitleaks/audit/Trivy/Semgrep) linking ops/06 and existing security.yml placeholder. Docs only; no live TMA; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "1f08cd0b-9f51-42cb-8d5d-37f84774243c",
+      "title": "Loop 91 CD deploy notes stub",
+      "body": "Document stub CD deploy staging/prod notes (GHCR, SSH rollout, rollback) for ops/07. Docs only; no VPS deploy; no live TMA; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "d9be678a-b49b-4be6-86dd-6f3ec864dede",
+      "title": "Loop 92 migrations rollback stub",
+      "body": "Document stub DB migrations gated deploy + expand/contract + rollback notes for ops/08. Docs only; no live migrate; no live TMA; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "f3c253e5-a852-448e-8493-1e9835ba83e1",
+      "title": "Loop 93 metrics Prometheus/Grafana stub",
+      "body": "PIR Loop 93: document stub for ops/10 metrics (Prometheus scrape, Grafana dashboards-as-code, golden signals + payments recording rules). Local only; no live scrape/Sentry/TMA; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "7994667b-8a98-4d4f-af3a-d27dfb403d1c",
+      "title": "Loop 94 alerting Sentry stub",
+      "body": "PIR Loop 94: document stub for ops/11 alerting \u0026 Sentry (DSN per app, PII scrub, alert catalog: uptime/5xx/payment/queue/pre_checkout/backup). Local only; no live Sentry; no secrets/DSNs in Trace.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "eea9d0e0-e537-4160-86ac-7b0454d61e21",
+      "title": "Loop 95 CI PR checks stub",
+      "body": "PIR Loop 95: document stub for ops/05 CI PR checks (required status checks, flake quarantine, pnpm cache). Local only; no GH branch-protection UI changes; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "fbf9cf6b-7c75-4e10-ad5d-509597304153",
+      "title": "Loop 96 TLS proxy notes stub",
+      "body": "PIR Loop 96: document stub for ops/02 reverse proxy TLS (Caddy preferred, HSTS, routes, no public DB/Redis). Local only; no live certs/DNS; no secrets.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "afb3c559-3aaf-4b20-b9cb-e8f774cc0b2d",
+      "title": "Loop 97: rename npm scope @feetapp to @spiced",
+      "body": "Rename all workspace package names and live references from @feetapp/* to @spiced/*. Scope rename only; keep apps/* and packages/* folder paths. Out of scope: product UI. DoD: pnpm install links @spiced/*, sequential package tests green, test:cleanup clear, RESUME next=product UI.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "9cc2d626-1b1f-41bf-8055-1839fd849721",
+      "title": "Loop 98: Web subscription subscribe/cancel UI stub",
+      "body": "Product UI: ?view=sub stub — one-tier subscribe + cancel-at-period-end; wire POST /v1/subscriptions when live; stub=1 for e2e. Stars cancel API deferred.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "a655c065-c58a-4c7b-9464-7c7d5f01c6cd",
+      "title": "Loop 99: Web tips UI stub",
+      "body": "Product UI: ?view=tip stub — amount Stars + sellerUserId; wire POST /v1/tips when live; stub=1 for e2e.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "00e7617a-686a-40e0-8a97-c1b602d8899e",
+      "title": "Loop 100: Web customs escrow create/list stub",
+      "body": "Product UI: ?view=customs stub — create escrow order + in-session list; wire POST /v1/escrow when live; stub=1 for e2e. No list API.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "84bd5905-9ebf-4ff7-a453-25ceb0eafafd",
+      "title": "Loop 101: Web composer visibility + PPV polish",
+      "body": "Composer polish: visibility select (subscribers default | ppv | free teaser); PPV price required when ppv; UI stub maps to priceStars for live API (no access column yet).",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "28f54833-eb36-4453-99cb-850c8fea65a4",
+      "title": "Loop 102 public profile subscribe CTA",
+      "body": "Add Subscribe CTA on public profile (?p=) that deep-links to view=sub with seller label and stub preserved. Web-only; local stub tests.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "3e214c47-b5a1-4f5f-8b97-4b2d3cbc489a",
+      "title": "Loop 103 posts access column API",
+      "body": "Add posts.access column (subscribers|ppv|free), wire create + feed API, compose sends access, stub feed shows access badges for gating UI. Local tests only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "8ed4e7b4-e15f-4c3a-8e2d-03323d7686d2",
+      "title": "Loop 104 profile tip/customs CTAs",
+      "body": "Add Tip and Customs CTAs on public profile deep-linking to view=tip and view=customs with sellerUserId + seller label + stub. Extend profileDeepLinks. Local stub tests.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "edeb0cd3-f84c-4297-a6cf-a5adb57558a4",
+      "title": "Loop 105 stub chrome nav polish",
+      "body": "Mount StubChromeNav on public profile; optional seller context on tip/sub/customs nav hops; unit test for seller-aware href builder.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "442022d4-1ecf-4414-bb19-f4e361c79e7b",
+      "title": "Loop 106 escrow transition UI stub",
+      "body": "Customs status transitions wired to POST /v1/escrow/:id/transition; stub mode legal next-states; align initial state to draft.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "e0b2c1bb-8a28-430c-8313-a39014676a94",
+      "title": "Loop 107 subscriber entitlement gating stub",
+      "body": "Stub entitlement store + feed gating by posts.access (subscribers/ppv/free); sub stub grants subscription entitlement; PPV unlock grants ppv entitlement in stub mode.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "e317bd27-fbbb-44dd-bb0c-80484de411ed",
+      "title": "Loop 108 simulate-paid UI stub",
+      "body": "Local stub simulate-paid UI on tip/sub/PPV unlock; wire live POST /v1/payments/stars/simulate-paid when orderId present.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "29892426-2033-414d-b555-b3b1e0be8f30",
+      "title": "Loop 109: GET /v1/me/entitlements resolver",
+      "body": "Live entitlement list API for authenticated buyer: return DB entitlements (PPV from simulate-paid) union active subscriptions as subscription entitlements (seller refId). Local/stub-auth capable; no live TMA.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "5bdb845d-7790-46be-83cb-831da5281a96",
+      "title": "Loop 110: Web prefer API entitlements",
+      "body": "Web: when accessToken session exists, fetch GET /v1/me/entitlements for feed gating; fallback to sessionStorage stub entitlements. Local/stub capable.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "b736a125-eca9-4c02-b52d-a10187d22b60",
+      "title": "Loop 111: OpenAPI me/entitlements stub",
+      "body": "Document GET /me/entitlements in OpenAPI stub + contract test assert. Local only.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "99d8fb92-65ac-462c-82c4-21bcf198c09e",
+      "title": "Loop 112: Entitlements polish + RESUME STOP",
+      "body": "Polish: cover cancel_at_period_end in entitlements list; update RESUME/BACKLOG; end-of-round cleanup. STOP after.",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "1f886f98-07bf-4236-872b-5d014028f97e",
+      "title": "Payments: Stars-only inside Mini App",
+      "body": "Use Telegram Stars (XTR) as the sole in-Mini-App payment rail for digital content (subs, PPV, tips, customs). Platform records ledger credits to sellers; operator withdraws Stars via Fragment→TON and pays sellers via Paxum/crypto/bank after KYC for payouts. Do not offer third-party card checkout inside the TMA for digital goods (violates Telegram/App Store rules and risks app invisibility). Optional Phase 2: external web portal for fiat only if legally separate and not linked as in-Telegram digital checkout."
+    },
+    {
+      "id": "b682e585-f3b2-4478-ac8c-c1c818cf5ae5",
+      "title": "Anonymity: public pseudonym + private seller KYC",
+      "body": "Anonymity model: Pseudonymous public profiles (display name, avatar, no legal name). Buyers authenticate only via Telegram (no email/phone required by us). Sellers must complete private age/ID verification (encrypted vault, access-limited, never shown to buyers) before selling — industry/legal necessity for adult UGC. Buyers: hard 18+ attestation + progressive age-assurance where geo-law requires. Face-optional content encouraged for feet niche. EXIF/GPS strip on upload. Tradeoff accepted: absolute zero-KYC sellers is incompatible with responsible adult platform operation."
+    },
+    {
+      "id": "75bc3de5-f581-424c-8615-286a15747712",
+      "title": "Product: feet-first expandable marketplace",
+      "body": "Product model: Launch feet-first marketplace with expandable category taxonomy. Monetization: PPV + tips + escrowed customs in MVP; subscriptions/tiers and bundles in P1. Differentiation vs OnlyFans: native Telegram distribution, Stars micropayments without card forms, stronger anonymity UX, niche discovery (feet tags first), escrow-backed customs reducing scam culture of informal TG sales."
+    },
+    {
+      "id": "eda04f4f-bf63-45bf-8206-7860935f7f4e",
+      "title": "Security: initData, media, STRIDE, moderation",
+      "body": "Security decisions: (1) Always validate initData with constant-time HMAC compare + auth_date TTL ≤1h for session mint. (2) Private object storage; signed URLs ≤5-15min; referer/token binding; no hotlinkable public media. (3) Visible + forensic watermarks with buyer_id hash. (4) Rate limits per telegram_id/IP on auth, upload, chat, checkout. (5) STRIDE: Spoofing→initData; Tampering→signed media tokens; Repudiation→immutable payment/moderation ledgers; Info disclosure→encrypt KYC vault, minimize PII; DoS→WAF/rate limits; Elevation→RBAC + admin MFA. (6) Moderation: async CSAM hash scan gate before publish; report queue; DMCA workflow; geo policy flags. No facilitation of illegal content."
+    },
+    {
+      "id": "c5edfd7b-aa43-4a19-9de0-28e3841e5dcc",
+      "title": "Architecture: modular monolith + clear domains",
+      "body": "Architecture decision: Modular monolith for MVP (API + bot worker + worker queues in one deployable with clear packages), extract media/moderation/payments services when scale requires. Prefer Fastify/NestJS + Postgres + Redis + R2 for speed-to-production. Schema-centric domains: users, creators, posts, media_assets, entitlements, subscriptions, orders/customs, tips, categories, reports, ledgers, kyc_vault."
+    },
+    {
+      "id": "ad45b109-6579-48f5-a7af-70c5e4e9670e",
+      "title": "MVP = production-ready launch bar (ops included)",
+      "body": "MVP is redefined as the first public/closed-beta shippable product that can be operated safely in production. Must include: Telegram initData auth+sessions+RBAC, 18+ gate, seller private KYC, creator profiles, media pipeline (upload, EXIF strip, CSAM hash, watermark, signed URLs), PPV/tips/customs escrow, Stars invoice lifecycle, messaging+bot notify, feet categories/tags, block/report, moderation queue, FULL admin (MFA, KYC review, refunds, ledger ops, flags, audit), /terms+/paysupport, observability (logs/metrics/Sentry/alerts), backups, Dockerized VPS deploy with GitHub CI/CD, security baselines. Post-MVP: subscriptions, bundles, broader categories, live, ZKP, agencies, affiliates, forensic watermark v2, recommendations. Prior product decisions preserved: Stars-only, pseudonym+private KYC, feet-first, modular monolith."
+    },
+    {
+      "id": "3faa57d9-c148-4481-ae7a-d6eb5bef7eb2",
+      "title": "VPS + Docker Compose scale-ready topology",
+      "body": "Single VPS initially with Docker Compose for api, bot, worker, web, admin, postgres, redis, caddy/nginx. Object storage on R2/S3 (external). Scale path: (1) vertical VPS resize (2) horizontal api/bot/worker replicas behind reverse proxy (3) managed or separate Postgres/Redis hosts with volumes+backups (4) optional k8s later without app rewrite. Zero-downtime-ish via healthchecks + docker rollout / scale-then-drain. Secrets via env files on VPS + GH secrets; never in images."
+    },
+    {
+      "id": "f1a5fff1-86f9-45b8-8804-ba371904deac",
+      "title": "GitHub Actions CI/CD with gated migrations",
+      "body": "PR checks: lint, typecheck, unit, integration, build. Security: dependency audit, secret scanning (gitleaks), container Trivy. CD: build/push GHCR, SSH deploy compose pull + migrate (gated) + rolling restart; staging then prod environments. Migrations expand-contract; rollback = previous image tag + down migration only when safe (prefer forward-fix)."
+    },
+    {
+      "id": "daa36d09-84b3-441f-bdb0-00135e048483",
+      "title": "Observability: OTel Prometheus Grafana Sentry",
+      "body": "Structured JSON logs with correlation/request IDs; audit logs for admin/mod/payments. Metrics via OpenTelemetry→Prometheus; Grafana dashboards; alerts for uptime, error rate, payment failures, queue depth, pre_checkout latency. Sentry for errors. Log retention tiers; KYC/PII redaction mandatory in app logs."
+    },
+    {
+      "id": "a290d4ba-3434-414b-9612-9e107303238e",
+      "title": "Testing strategy CI nightly pre-launch",
+      "body": "CI on every PR: unit + integration + lint/typecheck/build + dependency/Trivy where feasible. Nightly: e2e Playwright TMA smoke, load smoke k6, broader security scans. Pre-launch: full load/pressure, payment webhook chaos, initData auth fuzz, manual pentest checklist, DAST against staging. Contract tests against OpenAPI in CI."
+    },
+    {
+      "id": "66e1894d-86fa-4f8a-9679-325cc3833489",
+      "title": "Consistent monorepo scaffold layout",
+      "body": "Monorepo: apps/web (TMA), apps/api, apps/bot, apps/admin, apps/worker; packages/* shared types/config/eslint/tsconfig; infra/ docker compose nginx scripts; docs/; .github/workflows/; env templates; Makefile; OpenAPI as contract source of truth. Polyrepo rejected for MVP velocity and shared types."
+    },
+    {
+      "id": "882f1e94-6829-449b-80f3-15dd7624a26b",
+      "title": "Subscriptions must-ship in production MVP",
+      "body": "Subscriptions + basic creator tiers (1–3, prefer start with 1) are Production MVP must-ship. Live and ZKP remain post-MVP (glossary). Entitlements share resolver with PPV; default recommend hard cut at Telegram subscription_expiration_date; Stars subscription_period=2592000 only. Supersedes prior P1 deferral of subscriptions from plan-change f124bf2d."
+    },
+    {
+      "id": "5272ab25-9ce9-4b60-bb9f-2da52d64899c",
+      "title": "Grilling Q1–Q13 locked product decisions (recommendations)",
+      "body": "Q1=A (user): paid posts default subscriber-only; PPV rare extras.\nQ2=D/A flag→B: exactly one tier at launch; feature-flag 1–3 flat replace-not-stack later; no stacked C.\nQ3=A: hard cut at subscription_expiration_date.\nQ4=A then C: cut seller sub analytics first, then multi-tier UI.\nQ5=C: archive+new tier to change price.\nQ6=C: in-TMA editUserStarSubscription + Telegram native cancel.\nQ7=C: case-by-case admin refunds + internal runbook; no public 24h SLA.\nQ8=A: CI fixtures/mocks; one staging live subscribe+cancel; no 30-day renew wait blocker.\nQ9=C: visible watermark; forensic lite behind flag.\nQ10=A: buyer 18+ attestation + seller KYC; G13 flags; no ZKP MVP.\nQ11=A: public launch hard-gated on G01 counsel.\nQ12=A: same platform fee % (10–15%) on subs as PPV/tips.\nQ13=A: Live/ZKP/agencies stay post-MVP."
+    },
+    {
+      "id": "69a1369e-d9e0-4c91-b47e-cc22971f781a",
+      "title": "Design approved §4.1–§4.5 and §7",
+      "body": "User approved brainstorm design §4.1 Monetization MVP delta, §4.2 Data/bot delta, §4.3 Entitlement delta, §4.4 Scope/wave delta, §4.5 Docs delta, and §7 Locked product decisions (Q1–Q13). Proceed to writing-plans only; no application code until plan approved."
+    },
+    {
+      "id": "0e5b5f20-2e8e-41c2-9af9-59b8fca8a9a6",
+      "title": "Adopt Plan-Implement-Review (PIR) micro-loops; demote large plan to roadmap/index",
+      "body": "Execution methodology shift: work proceeds as repeating Plan → Implement → Review micro-loops with explicit permissions/responsibility boundaries per loop. The large file docs/superpowers/plans/2026-08-21-production-mvp-implementation.md is retained as a ROADMAP INDEX only — do not execute it as a single waterfall batch. Active work lives in tiny plan files under docs/superpowers/plans/loops/. Minor review findings fix immediately; major gaps return to Plan. Exit a micro-scope only at high confidence with Trace Review PASS. Docs-only deliverable for this shift; no app implementation until user approves Loop 01 plan."
+    },
+    {
+      "id": "1ae80829-8cb9-4771-8845-b6d8d6a94be5",
+      "title": "Loop 01 approved by user",
+      "body": "User APPROVED Loop 01 plan. Authorize Implement within permissions only: root package.json + pnpm-workspace.yaml. Execute PIR Implement → Review for this loop only. No scope creep."
+    },
+    {
+      "id": "013898aa-950c-442a-a53a-611929325299",
+      "title": "User blanket-approved autonomous PIR until e2e-ready or human blocker",
+      "body": "User gave standing approval to Plan→Implement→Review without waiting for per-loop plan approval, until (A) project is ready for e2e testing, or (B) a human blocker (secrets, BotFather token, VPS, R2, counsel G01, paid services, irreversible human decisions). Stop conditions: e2e-ready OR human blocker. No git commit unless user asks. Goal: 353b12a4-57dd-4d68-8379-b2024e064733."
+    },
+    {
+      "id": "7cde3a9e-9042-44fb-9379-b85e94661eb3",
+      "title": "i18n en+fa with RTL for Farsi",
+      "body": "Primary audience Iranian but not Farsi-exclusive (international OK). MVP/near-MVP: ship English (en) + Farsi (fa) with RTL for fa. Scope: docs/SCOPES/i18n/01-en-fa-rtl.md. Extra locales post-MVP. Forgot in earlier drafts; corrected 2026-08-21."
+    },
+    {
+      "id": "4104fd61-83d9-4d63-9673-3fbd4aef6d48",
+      "title": "MinIO on VPS for early media (not R2-first)",
+      "body": "Prefer VPS object storage (MinIO in Docker Compose, S3-compatible API) instead of Cloudflare R2 for early/media-unblock phase. R2/S3 migration when disk/durability/multi-host triggers fire. Sizing: docs/STORAGE_SIZING.md. Human gate: R2 credentials NOT required early; BotFather still required for live TMA."
+    },
+    {
+      "id": "73a5864b-3b09-4863-880e-45101964c5de",
+      "title": "Product naming deferred pending user pick",
+      "body": "Public brand name not locked. Candidates and top recommendations in docs/NAMING_SHORTLIST.md (Pedora, Narma, Soleva recommended). Internal monorepo scope @feetapp/* may remain until pick + trademark/Telegram handle clearance. Does not block PIR code except eventual bot display name."
+    },
+    {
+      "id": "56b96d09-e95a-4441-aad2-e072cac3536f",
+      "title": "Brand locked to Spiced",
+      "body": "User locked product brand name to Spiced. Preferred bot handle: spiced_bot / Spiced. Display strings and docs use Spiced; npm scope remains @feetapp/* for now (package rename is a later optional loop). Goal: 353b12a4-57dd-4d68-8379-b2024e064733"
+    },
+    {
+      "id": "147003b9-2998-44ea-be0f-d6627c6023d5",
+      "title": "Defer live TMA tunnel testing until production-near; local tests default",
+      "body": "Dev policy: day-to-day verification uses local unit/integration and Playwright stub e2e only. Live Telegram Mini App + public HTTPS tunnels (cloudflared/ngrok) are deferred to production-near smoke, not routine development. Stop relying on BotFather URL updates for daily loops. Root UX issue: Mini App had no theme CSS so dark WebView showed black text (low contrast); auth may have already succeeded but status was hard to read."
+    },
+    {
+      "id": "593402e2-800b-43fb-8d23-31fa9c09606f",
+      "title": "Fresh agent per PIR round for context management",
+      "body": "Parent/coordinator must launch a NEW subagent for each PIR session/round. Do not resume the same long-lived agent across successive rounds — context fills and quality drops. Each fresh agent gets a self-contained prompt that reads docs/superpowers/plans/loops/RESUME.md (and PROCESS_PIR_LOOPS.md). Cold-start checkpoint in RESUME must include: next loop number, last completed, verify commands, local-only / no live TMA policy. Documented in docs/PROCESS_PIR_LOOPS.md (Fresh agent per round) and RESUME.md header."
+    },
+    {
+      "id": "545b738e-30d4-47e0-a31f-661522965410",
+      "title": "npm scope locked to @spiced",
+      "body": "User chose rename first then product UI. Display brand is already Spiced. Lock workspace npm scope to @spiced/* (replace @feetapp/*). Folder paths apps/* packages/* stay unchanged."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "844af8fc-14e7-409a-a9fc-5569097e92fe",
+      "title": "Telegram continues allowing adult Mini Apps",
+      "body": "Assumes Telegram will continue to allow consensual adult digital content in third-party Mini Apps as long as illegal content is moderated and Stars rules are followed. Risk: policy change or enforcement could ban adult TPAs."
+    },
+    {
+      "id": "272844a2-1838-456d-ab10-384d26b433bb",
+      "title": "Legal entity + counsel for adult compliance",
+      "body": "Assumes legal entity can obtain adult-friendly payout rails (Paxum/crypto) for creator settlements after Stars→TON conversion, and will engage counsel for 18 U.S.C. 2257 / UK OSA / EU DSA geo obligations before launch."
+    },
+    {
+      "id": "bb52051a-2978-4cd5-b94b-7f70b726c945",
+      "title": "Fragment/TON withdrawal available in ops geo",
+      "body": "Assumes Fragment withdrawal and TON off-ramp remain available in target operating jurisdictions for the bot owner entity. Regional restrictions may block some countries."
+    },
+    {
+      "id": "06fd8509-618b-4ea5-a3b3-55ed3520ebe4",
+      "title": "Assumption: legal counsel gate before public launch",
+      "body": "Assume counsel will approve launch geos and recordkeeping approach before public launch; engineering plans 2257-style private records and CSAM pipeline but legal sign-off is external gate."
+    },
+    {
+      "id": "09343527-1832-4ca9-a50c-ae7d0d55fb18",
+      "title": "Assumption: single VPS sufficient for early launch",
+      "body": "Assume a single mid-size VPS (8–16 vCPU, 16–32GB RAM) can run compose stack for closed beta / early launch with R2 offloading media. May need earlier DB split if KYC/media metadata grows fast."
+    },
+    {
+      "id": "08db6869-a304-451b-a621-07c23d350e61",
+      "title": "Live and ZKP stay post-MVP",
+      "body": "Live (in-TMA realtime A/V) and ZKP age proofs remain post-MVP; glossary defines both. Confirmed in docs as G19 resolved pending user Q13."
+    },
+    {
+      "id": "ad741cbd-e113-43d6-97c1-6974c7073fdf",
+      "title": "Default hard-cut at Stars period end",
+      "body": "Platform soft grace beyond Telegram subscription_expiration_date is not required for MVP; unpaid access after expiry is avoided unless grilling Q3 picks otherwise (G21)."
+    },
+    {
+      "id": "51585256-cc4b-4fa0-b2de-e0a68488a117",
+      "title": "Spiced candidate preferred by user, not locked",
+      "body": "User leaning Spiced / spiced_bot. Do NOT rename monorepo unless locked. Keep package name as-is."
+    },
+    {
+      "id": "487f928d-d067-4e00-b0dd-dce91a17514c",
+      "title": "Auth 500 may be unhandled throw after valid hash",
+      "body": "Mock invalid hash returns 401 invalid_hash (bot token works). FE maps Fastify body.error Internal Server Error. Hypothesis: valid initData passes HMAC then DB upsert or issueSession/redis throws unhandled. Age UI sets Attested on catch. Route is /v1/me/age-attest not /v1/age/attest."
+    }
+  ],
+  "discoveries": [
+    {
+      "id": "cb7bb872-2b2d-479c-a390-655bfb7c86ee",
+      "title": "Core monetization loop across OF competitors",
+      "body": "Competitor platforms (OnlyFans, Fansly, Fanvue, LoyalFans) share a core monetization loop: subscriptions + PPV + tips + customs. Fees typically ~15-20%. Differentiation comes from tiered subscriptions (Fansly), discovery (Fansly For You / Fanvue Discover), AI messaging (Fanvue), video store/calls (LoyalFans). ARPU is driven by layering PPV/customs/tips on subscriptions, not subscription alone. Sources: heduno, influenceramerica, fans-alternative comparisons 2025-2026."
+    },
+    {
+      "id": "0f8c40e5-efdf-4fcc-a0ff-15bd835b23bc",
+      "title": "Feet niche: escrow, anonymity, scam patterns",
+      "body": "Feet niche platforms (FeetFinder, Footly, Snifffr) emphasize: platform checkout/escrow, seller anonymity via display name with ID verification hidden from buyers, face-optional content, custom requests with prepayment, watermarked previews, weekly payouts via adult processors (CCBill/Paxum). Top scam vectors: off-platform move to Telegram/CashApp, fake payment screenshots, free proof pics. Marketplace value prop is trust + escrow vs free Telegram DMs. Sources: tryfootly, spicyranked FeetFinder review."
+    },
+    {
+      "id": "5dbe6850-fa25-4fa0-a66a-c224aa5313e2",
+      "title": "Buyer and seller pain points prioritized",
+      "body": "Seller pain points (prioritized): unreliable/off-platform payments and chargebacks; doxxing risk (face/metadata/legal name); content leaks/screenshots; slow/opaque payouts; custom order disputes without escrow; discovery cold-start; verification that feels invasive. Buyer pain points: trust/scams; privacy; refund/dispute opacity; finding creators by niche tags; custom request friction; chat quality. Platform opportunity inside Telegram: meet users where they already message, but replace informal DM sales with verified escrow + Stars payments."
+    },
+    {
+      "id": "30baf48f-b77e-4399-9eac-62c70055fcb9",
+      "title": "Stars mandatory for digital goods in TMA",
+      "body": "Official Telegram docs (core.telegram.org/bots/payments-stars): Digital goods/services in bots and Mini Apps MUST use Stars (currency XTR) exclusively. Third-party fiat/crypto for digital goods inside Telegram apps risks hiding the Mini App from mobile users (Apple/Google IAP rules). Flow: sendInvoice(XTR) → pre_checkout_query (answer within 10s) → successful_payment → deliver; store telegram_payment_charge_id for refundStarPayment. Required: /paysupport, /terms. Crypto instead of Stars for in-app digital goods is explicitly disallowed."
+    },
+    {
+      "id": "a51b48a7-8cd2-4a21-b2ba-710118015f1b",
+      "title": "Workspace is empty greenfield",
+      "body": "Workspace /home/ali/Desktop/feet seller telegram app is greenfield: only .trace/ exists. No prior application code, docs, or configs. Architecture must be designed from scratch."
+    },
+    {
+      "id": "9e3e5e6b-4e93-4080-a8a9-c92788c753c1",
+      "title": "Feature prioritization P0/P1/P2",
+      "body": "P0 (MVP must-have): Telegram auth via validated initData; 18+ age gate + seller age/ID verification (private); creator profiles (pseudonym); photo/video upload to private storage; free teaser + PPV unlock; tips; custom orders with Stars escrow (pay → deliver → release); buyer/seller in-app messaging; categories/tags starting with feet; report/block; Stars checkout + /paysupport;/terms; basic watermark on previews; admin moderation queue. P1: Subscriptions/tiers; bundles; scheduling; analytics; favorites/wishlist; recommendations; DMCA/leak takedown workflow; seller payouts ledger + Fragment withdrawal ops; geo soft-blocks; advanced anti-leak (forensic watermark). P2: Live/voice (if product allows via TG); multi-category expansion beyond feet; ZKP age proofs; affiliate; agency tools; multi-language; AI assist for sellers (non-CSAM)."
+    },
+    {
+      "id": "2218b7c7-e11c-4866-864d-562ca2b3ba65",
+      "title": "Telegram ToS: UGC moderation and illegal content",
+      "body": "Telegram ToS: illegal pornographic content prohibited on publicly viewable channels/bots; Bot Developer ToS requires SP to moderate all UGC, comply with local laws, and not facilitate illegal goods. Adult consensual content is not categorically banned by Telegram ToS text reviewed, but CSAM, NCII, trafficking, and illegal content are. Developer bears full moderation and legal liability; Telegram may intervene but is not obligated. Mini Apps share Telegram user id/name/username/photo/language/premium/theme — design must minimize further PII collection."
+    },
+    {
+      "id": "90a7bd29-bc69-4dd8-ac02-208857d9a8ab",
+      "title": "TMA WebApp SDK constraints and capabilities",
+      "body": "WebApp SDK constraints (core.telegram.org/bots/webapps): Must validate initData server-side (HMAC-SHA256 with WebAppData+bot token); never trust initDataUnsafe. themeParams for native look. openInvoice for Stars payments from Mini App. MainButton/BottomButton, BackButton, HapticFeedback, CloudStorage, BiometricManager available. HTTPS required. Notifications primarily via Bot API messages, not arbitrary push. No native live streaming API in Mini Apps — live would need external WebRTC or TG channels/calls. Media delivery must be via own CDN/storage, not relying on Telegram file CDN for paid content."
+    },
+    {
+      "id": "869a4f88-e5fd-4068-b30c-4de9f094cbc5",
+      "title": "Stars fee stack and Fragment withdrawal",
+      "body": "Stars economics: Users buy Stars via Apple/Google (~30% store cut on mobile) or PremiumBot/desktop. Creators/bot owners withdraw earned Stars via Fragment to TON after 21-day hold, min ~1000 Stars, 2FA required. Effective creator take on mobile-sourced Stars often cited ~65-70% before platform fee. Platform should take a transparent cut (e.g. 10-20%) on top of Telegram economics and communicate net to sellers. Escrow for customs: hold entitlement until delivery confirmation or auto-release SLA."
+    },
+    {
+      "id": "16d5cb0c-d55d-482f-b2ee-ea173e2d1e3d",
+      "title": "Age verification dual-track + CSAM pipeline",
+      "body": "Industry age-verification pattern for adult platforms: dual track — (1) creators: full ID/KYC for 2257-style recordkeeping and payment processor requirements, identity never shown to buyers; (2) buyers: privacy-preserving age assurance (attestation/ZKP/wallet) where legally required, else Telegram age gate + attestation. CSAM pipeline: hash matching (PhotoDNA/equivalent) before publish, NCMEC/local reporting where required, immutable moderation logs, human review for edge cases. Anonymity ≠ zero compliance."
+    },
+    {
+      "id": "f65b493b-04fe-41c3-9f65-d14d57a6deab",
+      "title": "Recommended production component stack",
+      "body": "Frontend: React + Vite + TypeScript Telegram Mini App using @tma.js or official telegram-web-app.js; themeParams-driven UI; never trust client user id. Backend: Node (Nest/Fastify) or Go API gateway; validate initData HMAC; short-lived JWT/session bound to telegram_user_id; RBAC buyer|seller|moderator|admin. Bot worker: grammY/Telegraf for invoices, pre_checkout, successful_payment, notifications, /paysupport,/terms. Postgres primary + Redis cache/rate-limit/queues. Media: Cloudflare R2 or S3 private buckets; short-lived signed URLs; optional Cloudflare Stream for video; watermark service; no public listing of media keys. Realtime: Redis pub/sub or WebSocket for in-app chat; critical events also pushed via Bot messages. Admin: separate web panel with MFA. Deploy: Docker Compose → K8s; secrets in vault/SOPS; CI/CD lint/test/deploy; multi-env staging/prod. Observability: OpenTelemetry + structured logs + metrics + Sentry."
+    },
+    {
+      "id": "c1083280-0b71-4552-b3d9-f2363f9eded7",
+      "title": "Phased MVP to production roadmap",
+      "body": "Roadmap: Phase0 foundations 2-3w (legal, infra); Phase1 MVP 6-10w (PPV/tips/customs/messaging/Stars/moderation); Phase2 production 4-8w (subs, payouts, forensic WM, SLOs); Phase3 expand (categories, live, ZKP, i18n)."
+    },
+    {
+      "id": "9f438813-2ddf-4287-9435-2902f32ccdbc",
+      "title": "Gap: prior plan deferred production ops out of MVP",
+      "body": "Prior plan split P0 MVP (product features) from P1 Production hardening (subscriptions, payouts ops, forensic watermarks, observability SLOs, load testing). Gap: observability, backups, CI/CD, full admin MFA, paysupport ops, security baselines, and deploy-to-VPS were not treated as MVP must-ships. Operating an adult Stars marketplace without these is not launch-safe."
+    },
+    {
+      "id": "0e4ef41c-cda3-4032-87c9-5581f6954bba",
+      "title": "Gap: VPS/Docker/CI/CD under-specified",
+      "body": "Prior architecture mentioned Docker, staging/prod, CI briefly but lacked: single-VPS compose topology, nginx/Caddy TLS, firewall, secrets, zero-downtime-ish deploy, vertical→horizontal scaling path without rewrite, GHCR + SSH deploy, migration gates, rollback. Gap for production-ready launch on VPS."
+    },
+    {
+      "id": "c6c3f2b0-6cfb-4c57-8a64-913201081da8",
+      "title": "Gap: admin panel scope too thin for launch",
+      "body": "Prior plan listed Admin moderation queue only. Missing fine-grained admin: MFA, KYC review UI, refunds/Stars support, ledger/payout ops, feature flags, audit log viewer, metrics overview, impersonation restrictions, ban workflows. Gap for safe adult UGC operations."
+    },
+    {
+      "id": "5b703546-99b0-4e92-a64a-07b0ea54fbc9",
+      "title": "Gap: testing battery and observability incomplete",
+      "body": "Prior plan lacked testing matrix (unit/integration/e2e Playwright TMA, contract, load k6, SAST/DAST, dependency CVE, payment webhook chaos, initData fuzz) and CI vs nightly vs pre-launch cadence. Also lacked structured logs, correlation IDs, Prometheus/Grafana/Sentry, PII redaction for KYC."
+    },
+    {
+      "id": "6687eefc-274b-4805-9ecb-9776340abfd8",
+      "title": "Gap: no fine-grained scopes with gap analysis",
+      "body": "Prior plan used large buckets (frontend/backend/workers). No per-scope acceptance criteria, dependencies, gap analysis, test strategy, or observability hooks. Blocks parallel implementation and planning follow-ups."
+    },
+    {
+      "id": "89232b1e-708a-432e-8e44-c72d315ec9aa",
+      "title": "Stars bot subscriptions: 30-day period + renew flags",
+      "body": "Telegram Bot API: subscription_period must be 2592000 (30 days); sub invoices via createInvoiceLink/export not sendMedia; SuccessfulPayment.is_recurring/is_first_recurring/subscription_expiration_date; editUserStarSubscription for cancel; missing_balance when Stars insufficient; max amount 10000 XTR. Sources: core.telegram.org/bots/api, core.telegram.org/api/subscriptions."
+    },
+    {
+      "id": "20620695-89d7-4e64-8073-768c82322efa",
+      "title": "User accepted all grill recommendations; product forks closed",
+      "body": "User answered grilling with blanket acceptance of document recommendations for all remaining questions after Q1=A. Frontier emptied; design approval gate is next. Counsel-dependent gaps G01/G13/G22 remain execution work, not unsettled product forks."
+    },
+    {
+      "id": "d440c38b-83f0-4de3-a133-1c6efac69be6",
+      "title": "G21 closed: hard cut at Telegram expiry",
+      "body": "Hard cut at Telegram subscription_expiration_date (grilling Q3=A). No unpaid soft grace or teaser-only grace in MVP."
+    },
+    {
+      "id": "a84df3d9-f852-4912-94b2-fcee1590b1b7",
+      "title": "G17 closed: single tier + archive price change",
+      "body": "Single tier at launch; flag path to 1–3 flat replace-not-stack; price change via archive+new tier (Q2 D/A→B, Q5=C)."
+    },
+    {
+      "id": "680b2f14-cca0-4721-aabb-ccc282116b28",
+      "title": "Production MVP implementation plan authored",
+      "body": "Implementation plan written at docs/superpowers/plans/2026-08-21-production-mvp-implementation.md covering Waves 1–9, G01 parallel track, subscriptions in Wave 6. Awaiting user plan approval before code."
+    },
+    {
+      "id": "b667ae91-480c-4046-af6b-74af16ce2315",
+      "title": "User rejected waterfall; require PIR micro-loops with permissions per step",
+      "body": "User rejected one large implementation waterfall. They want small-step planning with a repeating Plan → Implement → Review loop per micro-scope: Plan defines permissions/responsibility boundaries; Implement only what Plan decided; Review hunts issues; minor fixes now, major gaps re-plan; exit only at high confidence; then next smallest scope until whole app covered. Existing large plan kept as roadmap index, not deleted. Deliverables are docs-only (PROCESS_PIR_LOOPS, plans README, roadmap banner, Loop 01 plan, Wave 1 backlog). No app code/scaffold/git commit until Loop 01 plan is user-approved."
+    },
+    {
+      "id": "00b9ea02-6e0e-4a02-9434-2690ec3405bb",
+      "title": "Loop 01 Implement: workspace root manifests created",
+      "body": "Created root package.json (name feet-seller-telegram-app, private true, packageManager pnpm@9.15.9 matching host pnpm -v) and pnpm-workspace.yaml with packages globs apps/* and packages/* only. Did not create apps/ or packages/ dirs. pnpm install exit 0 with empty globs (\"Already up to date\"). Lockfile and .pnpm-store were generated by install verification then removed — lockfile default out of this loop per plan. Repo has no .git yet (git status N/A)."
+    },
+    {
+      "id": "899c6b09-8f75-430b-a66c-eea28fd1fdb7",
+      "title": "eslint peerDeps forced registry fetch",
+      "body": "Loop 05: peerDependencies on eslint caused pnpm to fetch registry (ETIMEOUT). Removed peerDeps from stub so install stays offline until a later loop installs eslint."
+    },
+    {
+      "id": "ee00f31c-a2e1-4efb-be3f-3cad0a327709",
+      "title": "Sandbox DNS blocks npm registry",
+      "body": "pnpm install for @feetapp/config deps failed under sandbox DNS (EAI_AGAIN); succeeded with unrestricted network. Future dep loops should request full network/all."
+    },
+    {
+      "id": "ef7cf25e-cb5b-4f1b-b814-aeb8b5868bfe",
+      "title": "session checkpoint",
+      "body": "Session checkpoint 2026-08-21: Loops 02–16 EXIT under blanket approval. Not e2e-ready. Next Loop 17 Caddyfile or identity migration. No human blockers. See docs/superpowers/plans/loops/RESUME.md."
+    },
+    {
+      "id": "14fc59fa-3a2e-4e9f-b469-0349c4c203c6",
+      "title": "session checkpoint",
+      "body": "Session 2 checkpoint: Loops 17–24 EXIT. Identity auth/session/age-attest live locally. Not e2e-ready. Next Loop 25 Redis refresh. See RESUME.md."
+    },
+    {
+      "id": "7707c3ba-16e8-448a-b88b-886a43eb7cf8",
+      "title": "session checkpoint",
+      "body": "Session 3 checkpoint: Loops 25–30 EXIT. Redis RBAC KYC media onboarding API smoke. Not e2e-ready (BotFather/R2/Stars). Next Loop 31 PPV stub. See RESUME.md."
+    },
+    {
+      "id": "91a17723-c519-4f08-b9ee-0428711a1305",
+      "title": "session checkpoint",
+      "body": "Session 4 checkpoint: Loops 31–36 EXIT (PPV tips escrow Stars-sim subs messaging). Not e2e-ready. Next Loop 37 ledger. See RESUME.md."
+    },
+    {
+      "id": "24841a61-2e72-4961-b6b1-849581a10936",
+      "title": "SOCKS5 proxy 10808 for download/403 restrictions",
+      "body": "User directive: network downloads that fail or return 403 (pnpm/npm, GitHub, Docker, curl, Playwright browsers, etc.) MUST use local SOCKS proxy socks5://127.0.0.1:10808 via ALL_PROXY/HTTPS_PROXY/HTTP_PROXY. Do not disable TLS verification. Do not set global git http.proxy; use env per-command. Playwright CDN was previously geo-403 without this proxy."
+    },
+    {
+      "id": "b7d841a3-0788-4801-915b-3813bf1179a6",
+      "title": "SOCKS for downloads only; unset for local e2e",
+      "body": "Follow-up: Playwright install chromium succeeds with ALL_PROXY=socks5://127.0.0.1:10808. Local e2e must UNSET proxy env — Node/Playwright webServer throws TypeError Protocol socks5 not supported for localhost."
+    },
+    {
+      "id": "97fb9415-b6c8-4569-a48f-8e64271a3fa4",
+      "title": "User supplied BotFather token via chat — must rotate; stored only in .env",
+      "body": "User supplied a BotFather bot token via chat. The token must be rotated in BotFather because it was exposed in chat history. Secret was written only to local gitignored .env as FEETAPP_BOT_TOKEN. Do not paste the token into Trace, docs, commits, or RESUME. BotFather human gate is partially unblocked for local HMAC/initData work pending rotation."
+    },
+    {
+      "id": "60371cc5-b69f-4d33-9543-874b17883623",
+      "title": "User confirmed BotFather token rotated in .env",
+      "body": "User updated .env themselves after token rotation. Agents must NOT read or print .env secrets. Proceed with live TMA readiness using env-loaded token without logging it."
+    },
+    {
+      "id": "e6a3dff5-aea4-4817-b8b8-750f8488017a",
+      "title": "Performance strategy documented",
+      "body": "Honest split: current Loops 01-44 stubs (Redis sessions when configured, Postgres+migrations, Fastify, MinIO signed URLs, worker stub) vs production target (indexes, Redis cache, CDN/media pipeline, rate limits, k6, observability). Documented in docs/PERFORMANCE.md with PIR backlog loops."
+    },
+    {
+      "id": "c6ea5daa-90dc-4b0d-bcf9-e229d6c998b4",
+      "title": "getMe OK — live bot username spiced_bot",
+      "body": "Telegram getMe via SOCKS 10808 succeeded. Public identity only: username=spiced_bot, first_name=SPICED. Token value never logged. Confirms rotated .env token is live and preferred handle matches."
+    },
+    {
+      "id": "ce9b16d4-8eb5-4c6b-a628-aa96d28b41d4",
+      "title": "Loop 47: web lacks live initData path; cloudflared available",
+      "body": "Web App.tsx is stub-only; no Telegram.WebApp script; API has POST /v1/auth/telegram but no CORS. cloudflared present; SOCKS 10808 reaches api.telegram.org. Plan: auth client + telegram script + vite /v1 proxy + CORS fallback + docs for BotFather HTTPS; try quick tunnel."
+    },
+    {
+      "id": "1b9c3433-d30c-417a-81cb-97e207d1eab1",
+      "title": "Human gate: BotFather Menu Button for live initData",
+      "body": "Live TMA initData smoke blocked only on BotFather Menu Button + open Mini App in Telegram. Code + HTTPS tunnel ready. Exact actions in docs/TMA_LIVE_SMOKE.md."
+    },
+    {
+      "id": "b45e7f2b-6ec0-4f7a-a531-c75d1034c039",
+      "title": "Telegram Mini App sign-in returns Internal Server Error",
+      "body": "User sees Telegram sign-in failed: Internal Server Error while age attestation shows Attested after I am 18+. Investigating POST /v1/auth/telegram 500, bot token env, age-attest auth gating, tunnel health."
+    },
+    {
+      "id": "4e975596-b480-4467-a9d0-1f1b892eb060",
+      "title": "Auth 500 from concurrent upsert race under Strict Mode",
+      "body": "React Strict Mode remounts useEffect in Vite dev, so POST /v1/auth/telegram can race two INSERTs on users.telegram_id. Unique violation (23505) was unhandled → Fastify {error: Internal Server Error}, matching the Mini App banner. Age UI also set Attested on catch / without session."
+    },
+    {
+      "id": "8a43cbeb-4426-4a92-ba1f-fabe005dafca",
+      "title": "Mini App contrast failure: black text on dark WebView (no theme CSS)",
+      "body": "User screenshot: Signed in with Telegram + Attested present but nearly unreadable. Root cause: apps/web had no stylesheet; Telegram WebView dark chrome showed through transparent body while UA default text is black → WCAG fail. Auth likely succeeded; contrast made status invisible (user said still the same)."
+    },
+    {
+      "id": "8afe2177-7cd9-43c2-8461-48e375429fee",
+      "title": "Laptop freeze from orphan Vite/Vitest/Playwright webServer after tests",
+      "body": "User laptop froze again with multiple Vite test instances left running (no teardown). Recovery scan on 2026-08-21 found no live orphans (ports 5173/3000/3100/4173/8787/9222 free) — processes likely died with the freeze. Hardening: (1) scripts/test-cleanup.sh + pnpm test:cleanup / make test-cleanup scoped to monorepo path/@feetapp/known ports; (2) Playwright reuseExistingServer default false (PW_REUSE_SERVER=1 opt-in); test:e2e:local runs cleanup after suite; (3) PROCESS_PIR_LOOPS.md + RESUME mandatory end-of-round cleanup; prefer vitest run never leave vite/vitest --watch backgrounded. Loop 78 DONE; Loop 79 still IN_PROGRESS — do not start huge new feature in cleanup agent."
+    },
+    {
+      "id": "fbbece13-14df-4237-a2f2-cff700d6544d",
+      "title": "Loop 83: onSend sees serialized JSON string",
+      "body": "Fastify serializes the reply body before onSend, so attachRequestIdToErrorPayload must parse/rewrite JSON strings (and Buffers), not only plain objects. Object-only helper left wire test failing (request_id missing on { error } bodies)."
+    },
+    {
+      "id": "1fc1c4da-913e-4a96-be20-f952ad44d50e",
+      "title": "P34-S02-01: real Explore SPA embedded via scripts/embed-gui.sh",
+      "body": "Pipeline A shipped: scripts/embed-gui.sh (+ go:generate + make embed-gui) builds web/ and syncs into internal/httpapi/embeddist. Consumer temp root without web/ serves real SPA (#root + /assets/ module). Disk web/dist still wins when present. Tests T1–T3 green. Auto-port deferred to S03."
+    },
+    {
+      "id": "6ddb7d3c-0ba8-4a94-9d04-49542dc1dc8c",
+      "title": "Known-CSAM matching without PhotoDNA Cloud",
+      "body": "Production bar is known-CSAM matching (matcher + legitimate controlled hash feed), not PhotoDNA Cloud specifically. OSS PDQ/HMA exists; proprietary/controlled DBs (NCMEC, IWF) are the scarce resource. Iran-linked ops face sanctions friction on US cloud vendors (MS, Thorn/AWS) and possibly NCMEC ESP onboarding. Documented in docs/ops/CSAM_HASH_ALTERNATIVES.md."
+    }
+  ],
+  "plan_changes": [
+    {
+      "id": "afe6766c-3c51-426e-abc8-b41e4f5df74e",
+      "title": "Architecture plan: TMA adult marketplace Stars-first",
+      "body": "Recommended architecture plan: Feet-first anonymous adult marketplace as Telegram Mini App + Bot. Stack: React/Vite TMA, Nest/Fastify API, grammY bot, Postgres+Redis, private R2/S3 media with signed URLs and watermarks. Payments: Stars-only in-app; seller ledger; Fragment ops for withdrawal; platform fee 10-15%. Anonymity: public pseudonym + private seller KYC. MVP: auth, profiles, PPV, tips, escrow customs, messaging, moderation, feet tags. P1: subs, analytics, payouts, forensic WM. P2: broader categories, live, ZKP age. Modular monolith first. Full detail in docs/RESEARCH_ARCHITECTURE.md."
+    },
+    {
+      "id": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61",
+      "title": "Production-ready MVP plan: scopes ops scaffold",
+      "body": "Supersedes/extends plan-change afe6766c-3c51-426e-abc8-b41e4f5df74e. Changes: (1) MVP bar raised to production-ready including ops/admin/observability/CI/CD/backups; (2) fine-grained scopes with gap analysis under docs/SCOPES/; (3) VPS+Docker+scaling detailed; (4) GitHub CI/CD with gated migrations; (5) testing battery CI/nightly/pre-launch; (6) full admin scope; (7) monorepo scaffold docs/SCAFFOLD.md; (8) GAPS_REGISTER.md. Preserved: Stars-only, pseudonym+private KYC, feet-first, modular monolith, CSAM non-negotiable."
+    },
+    {
+      "id": "80fd802b-a600-4396-b7e5-f6e2407be335",
+      "title": "Subscriptions→MVP + glossary + skills matrix",
+      "body": "Docs updated: PRODUCTION_MVP_PLAN, RESEARCH_ARCHITECTURE, GAPS G16–G22, ADR-002, GLOSSARY (Live/ZKP), SCOPES 06–09 + README waves, SKILLS_MATRIX (52 scopes), brainstorm spec, GRILLING_SESSION. No application code. Parent must continue grilling one question at a time."
+    },
+    {
+      "id": "ebe369f6-24bd-467b-a1c4-875276f87df0",
+      "title": "Grilling closed: recommendations locked as MVP product decisions",
+      "body": "Grilling Q1–Q13 locked via user directive (Q1=A; Q2–Q13=document recommendations). Decisions: sub-default feed + rare PPV; single tier launch (flag→1–3 flat replace); hard cut at Telegram expiry; schedule cut analytics then multi-tier; price change=archive+new tier; cancel=TMA+Telegram native; refunds=case-by-case admin runbook; renew tests=CI fixtures+one staging live sub/cancel; watermark visible+forensic flag; buyer age=attestation; counsel hard gate; fee same 10–15% as PPV; Live/ZKP/agencies out. Residual: G01/G13/G22 counsel execution."
+    },
+    {
+      "id": "ac6fde59-4678-4376-a7f8-1909e470af81",
+      "title": "Implementation plan supersedes design-only phase",
+      "body": "Transition: approved design → implementation plan doc. Plan path docs/superpowers/plans/2026-08-21-production-mvp-implementation.md. Waves 1–9 per SCOPES README; subs 06–09 in Wave 6; Wave 1 scaffold/ops only; G01 counsel parallel track. No monorepo code this turn."
+    },
+    {
+      "id": "47867144-0d9e-4c86-80ef-9cb131ac4f92",
+      "title": "Demote large MVP plan to roadmap; execute via PIR loop plans",
+      "body": "Demote docs/superpowers/plans/2026-08-21-production-mvp-implementation.md from executable batch plan to ROADMAP INDEX. Execution moves to PIR micro-loop plan files under docs/superpowers/plans/loops/ (naming YYYY-MM-DD-\u003cscope-slug\u003e-loop-N-plan.md). Process documented in docs/PROCESS_PIR_LOOPS.md. Wave 1 W1.1 further split: first loop is workspace root package manager + pnpm-workspace.yaml + package name list only — no apps, no shared configs, no env schema."
+    },
+    {
+      "id": "ee1ba32b-4779-4623-a594-1c07dfaa1fcc",
+      "title": "Human gate: R2 not required early; MinIO unblocks media",
+      "body": "Human gate updated: Cloudflare R2 credentials are not an early blocker. MinIO on VPS unblocks media via S3 API. Live TMA path still blocked on BotFather token (+ Stars when paying). Documented in PROCESS_PIR_LOOPS.md and RESUME.md. Related decisions: MinIO early media, i18n en+fa."
+    },
+    {
+      "id": "dbb9f550-ae44-4d02-8cfa-7b5560675d84",
+      "title": "BotFather gate partially unblocked; rotate chat-pasted token",
+      "body": "Human pasted BotFather token in chat. Token stored only in gitignored .env as FEETAPP_BOT_TOKEN. Must rotate before treating as production secret. Local initData HMAC wiring may proceed with rotated or interim local token. Username left unset until claimed. R2 still not early-required (MinIO)."
+    },
+    {
+      "id": "9808f6f5-9cc9-4db6-9b4f-2b43b33512a2",
+      "title": "Display brand rename to Spiced (packages stay @feetapp)",
+      "body": "User locked brand to Spiced / preferred handle spiced_bot. Update display strings and docs to Spiced; keep npm @feetapp/* until a dedicated rename loop. RESUME naming assumption superseded."
+    },
+    {
+      "id": "792ee4fc-2a87-40f2-804a-dc9c395e1c0e",
+      "title": "Process pivot: local tests default; live TMA deferred",
+      "body": "PROCESS_PIR_LOOPS, TMA_LIVE_SMOKE, RESUME updated: local unit/integration/Playwright stub e2e is default until production-near; live Telegram + public tunnels deferred."
+    },
+    {
+      "id": "b35582a9-415f-4dd7-8ecf-b7ecd5d86ebc",
+      "title": "Loop 97: optional naming rename becomes active",
+      "body": "Optional backlog item opt (rename @feetapp to @spiced) promoted to Loop 97 by user choice (1) rename first then (2) product UI. This round is rename ONLY; product UI deferred to fresh agent."
+    }
+  ],
+  "claims": [
+    {
+      "id": "5e8b200c-836b-4eb6-a684-225375bc73c9",
+      "title": "Stars-only for in-app digital goods",
+      "body": "Claim: In-Telegram digital content sales must use Stars."
+    },
+    {
+      "id": "f94fab7d-3e75-408b-86c2-aaf47f47fd01",
+      "title": "Claim: Stars-only XTR + 10s pre_checkout for digital goods",
+      "body": "Digital goods in Telegram bots/mini apps must use Telegram Stars (currency XTR). Flow: sendInvoice/createInvoiceLink → pre_checkout_query (answer within 10s) → successful_payment before delivery; store telegram_payment_charge_id for refunds. Third-party currencies for digital goods risk mobile app store hiding."
+    },
+    {
+      "id": "d34264dd-c3a1-4e1b-b4e3-6b9aa0915083",
+      "title": "Claim: GHCR + SSH compose rolling deploy is production pattern",
+      "body": "Production VPS deploy pattern: build/push images to registry (GHCR), SSH to host, docker compose pull, healthchecked rolling update (docker rollout or scale-then-drain), rollback via previous image tag. Requires reverse proxy and healthchecks; avoid published host ports on app replicas."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ed80697d-df3e-467c-adec-2c42847f1888",
+      "title": "Official Stars digital goods requirement",
+      "body": "Evidence from https://core.telegram.org/bots/payments-stars: 'Payments for digital goods and services must be carried out exclusively in Telegram Stars' and FAQ denying alternate currencies/crypto inside Telegram apps for digital goods."
+    },
+    {
+      "id": "c8aa60fe-95a4-4554-aade-31343a6868ab",
+      "title": "Evidence: core.telegram.org bots/payments-stars",
+      "body": "Official Telegram Bot Payments API for digital goods: https://core.telegram.org/bots/payments-stars — Stars/XTR mandatory; pre_checkout_query must be answered within 10 seconds; deliver only after successful_payment; store charge id for refunds."
+    },
+    {
+      "id": "1a6e522d-ea69-425e-bdfe-eb1c89864bfa",
+      "title": "Evidence: docker-rollout and GH Actions VPS deploy docs",
+      "body": "docker-rollout / compose rolling patterns: https://github.com/Wowu/docker-rollout — scale service, wait healthy, remove old; requires proxy not host port mapping. Complementary guides: GH Actions SSH + compose pull deploy patterns (deploytovps / appleboy ssh-action ecosystem)."
+    },
+    {
+      "id": "5b497ed1-154b-454f-887b-d0e4a3c58d55",
+      "title": "Bot token env load verified; getMe smoke (no secret logs)",
+      "body": "Verified loadRepoEnv + validateInitData path uses FEETAPP_BOT_TOKEN from env without logging secrets. Optional getMe smoke attempted via SOCKS 10808; results recorded without token values."
+    },
+    {
+      "id": "6a7e8b4a-5668-482f-956e-8a9b0ce48f3f",
+      "title": "Loop 47: cloudflared http2 HTTPS serves web+/v1/health",
+      "body": "cloudflared quick tunnel with --protocol http2 registered; public HTTPS served Spiced shell + /v1/health via Vite proxy. QUIC timed out; SOCKS on cloudflared broke registration. Ephemeral trycloudflare hostname — BotFather Menu Button still human. No secrets logged."
+    },
+    {
+      "id": "4c065a33-1a49-4c91-ba1c-baeb95358150",
+      "title": "Local web+api+e2e green after contrast fix",
+      "body": "pnpm --filter @feetapp/web test: 17 passed; pnpm test (config+shared+api): green; pnpm test:e2e:local: 3 passed including status contrast ≥4.5. cloudflared stopped. No .env in Trace."
+    }
+  ],
+  "links": [
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "33247e2d-aa10-4b25-b194-4b7afb5a6359"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "0387bb4d-b3e8-412c-8073-339384077dd0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "2641a4fd-5586-4c9e-a3fd-dd47e95981ca"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "cb6217be-8a5b-4da1-98f2-4b4697c746f5"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "f40bd8fd-f2d1-44ee-8cb0-778725c2a7eb"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "9fbeb3e2-eb80-4539-8d46-712f1d72e3d0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "bb0ea399-fb21-45dc-9cbb-7aea31a43d36"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "4ca45835-d168-4cb9-8248-c24733f2fcd0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "cb300aa4-3dff-4708-b385-4cd4867a2cc3"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "9513d802-c168-427c-a915-caae65c7c455"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "cd76d94d-5811-4ccd-85f0-2c57df431e85"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "213e1b52-bab7-4e9f-be33-15c506c1ce5e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d021887d-b73d-4cfe-9141-1b7ae2ecb97d"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "dcf8b98b-fc97-43ce-8da7-7b2ebdf6aaac"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "4cf0d26a-ad0f-4e14-aae2-3d88d3d9d31e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "7ea319bb-7441-4d1d-8460-c1d48688ef94"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "024ed286-cd60-419d-a33a-2e0a450a0a59"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "e1a885c5-7715-4410-b959-886495639194"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "3282efff-8c9b-4059-a1f2-0b0494b54279"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "1c78da9a-90f9-48d3-ae81-f5a2691721c0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "655d6019-6060-4e51-89f8-fb5620ea4593"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "eff89f01-06f9-42d2-8f70-4113f08da5bf"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "e05e3ede-2b69-4d92-be5c-f6a203524f78"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "c0c80036-8b44-42af-9249-7308f1a7a446"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "5758d150-6e18-46b6-b734-bc5c96818005"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "16cad2c3-8dfc-470f-8586-603b190ec4cb"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "7f457737-09cf-410d-86b9-db75c4e20b8a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "ed46bb96-6938-4032-8c8b-2d3e900f90fe"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "fb420fac-ba39-4449-94ee-4d8a444070a7"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "29ba43be-b964-482e-adf7-7877a42ec7e4"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "abfdd8a2-482a-4c52-a56c-ba687961ec81"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "20bf1bbc-a82c-4400-91c4-5e66dc7fcefe"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a68f2114-0473-4d24-83ea-82683f9d6c44"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8269666e-ab89-43e3-a15d-4aea11108822"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "c7be200c-87b9-455e-9550-b17d56a17b90"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "70198eb5-e504-45ec-9a5c-2ab6671809b2"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "ee2937bf-2bcc-4ccf-9f03-25aa25cf139e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6087d0f2-835a-4e03-a103-1ad99a185fa3"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "e8f851b3-5c5d-4ffe-a1d6-61d9d87fe7e4"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a376004f-dfa8-4498-921e-4573294cacfb"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "592b6a73-3f85-44e8-b6b3-65816e0c4f15"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "c8ddb7ed-a208-48f9-9b17-ba1b8e8e329b"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "0357eaad-c1b4-4718-8c33-9a3b94b6279e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "41fb3b56-3bfc-409b-b00e-125f06635847"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "b762ce47-2a2f-48aa-bbd6-58612ca6c946"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "9716b4f2-feb8-41f8-bb06-0826a8bdbc49"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "bbf189d6-9bd1-472f-95d1-398326aeba1e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d878d969-85b8-4522-a3d9-46b39853fa66"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "1d599ae5-c7f0-4f0f-b7e8-767c4da6d917"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "0be4c1cb-b9db-4e1a-ac53-1b67865190ea"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "5c052236-ccb3-4bc7-9402-a77892c227f4"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6f309bf0-923c-4b8b-8e1a-2cea6c9369e2"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "31870d9a-f8b7-474e-ad69-2fbb4d20e022"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8c749175-e386-41a1-a9b3-ec0a1a93df40"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8acc9ca9-a09c-41a4-87a2-5077d8801fca"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a16a287c-d49c-491a-8a6c-6c9d54ec387b"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "0b14d28a-f22e-4941-81a4-9f93fe36bfcf"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "15fdf9b7-adfc-4ca5-852c-04eb0d31500b"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "c2f949b3-a615-49f3-90ff-7bdf903c9084"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "f50a2e78-a27f-4756-8ea7-0fc3da86f543"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "1ee256f1-c07d-4e0a-a2a3-16e791f6ce6f"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "ff650e65-1f97-4226-9ab2-8fea56661284"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d31d6eed-2933-4559-83a6-f997841c0129"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "93150410-ad40-45f8-a075-cb5fb4622042"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "277844a5-1b9e-4982-a461-985020457256"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d798eb89-2b12-4f7b-8a0f-8a292073b6ce"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "31778850-07a0-4be0-aa1a-c0b06396931e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "72a5ba68-8a16-47d9-9a77-0875bd4fc66d"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "613a110f-e80d-4f78-be5b-aeb27bdd61fc"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d33d175c-c669-4f2b-8196-3cb5018d826c"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "05addd42-5d55-4a58-95ea-4718a4bf3eff"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "5ec81427-334f-4889-aa07-5d5ee65b224e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "085eadcc-612c-40e8-9c77-b5f776bd405a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "288581c7-8f17-4afb-b71f-c9169c687f62"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8cf19976-747c-4c2b-a33e-3ee8c70ac14d"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6c321016-5870-475f-91b7-6a925104863f"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a2272c7b-2d11-4d08-a7db-dc803827a01d"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8e578b5c-9212-47bf-96e0-43f853ac3276"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6f5b1567-9c2e-49f8-a27e-3a31851e9ca9"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "4f580978-01e1-4c6d-8b4a-9a39818f71bb"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "b00106fe-0a21-4f60-8136-9e9a59e201d5"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6ce13b47-b9a3-4785-9adf-e9d0899e122e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d0a87e3a-3760-44d9-8bf5-0191bf7a9005"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "69e8b172-59f5-43d1-b6c3-949dc5c2e2c9"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "07486305-8549-42ba-84d4-54ba1ebb2320"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "9502b371-0e30-47ad-b5a6-53786cf9d9f8"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "ddd563f6-910d-4d10-a3d9-3dfe749969e7"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "34820e70-0627-4977-8616-baf97cb95451"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "3402feff-dfaa-44b0-89d2-a309a816b179"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "f2675e54-9f9b-4df0-8f80-91e8abf0a8d1"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d1d57254-346f-42ad-9007-08c71058410f"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "3410234f-aa08-4d78-b7d5-0f7162b9f4e0"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "09207302-7880-430d-85fb-c02a0df645ba"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "49fe16c8-7e51-43d8-8913-1a57e344d379"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "f90ada2e-e4d0-422a-9e6e-b9821c63a729"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "6c8c7a17-8121-4b2f-ba4b-61bcc445bb47"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "ffd605a7-1c8f-499d-9b10-19a57d070466"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a07a24d7-199f-4237-8005-74bf98df5654"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "85d0f09e-9e70-49c5-878c-e63fd4ddd835"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "c1c32bca-77a3-4569-abfa-19e78f5c2c53"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "1f08cd0b-9f51-42cb-8d5d-37f84774243c"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "d9be678a-b49b-4be6-86dd-6f3ec864dede"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "f3c253e5-a852-448e-8493-1e9835ba83e1"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "7994667b-8a98-4d4f-af3a-d27dfb403d1c"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "eea9d0e0-e537-4160-86ac-7b0454d61e21"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "fbf9cf6b-7c75-4e10-ad5d-509597304153"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "afb3c559-3aaf-4b20-b9cb-e8f774cc0b2d"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "9cc2d626-1b1f-41bf-8055-1839fd849721"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "a655c065-c58a-4c7b-9464-7c7d5f01c6cd"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "00e7617a-686a-40e0-8a97-c1b602d8899e"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "84bd5905-9ebf-4ff7-a453-25ceb0eafafd"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "28f54833-eb36-4453-99cb-850c8fea65a4"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "3e214c47-b5a1-4f5f-8b97-4b2d3cbc489a"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "8ed4e7b4-e15f-4c3a-8e2d-03323d7686d2"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "edeb0cd3-f84c-4297-a6cf-a5adb57558a4"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "442022d4-1ecf-4414-bb19-f4e361c79e7b"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "e0b2c1bb-8a28-430c-8313-a39014676a94"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "e317bd27-fbbb-44dd-bb0c-80484de411ed"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "29892426-2033-414d-b555-b3b1e0be8f30"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "5bdb845d-7790-46be-83cb-831da5281a96"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "b736a125-eca9-4c02-b52d-a10187d22b60"
+    },
+    {
+      "rel": "goal_has_task",
+      "from": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "to": "99d8fb92-65ac-462c-82c4-21bcf198c09e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "1f886f98-07bf-4236-872b-5d014028f97e",
+      "to": "0387bb4d-b3e8-412c-8073-339384077dd0"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "b682e585-f3b2-4478-ac8c-c1c818cf5ae5",
+      "to": "cb6217be-8a5b-4da1-98f2-4b4697c746f5"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "75bc3de5-f581-424c-8615-286a15747712",
+      "to": "33247e2d-aa10-4b25-b194-4b7afb5a6359"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "c5edfd7b-aa43-4a19-9de0-28e3841e5dcc",
+      "to": "2641a4fd-5586-4c9e-a3fd-dd47e95981ca"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "eda04f4f-bf63-45bf-8206-7860935f7f4e",
+      "to": "cb6217be-8a5b-4da1-98f2-4b4697c746f5"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "eda04f4f-bf63-45bf-8206-7860935f7f4e",
+      "to": "2641a4fd-5586-4c9e-a3fd-dd47e95981ca"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "ad45b109-6579-48f5-a7af-70c5e4e9670e",
+      "to": "9fbeb3e2-eb80-4539-8d46-712f1d72e3d0"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "3faa57d9-c148-4481-ae7a-d6eb5bef7eb2",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "f1a5fff1-86f9-45b8-8804-ba371904deac",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "a290d4ba-3434-414b-9612-9e107303238e",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "daa36d09-84b3-441f-bdb0-00135e048483",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "66e1894d-86fa-4f8a-9679-325cc3833489",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "882f1e94-6829-449b-80f3-15dd7624a26b",
+      "to": "4ca45835-d168-4cb9-8248-c24733f2fcd0"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "5272ab25-9ce9-4b60-bb9f-2da52d64899c",
+      "to": "cb300aa4-3dff-4708-b385-4cd4867a2cc3"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "69a1369e-d9e0-4c91-b47e-cc22971f781a",
+      "to": "9513d802-c168-427c-a915-caae65c7c455"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "0e5b5f20-2e8e-41c2-9af9-59b8fca8a9a6",
+      "to": "cd76d94d-5811-4ccd-85f0-2c57df431e85"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "1ae80829-8cb9-4771-8845-b6d8d6a94be5",
+      "to": "213e1b52-bab7-4e9f-be33-15c506c1ce5e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "d021887d-b73d-4cfe-9141-1b7ae2ecb97d"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "dcf8b98b-fc97-43ce-8da7-7b2ebdf6aaac"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "4cf0d26a-ad0f-4e14-aae2-3d88d3d9d31e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "7ea319bb-7441-4d1d-8460-c1d48688ef94"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "024ed286-cd60-419d-a33a-2e0a450a0a59"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "e1a885c5-7715-4410-b959-886495639194"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "3282efff-8c9b-4059-a1f2-0b0494b54279"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "1c78da9a-90f9-48d3-ae81-f5a2691721c0"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "655d6019-6060-4e51-89f8-fb5620ea4593"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "eff89f01-06f9-42d2-8f70-4113f08da5bf"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "e05e3ede-2b69-4d92-be5c-f6a203524f78"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "c0c80036-8b44-42af-9249-7308f1a7a446"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "5758d150-6e18-46b6-b734-bc5c96818005"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "7f457737-09cf-410d-86b9-db75c4e20b8a"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "16cad2c3-8dfc-470f-8586-603b190ec4cb"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "ed46bb96-6938-4032-8c8b-2d3e900f90fe"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "fb420fac-ba39-4449-94ee-4d8a444070a7"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "29ba43be-b964-482e-adf7-7877a42ec7e4"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "abfdd8a2-482a-4c52-a56c-ba687961ec81"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "20bf1bbc-a82c-4400-91c4-5e66dc7fcefe"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "a68f2114-0473-4d24-83ea-82683f9d6c44"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "8269666e-ab89-43e3-a15d-4aea11108822"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "c7be200c-87b9-455e-9550-b17d56a17b90"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "70198eb5-e504-45ec-9a5c-2ab6671809b2"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "ee2937bf-2bcc-4ccf-9f03-25aa25cf139e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "6087d0f2-835a-4e03-a103-1ad99a185fa3"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "e8f851b3-5c5d-4ffe-a1d6-61d9d87fe7e4"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "a376004f-dfa8-4498-921e-4573294cacfb"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "592b6a73-3f85-44e8-b6b3-65816e0c4f15"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "c8ddb7ed-a208-48f9-9b17-ba1b8e8e329b"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "41fb3b56-3bfc-409b-b00e-125f06635847"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "0357eaad-c1b4-4718-8c33-9a3b94b6279e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "b762ce47-2a2f-48aa-bbd6-58612ca6c946"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "bbf189d6-9bd1-472f-95d1-398326aeba1e"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "9716b4f2-feb8-41f8-bb06-0826a8bdbc49"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "d878d969-85b8-4522-a3d9-46b39853fa66"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "1d599ae5-c7f0-4f0f-b7e8-767c4da6d917"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "0be4c1cb-b9db-4e1a-ac53-1b67865190ea"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "6f309bf0-923c-4b8b-8e1a-2cea6c9369e2"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "013898aa-950c-442a-a53a-611929325299",
+      "to": "5c052236-ccb3-4bc7-9402-a77892c227f4"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "4104fd61-83d9-4d63-9673-3fbd4aef6d48",
+      "to": "31870d9a-f8b7-474e-ad69-2fbb4d20e022"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "7cde3a9e-9042-44fb-9379-b85e94661eb3",
+      "to": "8acc9ca9-a09c-41a4-87a2-5077d8801fca"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "7cde3a9e-9042-44fb-9379-b85e94661eb3",
+      "to": "a16a287c-d49c-491a-8a6c-6c9d54ec387b"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "545b738e-30d4-47e0-a31f-661522965410",
+      "to": "afb3c559-3aaf-4b20-b9cb-e8f774cc0b2d"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "30baf48f-b77e-4399-9eac-62c70055fcb9",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "9e3e5e6b-4e93-4080-a8a9-c92788c753c1",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "f65b493b-04fe-41c3-9f65-d14d57a6deab",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "16d5cb0c-d55d-482f-b2ee-ea173e2d1e3d",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "0f8c40e5-efdf-4fcc-a0ff-15bd835b23bc",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "c1083280-0b71-4552-b3d9-f2363f9eded7",
+      "to": "afe6766c-3c51-426e-abc8-b41e4f5df74e"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "9f438813-2ddf-4287-9435-2902f32ccdbc",
+      "to": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "0e4ef41c-cda3-4032-87c9-5581f6954bba",
+      "to": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "c6c3f2b0-6cfb-4c57-8a64-913201081da8",
+      "to": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "6687eefc-274b-4805-9ecb-9776340abfd8",
+      "to": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "5b703546-99b0-4e92-a64a-07b0ea54fbc9",
+      "to": "f124bf2d-1d5b-4ad4-833f-8ae090fabe61"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "89232b1e-708a-432e-8e44-c72d315ec9aa",
+      "to": "80fd802b-a600-4396-b7e5-f6e2407be335"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "20620695-89d7-4e64-8073-768c82322efa",
+      "to": "ebe369f6-24bd-467b-a1c4-875276f87df0"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "d440c38b-83f0-4de3-a133-1c6efac69be6",
+      "to": "ebe369f6-24bd-467b-a1c4-875276f87df0"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "a84df3d9-f852-4912-94b2-fcee1590b1b7",
+      "to": "ebe369f6-24bd-467b-a1c4-875276f87df0"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "680b2f14-cca0-4721-aabb-ccc282116b28",
+      "to": "ac6fde59-4678-4376-a7f8-1909e470af81"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "b667ae91-480c-4046-af6b-74af16ce2315",
+      "to": "47867144-0d9e-4c86-80ef-9cb131ac4f92"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "97fb9415-b6c8-4569-a48f-8e64271a3fa4",
+      "to": "dbb9f550-ae44-4d02-8cfa-7b5560675d84"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "e6a3dff5-aea4-4817-b8b8-750f8488017a",
+      "to": "9808f6f5-9cc9-4db6-9b4f-2b43b33512a2"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "60371cc5-b69f-4d33-9543-874b17883623",
+      "to": "9808f6f5-9cc9-4db6-9b4f-2b43b33512a2"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "c6ea5daa-90dc-4b0d-bcf9-e229d6c998b4",
+      "to": "9808f6f5-9cc9-4db6-9b4f-2b43b33512a2"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "8a43cbeb-4426-4a92-ba1f-fabe005dafca",
+      "to": "792ee4fc-2a87-40f2-804a-dc9c395e1c0e"
+    },
+    {
+      "rel": "claim_has_evidence",
+      "from": "5e8b200c-836b-4eb6-a684-225375bc73c9",
+      "to": "ed80697d-df3e-467c-adec-2c42847f1888"
+    },
+    {
+      "rel": "claim_has_evidence",
+      "from": "f94fab7d-3e75-408b-86c2-aaf47f47fd01",
+      "to": "c8aa60fe-95a4-4554-aade-31343a6868ab"
+    },
+    {
+      "rel": "claim_has_evidence",
+      "from": "d34264dd-c3a1-4e1b-b4e3-6b9aa0915083",
+      "to": "1a6e522d-ea69-425e-bdfe-eb1c89864bfa"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "cb7bb872-2b2d-479c-a390-655bfb7c86ee",
+      "to": "33247e2d-aa10-4b25-b194-4b7afb5a6359"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "30baf48f-b77e-4399-9eac-62c70055fcb9",
+      "to": "0387bb4d-b3e8-412c-8073-339384077dd0"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "90a7bd29-bc69-4dd8-ac02-208857d9a8ab",
+      "to": "0387bb4d-b3e8-412c-8073-339384077dd0"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "f65b493b-04fe-41c3-9f65-d14d57a6deab",
+      "to": "2641a4fd-5586-4c9e-a3fd-dd47e95981ca"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "16d5cb0c-d55d-482f-b2ee-ea173e2d1e3d",
+      "to": "cb6217be-8a5b-4da1-98f2-4b4697c746f5"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "c1083280-0b71-4552-b3d9-f2363f9eded7",
+      "to": "f40bd8fd-f2d1-44ee-8cb0-778725c2a7eb"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "9f438813-2ddf-4287-9435-2902f32ccdbc",
+      "to": "9fbeb3e2-eb80-4539-8d46-712f1d72e3d0"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "6687eefc-274b-4805-9ecb-9776340abfd8",
+      "to": "bb0ea399-fb21-45dc-9cbb-7aea31a43d36"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "0e4ef41c-cda3-4032-87c9-5581f6954bba",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "c6c3f2b0-6cfb-4c57-8a64-913201081da8",
+      "to": "bb0ea399-fb21-45dc-9cbb-7aea31a43d36"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "5b703546-99b0-4e92-a64a-07b0ea54fbc9",
+      "to": "12416514-a1b2-4dc4-bd17-7021be70346a"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "89232b1e-708a-432e-8e44-c72d315ec9aa",
+      "to": "4ca45835-d168-4cb9-8248-c24733f2fcd0"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "20620695-89d7-4e64-8073-768c82322efa",
+      "to": "cb300aa4-3dff-4708-b385-4cd4867a2cc3"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "680b2f14-cca0-4721-aabb-ccc282116b28",
+      "to": "9513d802-c168-427c-a915-caae65c7c455"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "b667ae91-480c-4046-af6b-74af16ce2315",
+      "to": "cd76d94d-5811-4ccd-85f0-2c57df431e85"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "00b9ea02-6e0e-4a02-9434-2690ec3405bb",
+      "to": "213e1b52-bab7-4e9f-be33-15c506c1ce5e"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "899c6b09-8f75-430b-a66c-eea28fd1fdb7",
+      "to": "7ea319bb-7441-4d1d-8460-c1d48688ef94"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "ee00f31c-a2e1-4efb-be3f-3cad0a327709",
+      "to": "024ed286-cd60-419d-a33a-2e0a450a0a59"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "24841a61-2e72-4961-b6b1-849581a10936",
+      "to": "5c052236-ccb3-4bc7-9402-a77892c227f4"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "97fb9415-b6c8-4569-a48f-8e64271a3fa4",
+      "to": "31870d9a-f8b7-474e-ad69-2fbb4d20e022"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "97fb9415-b6c8-4569-a48f-8e64271a3fa4",
+      "to": "8c749175-e386-41a1-a9b3-ec0a1a93df40"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "ce9b16d4-8eb5-4c6b-a628-aa96d28b41d4",
+      "to": "0b14d28a-f22e-4941-81a4-9f93fe36bfcf"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "1b9c3433-d30c-417a-81cb-97e207d1eab1",
+      "to": "0b14d28a-f22e-4941-81a4-9f93fe36bfcf"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "8afe2177-7cd9-43c2-8461-48e375429fee",
+      "to": "3402feff-dfaa-44b0-89d2-a309a816b179"
+    },
+    {
+      "rel": "discovery_mentions_task",
+      "from": "fbbece13-14df-4237-a2f2-cff700d6544d",
+      "to": "09207302-7880-430d-85fb-c02a0df645ba"
+    }
+  ],
+  "findings": [],
+  "alternatives": [],
+  "plan_phases": [
+    {
+      "id": "f1a88089-e3f9-4ec7-815d-f267a223a09c",
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "title": "BotFather gate partially unblocked; rotate chat-pasted token",
+      "body": "",
+      "ord": 0,
+      "status": "ACTIVE"
+    }
+  ],
+  "plan_scopes": [
+    {
+      "id": "fc36da1d-5c27-4215-a399-f3413e6e1580",
+      "phase_id": "f1a88089-e3f9-4ec7-815d-f267a223a09c",
+      "title": "BotFather gate partially unblocked; rotate chat-pasted token",
+      "body": "Human pasted BotFather token in chat. Token stored only in gitignored .env as FEETAPP_BOT_TOKEN. Must rotate before treating as production secret. Local initData HMAC wiring may proceed with rotated o…",
+      "ord": 0,
+      "status": "ACTIVE",
+      "auto_replan_count": 0
+    }
+  ],
+  "scope_deep_plans": [
+    {
+      "id": "4e943853-73a5-4bdc-9f82-211bcacc2a51",
+      "scope_id": "fc36da1d-5c27-4215-a399-f3413e6e1580",
+      "content_json": "{\"scope_id\":\"fc36da1d-5c27-4215-a399-f3413e6e1580\",\"exit_criteria\":[\"Human pasted BotFather token in chat. Token stored only in gitignored .env as FEETAPP_BOT_TOKEN. Must rotate before treating as production secret. Local initData HMAC wiring may proceed with rotated o…\"],\"constraints\":[],\"work_items\":[{\"title\":\"Refine bootstrap plan\",\"notes\":\"\"}],\"lookahead_scope_id\":\"\",\"lookahead_summary\":\"\"}",
+      "status": "ACTIVE"
+    }
+  ],
+  "goal_plan_state": [
+    {
+      "goal_id": "353b12a4-57dd-4d68-8379-b2024e064733",
+      "current_scope_id": "fc36da1d-5c27-4215-a399-f3413e6e1580"
+    }
+  ]
+}

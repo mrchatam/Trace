@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "title": "Ship greeter + math demo",
+      "body": "Deliver a tiny dual-language demo app used as P0-X ground truth."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "title": "Wire greeting to arithmetic helpers",
+      "body": "Connect TypeScript greeter to Python math_util symbols for the demo narrative.",
+      "goal_id": "11111111-1111-1111-1111-111111111111"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "title": "Prefer TypeScript greeter surface",
+      "body": "Expose greet() from greeter.ts; keep math helpers in Python."
+    }
+  ],
+  "assumptions": [],
+  "discoveries": [
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "title": "math_util lacks a clamp helper",
+      "body": "Review found add/hypotenuse but no clamp; plan change follows."
+    }
+  ],
+  "plan_changes": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "title": "Add clamp helper to math_util",
+      "body": "Schedule a follow-up to add clamp(min, max, value) in math_util.py."
+    }
+  ],
+  "claims": [],
+  "evidence": [],
+  "links": [
+    {
+      "rel": "goal_has_task",
+      "from": "11111111-1111-1111-1111-111111111111",
+      "to": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "rel": "decision_affects_task",
+      "from": "33333333-3333-3333-3333-333333333333",
+      "to": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "rel": "discovery_causes_plan_change",
+      "from": "44444444-4444-4444-4444-444444444444",
+      "to": "55555555-5555-5555-5555-555555555555"
+    }
+  ],
+  "transitions": [
+    {
+      "task_id": "22222222-2222-2222-2222-222222222222",
+      "to": "IN_PROGRESS",
+      "actor": "seed",
+      "reason": "Begin wiring greeter to math helpers for P0-X fixture",
+      "allow_done": false
+    }
+  ]
+}

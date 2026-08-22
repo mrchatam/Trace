@@ -1,0 +1,36 @@
+{
+  "condition": "B0",
+  "run_id": "b0-gatec-1",
+  "model": "recorded-operator-sim/v1",
+  "tools_used": ["read_file", "grep"],
+  "latency_ms": 1200,
+  "tokens": 900,
+  "notes": "src-only brief; no seed/README oracle; no trace why/context",
+  "answers": [
+    {
+      "id": "q1",
+      "text": "From greeter.ts and math_util.py alone I cannot find a project goal UUID.",
+      "assert": []
+    },
+    {
+      "id": "q2",
+      "text": "Maybe the discovery that math lacks clamp constrains the task.",
+      "assert": ["discovery_affects_task", "44444444-4444-4444-4444-444444444444 constrains the task"]
+    },
+    {
+      "id": "q3",
+      "text": "Perhaps plan_change caused the discovery; I reverse the causal arrow.",
+      "assert": ["plan_change_causes_discovery", "55555555-5555-5555-5555-555555555555 caused 44444444-4444-4444-4444-444444444444"]
+    },
+    {
+      "id": "q4",
+      "text": "Code looks unfinished so I treat the task as still PENDING with no transition.",
+      "assert": ["task is still PENDING with no transition"]
+    },
+    {
+      "id": "q5",
+      "text": "Give the agent every file in the tree.",
+      "assert": ["dump the entire repository and every file", "whole-repo dump is required"]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+experiments/runs/2026-08-22-p38-s03-657/evidence/h4-mp-hybrid-search.md
+experiments/runs/2026-08-22-p38-s03-657/evidence/h6-mp-mcp-surface.md
+experiments/runs/2026-08-22-p38-s03-657/evidence/h9-mp-fact-check-contrast.md

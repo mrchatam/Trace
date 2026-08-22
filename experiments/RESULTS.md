@@ -1,0 +1,14 @@
+# Dogfood results
+
+One row per scored arm. Update after `./score.sh`.
+
+| Date | ID | Experiment | Verdict | Notes |
+|------|----|------------|---------|-------|
+| 2026-08-21 | E03-SB | ab-library-hold-desk | **PASS** | Session-B directed gap after already-rich build. **P25-3b PASS** (disc=4 dec=6); tasks **6** (seed 5 + promoted `8829b005…` from BLOCKING discovery); G2 honesty PASS; tests PASS. Product: `GET /api/users` + `ListUsers`. FIFO waitlist recorded as non-blocking discovery (no extra task). Promotion path used live (FM-10). |
+| 2026-08-21 | E03 | ab-library-hold-desk | **PASS** (stack validated) | B0 PASS (`go test`). G1 build-only: P25-1/2 PASS; **P25-3a PASS** (disc=2 dec=5); G2 honesty `--strict --enforce` PASS; FM-07 PASS; tests PASS. Seed tasks only (5) at Session A. G1≢B0. Phase 29 **not** indicated. |
+| 2026-08-20 | E02-P28-V | ab-p25-gap-pass-validation | **PASS** | Phase 28 S05-01 VERIFY dual-lane (no prepare): directed P25-3b PASS + P25_ATTEST_DIRECTED; rich build-arm P25-3a PASS (post-Session-B) + P25_ATTEST_BUILD; thin baseline docs-only SESSION-A-GRAPH-SNAPSHOT; evidence experiments/runs/2026-08-20-p28-s05-01-verify/evidence/; notes docs/phases/phase-28-residuals-validation/scopes/scope-05-verify/VERIFY-NOTES.md |
+| 2026-08-20 | E02-SB | ab-p25-gap-pass-validation | **PASS** | Session-B directed gap; P25-3b PASS (disc=1 dec=1); G2 honesty PASS; P25-1/2 PASS; snapshot SESSION-A-GRAPH-SNAPSHOT.json; score SESSION-B-SCORE.txt; notes docs/phases/phase-28-residuals-validation/scopes/scope-02-session-b-dogfood/SESSION-B-NOTES.md |
+| 2026-08-20 | E02 | ab-p25-gap-pass-validation | **PASS** (P27 verify) | Phase 27 S03-01: score.sh T02 `--strict --enforce`; thin → G2 FAIL + P25-3a FAIL expected; P25-1/2 PASS; directed P25-3b FAIL OK (no Session-B); see [VERIFY-NOTES.md](../docs/phases/phase-27-protocol-measurement-graph-honesty/scopes/scope-03-verify/VERIFY-NOTES.md) |
+| 2026-08-20 | E03 | ab-p25-gap-pass-validation | **PASS** (closure) | Phase 26 S05 verify P26-S05-01; Option A; P25-2 PASS (was E02 FAIL); harness VERDICT FAIL on P25-3 only (build-only); see [VERIFY-NOTES.md](../docs/phases/phase-26-loop-implementation/scopes/scope-05-verify/VERIFY-NOTES.md) |
+| 2026-08-20 | E02 | ab-p25-gap-pass-validation | **FAIL** | Build-only G1; P25-2 FAIL (Parent orchestrator unwired); see [RUBRIC.md](ab-p25-gap-pass-validation/RUBRIC.md) |
+| 2026-08-20 | E01 | ab-incident-tracker | **Both complete — Trace mode-dependent** | **Session A (build):** seed-only graph, 0 decisions, G1≡B0, loop STOP. **Session B (directed gap):** 7 discoveries, 2 decisions, 4 evidence, product diverges (unassign, filters, started_at, store tests), tests PASS — but still 0 new tasks, 0 uncertainties, verify gate `hop_budget_exceeded`. Phase 24 promoted with two-mode model. |
