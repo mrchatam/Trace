@@ -11,15 +11,15 @@ Legend: `pending` | `in_progress` | `done` | `failed` | `blocked` | `skipped`
 Orchestrator paste:
 
 ```text
-Phase 00–42 complete — do not re-run closed rows.
+Phase 00–43 complete — do not re-run closed rows.
 @docs/TODO.md
 
-- Active phase: **43** — GitHub hygiene (issues + Actions remediation)
-- Next runnable: **P43-S01-02** (DR-HANDOFF post-push)
+- Active phase: **none** — Phase 43 GitHub hygiene complete
+- Next runnable: **idle** (human promotion only)
 - Follow docs/rules/agent-loop-protocol.md
 ```
 
-(Phase 00–42 complete. **Phase 43 active** 2026-08-22 — GitHub triage + eval/CI fixes.)
+(Phase 00–43 complete. **P43-S01-02 done** 2026-08-22 — GitHub triage + eval/CI fixes; successor **no successor**.)
 ---
 
 ## Phase boards
@@ -69,9 +69,9 @@ Phase 00–42 complete — do not re-run closed rows.
 | 40+ | Read surface & retrieval depth | done | — | [TODO/phase-40.md](TODO/phase-40.md) |
 | 41+ | Layers & intent | done | — | [TODO/phase-41.md](TODO/phase-41.md) |
 | 42+ | Concept & index | done | — | [TODO/phase-42.md](TODO/phase-42.md) |
-| 43 | GitHub hygiene (issues + Actions) | **active** | P43-S01-02 | [TODO/phase-43.md](TODO/phase-43.md) |
+| 43 | GitHub hygiene (issues + Actions) | done | — | [TODO/phase-43.md](TODO/phase-43.md) |
 
-(P42 complete 2026-08-22 — G6+G7 delivered; DR-HANDOFF CLOSED. **P43 active** — GitHub triage + eval/CI remediation.)
+(P43 complete 2026-08-22 — GitHub triage + eval/CI remediation; DR-HANDOFF CLOSED; successor **no successor**.)
 
 ---
 
