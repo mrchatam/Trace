@@ -1,10 +1,9 @@
 module github.com/mrchatam/Trace
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.0
 
 require (
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
@@ -13,13 +12,12 @@ require (
 	github.com/tree-sitter/tree-sitter-javascript v0.25.0
 	github.com/tree-sitter/tree-sitter-python v0.25.0
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
-	golang.org/x/sys v0.40.0
+	golang.org/x/sys v0.47.0
 	modernc.org/sqlite v1.45.0
 )
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
