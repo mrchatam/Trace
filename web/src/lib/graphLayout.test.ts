@@ -23,6 +23,8 @@ import {
   getNodeLod,
   inferGoalBands,
   kindCssKey,
+  SEMANTIC_LANE_WIDTH,
+  SEMANTIC_MIN_NODE_DISTANCE,
   shouldRenderEdges,
   shouldShowEdgeLabels,
   shouldShowFullNode,
@@ -137,6 +139,12 @@ describe('getNodeLod', () => {
     assert.equal(getNodeLod(true, 0.1, 'n1', 'n1', 'c1'), 'full')
     assert.equal(getNodeLod(true, 0.1, 'c1', null, 'c1'), 'full')
     assert.equal(getNodeLod(true, 0.1, 'h1', null, 'c1', 'h1'), 'full')
+  })
+
+  it('forces dot/minimal LOD in compact overview until very high zoom', () => {
+    assert.equal(getNodeLod(true, 1.1, 'n1', null, 'c1'), 'dot')
+    assert.equal(getNodeLod(true, 0.2, 'n1', null, 'c1'), 'minimal')
+    assert.equal(getNodeLod(true, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), 'full')
   })
 })
 
@@ -273,6 +281,66 @@ describe('computeSemanticLayout', () => {
     const pos = computeSemanticLayout(nodes, edges)
     const yDelta = Math.abs(pos.get('g1')!.y - pos.get('t1')!.y)
     assert.ok(yDelta < 200)
+  })
+
+  it('keeps lane centers at least 200px apart on X', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal', title: 'G' },
+      { id: 't1', kind: 'task', title: 'T', goal_id: 'g1' },
+      { id: 'd1', kind: 'decision', title: 'D' },
+      { id: 'r1', kind: 'review', title: 'R' },
+    ]
+    const edges = [{ from: 'g1', to: 't1' }]
+    const pos = computeSemanticLayout(nodes, edges)
+    const xs = [...pos.values()].map((p) => p.x).sort((a, b) => a - b)
+    for (let i = 1; i < xs.length; i++) {
+      assert.ok(
+        xs[i]! - xs[i - 1]! >= 200 || xs[i] === xs[i - 1],
+        `lane X spread too tight: ${xs[i - 1]} → ${xs[i]}`,
+      )
+    }
+    assert.ok(pos.get('g1')!.x + SEMANTIC_LANE_WIDTH <= pos.get('t1')!.x + 1)
+  })
+
+  it('does not place distinct nodes closer than SEMANTIC_MIN_NODE_DISTANCE', () => {
+    const nodes = Array.from({ length: 80 }, (_, i) => ({
+      id: `t${i}`,
+      kind: 'task',
+      title: `Task ${i}`,
+      goal_id: 'g1',
+      work_state: i % 2 === 0 ? 'PENDING' : 'IN_PROGRESS',
+    }))
+    nodes.unshift({ id: 'g1', kind: 'goal', title: 'Goal' })
+    const edges = nodes.slice(1).map((n) => ({ from: 'g1', to: n.id }))
+    const pos = computeSemanticLayout(nodes, edges)
+    const entries = [...pos.entries()]
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const a = entries[i]![1]
+        const b = entries[j]![1]
+        const dist = Math.hypot(a.x - b.x, a.y - b.y)
+        assert.ok(
+          dist >= SEMANTIC_MIN_NODE_DISTANCE - 0.01,
+          `nodes ${entries[i]![0]} and ${entries[j]![0]} too close: ${dist.toFixed(1)}px`,
+        )
+      }
+    }
+  })
+
+  it('preserves horizontal spread for large graphs (no pillar collapse)', () => {
+    const kinds = ['goal', 'task', 'decision', 'review', 'evidence'] as const
+    const nodes = Array.from({ length: 120 }, (_, i) => ({
+      id: `n${i}`,
+      kind: kinds[i % kinds.length]!,
+      title: `Node ${i}`,
+      goal_id: i === 0 ? undefined : 'n0',
+    }))
+    nodes[0] = { id: 'n0', kind: 'goal', title: 'Root goal' }
+    const edges = nodes.slice(1, 40).map((n) => ({ from: 'n0', to: n.id }))
+    const pos = computeSemanticLayout(nodes, edges)
+    const xs = [...pos.values()].map((p) => p.x)
+    const xSpread = Math.max(...xs) - Math.min(...xs)
+    assert.ok(xSpread >= 800, `X spread ${xSpread}px too narrow — layout collapsed`)
   })
 })
 

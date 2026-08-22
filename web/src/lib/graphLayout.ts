@@ -74,10 +74,17 @@ const TASK_STATUS_RANK: Record<string, number> = {
   SKIPPED: 5,
 }
 
-const SEMANTIC_LANE_WIDTH = 168
-const SEMANTIC_NODE_SPACING = 46
-const SEMANTIC_GOAL_GAP = 28
-const SEMANTIC_PADDING = 72
+/** Horizontal distance between kind-lane centers (px). */
+export const SEMANTIC_LANE_WIDTH = 280
+/** Vertical gap between nodes in the same goal/kind cell (px). */
+export const SEMANTIC_NODE_SPACING = 52
+export const SEMANTIC_GOAL_GAP = 48
+export const SEMANTIC_PADDING = 80
+/** Max nodes stacked in one cell before wrapping to an overflow sub-column. */
+export const SEMANTIC_MAX_NODES_PER_CELL = 24
+const SEMANTIC_OVERFLOW_COLUMN_OFFSET = 72
+/** Minimum distance between distinct node positions (px). */
+export const SEMANTIC_MIN_NODE_DISTANCE = 20
 
 /** Map API kind (plan_change) to CSS data-kind token (plan-change). */
 export function kindCssKey(kind: string): string {
@@ -154,14 +161,25 @@ export function inferGoalBands(
   return assigned
 }
 
+function cellStackPosition(
+  baseX: number,
+  baseY: number,
+  indexInCell: number,
+): { x: number; y: number } {
+  const overflowCol = Math.floor(indexInCell / SEMANTIC_MAX_NODES_PER_CELL)
+  const rowInCol = indexInCell % SEMANTIC_MAX_NODES_PER_CELL
+  return {
+    x: baseX + overflowCol * SEMANTIC_OVERFLOW_COLUMN_OFFSET,
+    y: baseY + rowInCol * SEMANTIC_NODE_SPACING,
+  }
+}
+
 /** Deterministic swimlane layout: X = entity kind, Y = goal cluster (+ status within task lane). */
 export function computeSemanticLayout(
   nodes: readonly SemanticLayoutNode[],
   edges: readonly LayoutEdge[],
-  opts: { width?: number; height?: number } = {},
+  _opts: { width?: number; height?: number } = {},
 ): Map<string, { x: number; y: number }> {
-  const width = opts.width ?? 900
-  const height = opts.height ?? 700
   const positions = new Map<string, { x: number; y: number }>()
   if (nodes.length === 0) return positions
 
@@ -191,12 +209,13 @@ export function computeSemanticLayout(
   }
 
   const bandHeights = bandKeys.map((band) => {
-    let maxStack = 1
+    let maxRows = 1
     for (const [key, list] of cells) {
       if (!key.startsWith(`${band}\x00`)) continue
-      if (list.length > maxStack) maxStack = list.length
+      const rows = Math.min(list.length, SEMANTIC_MAX_NODES_PER_CELL)
+      if (rows > maxRows) maxRows = rows
     }
-    return maxStack * SEMANTIC_NODE_SPACING + SEMANTIC_GOAL_GAP
+    return maxRows * SEMANTIC_NODE_SPACING + SEMANTIC_GOAL_GAP
   })
 
   const bandBaseY: number[] = []
@@ -213,28 +232,11 @@ export function computeSemanticLayout(
     const list = cells.get(key) ?? []
     const idx = list.findIndex((item) => item.id === n.id)
     const bi = bandIndex.get(band) ?? 0
-    positions.set(n.id, {
-      x: SEMANTIC_PADDING + lane * SEMANTIC_LANE_WIDTH,
-      y: bandBaseY[bi]! + idx * SEMANTIC_NODE_SPACING,
-    })
+    const baseX = SEMANTIC_PADDING + lane * SEMANTIC_LANE_WIDTH
+    positions.set(n.id, cellStackPosition(baseX, bandBaseY[bi]!, idx))
   }
 
-  // Scale down if content exceeds canvas (preserve relative positions).
-  let maxX = 0
-  let maxY = 0
-  for (const p of positions.values()) {
-    maxX = Math.max(maxX, p.x)
-    maxY = Math.max(maxY, p.y)
-  }
-  const contentW = maxX + SEMANTIC_PADDING
-  const contentH = maxY + SEMANTIC_PADDING
-  if (contentW > width || contentH > height) {
-    const scale = Math.min(width / contentW, height / contentH, 1)
-    for (const [id, p] of positions) {
-      positions.set(id, { x: p.x * scale, y: p.y * scale })
-    }
-  }
-
+  // No global scale-to-fit — React Flow fitView handles large graphs at overview zoom.
   return positions
 }
 
@@ -313,7 +315,7 @@ export function shouldUseCompactNodes(
 
 /** Resolve node detail level from zoom + focus (Maps-style LOD). */
 export function getNodeLod(
-  _compactOverview: boolean,
+  compactOverview: boolean,
   zoom: number,
   nodeId: string,
   selectedId: string | null,
@@ -323,6 +325,10 @@ export function getNodeLod(
   const focused =
     nodeId === selectedId || nodeId === centerId || nodeId === hoveredId
   if (focused) return 'full'
+  if (compactOverview && zoom < FULL_CARD_MIN_ZOOM) {
+    if (zoom < LOD_MINIMAL_MAX_ZOOM) return 'minimal'
+    return 'dot'
+  }
   if (zoom >= FULL_CARD_MIN_ZOOM) return 'full'
   if (zoom >= LOD_MINIMAL_MAX_ZOOM) return 'dot'
   return 'minimal'

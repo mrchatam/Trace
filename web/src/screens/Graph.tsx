@@ -47,6 +47,7 @@ import {
   filterNodesByKinds,
   getNodeLod,
   kindCssKey,
+  LOD_MINIMAL_MAX_ZOOM,
   PROJECT_FIT_PADDING,
   SEMANTIC_LAYOUT_LABEL,
   shouldShowEdgeLabels,
@@ -261,7 +262,7 @@ function GraphCanvas({
   onExpand: (id: string) => void
 }) {
   const { fitView, getViewport, setViewport } = useReactFlow()
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(LOD_MINIMAL_MAX_ZOOM)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const zoomRafRef = useRef<number | undefined>(undefined)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -320,10 +321,13 @@ function GraphCanvas({
     fitKeyRef.current = fitKey
     const padding = layoutMode === 'project' ? PROJECT_FIT_PADDING : 0.12
     const t = window.setTimeout(() => {
-      void fitView({ padding, duration: 0 })
+      void fitView({ padding, duration: 0 }).then(() => {
+        const vp = getViewport()
+        setZoom(vp.zoom)
+      })
     }, 0)
     return () => window.clearTimeout(t)
-  }, [displayGraph.nodes.length, layoutMode, center, fitView])
+  }, [displayGraph.nodes.length, layoutMode, center, fitView, getViewport])
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_: MouseEvent, node: Node) => {
@@ -385,7 +389,6 @@ function GraphCanvas({
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
-        fitView
         minZoom={GRAPH_MIN_ZOOM}
         maxZoom={GRAPH_MAX_ZOOM}
         zoomOnScroll={false}
