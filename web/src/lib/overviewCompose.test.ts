@@ -107,6 +107,20 @@ describe('mergeOverviewGraphs', () => {
     assert.deepEqual(merged.edges, [])
     assert.equal(merged.nodes.length, 1)
   })
+
+  it('tolerates non-array edges from malformed JSON', () => {
+    const graphs = [
+      {
+        center: 'a',
+        max_nodes: 40,
+        truncated: false,
+        nodes: [{ id: 'a', kind: 'task', title: 'A' }],
+        edges: {},
+      },
+    ] as unknown as BoundedGraph[]
+    const merged = mergeOverviewGraphs(graphs, ['a'])
+    assert.deepEqual(merged.edges, [])
+  })
 })
 
 describe('partitionSettledGraphs', () => {

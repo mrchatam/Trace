@@ -152,6 +152,12 @@ func Explore(ctx context.Context, comp *Compiler, eng ExploreEngine, opts Explor
 		Depth:    opts.Depth,
 	})
 	if nerr == nil && nb != nil {
+		if nb.Nodes == nil {
+			nb.Nodes = []retrieval.GraphNode{}
+		}
+		if nb.Edges == nil {
+			nb.Edges = []retrieval.GraphEdge{}
+		}
 		out.Neighborhood = nb
 		if nb.Truncated {
 			out.Truncated = true

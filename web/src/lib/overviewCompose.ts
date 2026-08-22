@@ -17,6 +17,10 @@ export const SEARCH_FILL_QUERIES = ['goal', 'capability', 'decision', 'discovery
 
 const TERMINAL = new Set(['DONE', 'SKIPPED'])
 
+function coerceGraphEdges(edges: unknown): BoundedGraph['edges'] {
+  return Array.isArray(edges) ? edges : []
+}
+
 export type SeedCandidate = {
   id: string
   kind: string
@@ -138,9 +142,9 @@ export function collectSearchFill(
   return out
 }
 
-function edgeDegree(id: string, edges: BoundedGraph['edges']): number {
+function edgeDegree(id: string, edges: unknown): number {
   let d = 0
-  for (const e of edges) {
+  for (const e of coerceGraphEdges(edges)) {
     if (e.from === id || e.to === id) d++
   }
   return d
@@ -167,8 +171,8 @@ export function mergeOverviewGraphs(
   for (const g of graphs) {
     if (g.truncated) anyTruncated = true
     maxReported = Math.max(maxReported, g.max_nodes ?? 0)
-    const nodes = g.nodes ?? []
-    const graphEdges = g.edges ?? []
+    const nodes = Array.isArray(g.nodes) ? g.nodes : []
+    const graphEdges = coerceGraphEdges(g.edges)
     for (const n of nodes) {
       if (!nodeMap.has(n.id)) {
         nodeMap.set(n.id, { id: n.id, kind: n.kind, title: n.title })
@@ -258,8 +262,8 @@ export function partitionSettledGraphs(
     if (r.status === 'fulfilled') {
       graphs.push({
         ...r.value,
-        nodes: r.value.nodes ?? [],
-        edges: r.value.edges ?? [],
+        nodes: Array.isArray(r.value.nodes) ? r.value.nodes : [],
+        edges: coerceGraphEdges(r.value.edges),
       })
     } else failedSeedIds.push(seedIds[i] ?? `seed-${i}`)
   })

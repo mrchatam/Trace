@@ -102,12 +102,16 @@ export function getSeedStatus(opt: TokenOpt = {}) {
   return apiFetch<SeedStatus>('/v1/seed/status', opt)
 }
 
+function coerceGraphArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 /** getGraph — center + max_nodes required */
 export function normalizeBoundedGraph(g: BoundedGraph): BoundedGraph {
   return {
     ...g,
-    nodes: g.nodes ?? [],
-    edges: g.edges ?? [],
+    nodes: coerceGraphArray(g.nodes),
+    edges: coerceGraphArray(g.edges),
   }
 }
 

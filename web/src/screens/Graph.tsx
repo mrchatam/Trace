@@ -149,7 +149,7 @@ function layoutOverview(
     })
   })
 
-  const edges: Edge[] = (edgesMeta ?? []).map((e, i) => ({
+  const edges: Edge[] = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e, i) => ({
     id: `${e.from}-${e.rel}-${e.to}-${i}`,
     source: e.from,
     target: e.to,
@@ -180,11 +180,12 @@ function GraphCanvas({
     [nodesMeta, edgesMeta, seedIds, center, selectedId],
   )
   const [nodes, setNodes, onNodesChange] = useNodesState(laid.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(laid.edges)
+  const flowEdges = Array.isArray(laid.edges) ? laid.edges : []
+  const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges)
 
   useEffect(() => {
     setNodes(laid.nodes)
-    setEdges(laid.edges)
+    setEdges(Array.isArray(laid.edges) ? laid.edges : [])
   }, [laid, setNodes, setEdges])
 
   const onNodeClick: NodeMouseHandler = useCallback(
@@ -236,7 +237,7 @@ function toBoundedGraph(
     max_nodes: maxNodes,
     truncated,
     nodes: nodes.map((n) => ({ id: n.id, kind: n.kind, title: n.title })),
-    edges: edges ?? [],
+    edges: Array.isArray(edges) ? edges : [],
   }
 }
 
@@ -292,7 +293,7 @@ export function Graph() {
   }, [nodesMeta, kind])
 
   const visibleEdges = useMemo(() => {
-    const meta = edgesMeta ?? []
+    const meta = Array.isArray(edgesMeta) ? edgesMeta : []
     if (kind === 'all') return meta
     const ids = new Set(visibleNodes.map((n) => n.id))
     return meta.filter((e) => ids.has(e.from) && ids.has(e.to))

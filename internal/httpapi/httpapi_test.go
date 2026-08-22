@@ -316,6 +316,9 @@ func TestGraphBudgetAndDefer(t *testing.T) {
 	if rr.Code != 200 {
 		t.Fatalf("graph: %d %s", rr.Code, rr.Body.String())
 	}
+	if strings.Contains(rr.Body.String(), `"edges":null`) {
+		t.Fatalf("GET /v1/graph must not emit edges:null: %s", rr.Body.String())
+	}
 
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/v1/backup", nil))
