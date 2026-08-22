@@ -888,9 +888,22 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   max-width: 100%;
+  white-space: nowrap;
+}
+
+.react-flow__node.graph-node--detail {
+  z-index: 800 !important;
+}
+
+.react-flow__node.graph-node--detail.graph-node--selected {
+  z-index: 900 !important;
+}
+
+.react-flow__node.graph-node--detail:hover {
+  z-index: 1000 !important;
 }
 
 .react-flow__node.graph-node--center .graph-node-dot__circle {
@@ -1189,7 +1202,8 @@ button {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--kind-unknown) 14%, var(--bg-elevated));
   font-size: 0.75rem;
-  max-width: 12rem;
+  min-width: 5.5rem;
+  max-width: 11rem;
   line-height: 1.25;
   transition:
     border-color var(--duration-fast) var(--ease-out),

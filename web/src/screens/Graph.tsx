@@ -50,6 +50,7 @@ import {
   shouldShowEdgeLabels,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
+  truncateNodeLabel,
   type NodeLod,
 } from '../lib/graphLayout'
 import { parseGraphSearchParams } from '../lib/graphNavigate'
@@ -121,13 +122,30 @@ const GraphNodeView = memo(function GraphNodeView({
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <span className="graph-node-dot__circle" aria-hidden />
-      {showLabel ? <span className="graph-node-dot__label">{data.label}</span> : null}
+      {showLabel ? (
+        <span className="graph-node-dot__label">{truncateNodeLabel(data.label)}</span>
+      ) : null}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   )
 })
 
 const nodeTypes = { graphNode: GraphNodeView }
+
+/** Scroll/pinch zoom sensitivity (~0.35× default React Flow wheel feel). */
+const ZOOM_WHEEL_SENSITIVITY = 0.35
+const GRAPH_MIN_ZOOM = 0.08
+const GRAPH_MAX_ZOOM = 2.5
+
+function wheelZoomDelta(event: WheelEvent): number {
+  const pinchFactor = event.ctrlKey ? 10 : 1
+  const modeScale = event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002
+  return -event.deltaY * modeScale * pinchFactor * ZOOM_WHEEL_SENSITIVITY
+}
+
+function clampZoom(zoom: number): number {
+  return Math.min(GRAPH_MAX_ZOOM, Math.max(GRAPH_MIN_ZOOM, zoom))
+}
 
 function computeLayoutPositions(
   nodesMeta: GraphNodeMeta[],
@@ -173,10 +191,22 @@ function buildFlowGraph(
     if (seedIds.has(node.id)) classes.push('graph-node--seed')
     if (lod !== 'full') classes.push('graph-node--compact')
     if (lod === 'minimal') classes.push('graph-node--minimal')
+    if (lod === 'full') classes.push('graph-node--detail')
+    const zIndex =
+      lod === 'full'
+        ? node.id === hoveredId
+          ? 1000
+          : node.id === selectedId
+            ? 900
+            : node.id === centerId
+              ? 850
+              : 800
+        : undefined
     return {
       id: node.id,
       type: 'graphNode',
       position: pos,
+      zIndex,
       data: {
         label: node.title,
         kind: node.kind,
@@ -227,10 +257,11 @@ function GraphCanvas({
   onSelect: (id: string) => void
   onExpand: (id: string) => void
 }) {
-  const { fitView } = useReactFlow()
+  const { fitView, getViewport, setViewport } = useReactFlow()
   const [zoom, setZoom] = useState(1)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const zoomRafRef = useRef<number | undefined>(undefined)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const compactOverview = shouldUseCompactNodes(nodesMeta.length, layoutMode)
 
   useOnViewportChange({
@@ -286,7 +317,7 @@ function GraphCanvas({
     fitKeyRef.current = fitKey
     const padding = layoutMode === 'project' ? PROJECT_FIT_PADDING : 0.12
     const t = window.setTimeout(() => {
-      void fitView({ padding, duration: 240 })
+      void fitView({ padding, duration: 0 })
     }, 0)
     return () => window.clearTimeout(t)
   }, [displayGraph.nodes.length, layoutMode, center, fitView])
@@ -309,12 +340,38 @@ function GraphCanvas({
     setHoveredId(node.id)
   }, [])
 
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const { x, y, zoom: currentZoom } = getViewport()
+      const delta = wheelZoomDelta(event)
+      const nextZoom = clampZoom(currentZoom * 2 ** delta)
+      const rect = el.getBoundingClientRect()
+      const px = event.clientX - rect.left
+      const py = event.clientY - rect.top
+      const scale = nextZoom / currentZoom
+      void setViewport(
+        {
+          x: px - (px - x) * scale,
+          y: py - (py - y) * scale,
+          zoom: nextZoom,
+        },
+        { duration: 0 },
+      )
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [getViewport, setViewport])
+
   const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
     setHoveredId(null)
   }, [])
 
   return (
-    <div className="graph-canvas" data-testid="graph-canvas">
+    <div className="graph-canvas" data-testid="graph-canvas" ref={canvasRef}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -326,8 +383,11 @@ function GraphCanvas({
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
         fitView
-        minZoom={0.05}
-        maxZoom={2}
+        minZoom={GRAPH_MIN_ZOOM}
+        maxZoom={GRAPH_MAX_ZOOM}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
         nodesConnectable={false}
         nodesDraggable={false}
         nodesFocusable

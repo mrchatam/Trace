@@ -9,6 +9,7 @@ import {
   EDGE_LABEL_MAX,
   EDGE_SAMPLE_MIN_COUNT,
   EDGE_SAMPLE_RATIO,
+  FULL_CARD_MIN_ZOOM,
   FULL_NODE_MIN_ZOOM,
   LOD_MINIMAL_MAX_ZOOM,
   computeForceLayout,
@@ -24,6 +25,7 @@ import {
   shouldShowFullNode,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
+  truncateNodeLabel,
 } from './graphLayout.ts'
 
 describe('computeForceLayout', () => {
@@ -104,22 +106,28 @@ describe('shouldUseCompactNodes', () => {
 })
 
 describe('shouldShowFullNode', () => {
-  it('reveals full cards on zoom, select, center, or hover', () => {
+  it('reveals full cards only on focus or very high zoom', () => {
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1'), false)
-    assert.equal(shouldShowFullNode(true, 0.9, 'n1', null, 'c1'), true)
+    assert.equal(shouldShowFullNode(true, 0.9, 'n1', null, 'c1'), false)
+    assert.equal(shouldShowFullNode(true, 1.1, 'n1', null, 'c1'), false)
+    assert.equal(shouldShowFullNode(true, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', 'n1', 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'c1', null, 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1', 'n1'), true)
     assert.equal(shouldShowFullNode(false, 0.4, 'n1', null, 'c1'), false)
-    assert.equal(shouldShowFullNode(false, 0.9, 'n1', null, 'c1'), true)
+    assert.equal(shouldShowFullNode(false, 0.9, 'n1', null, 'c1'), false)
+    assert.equal(shouldShowFullNode(false, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), true)
   })
 })
 
 describe('getNodeLod', () => {
-  it('steps through minimal → dot → full by zoom in compact project mode', () => {
+  it('steps through minimal → dot → full by zoom (full only at very high zoom)', () => {
     assert.equal(getNodeLod(true, 0.2, 'n1', null, 'c1'), 'minimal')
     assert.equal(getNodeLod(true, 0.5, 'n1', null, 'c1'), 'dot')
-    assert.equal(getNodeLod(true, FULL_NODE_MIN_ZOOM, 'n1', null, 'c1'), 'full')
+    assert.equal(getNodeLod(true, 0.9, 'n1', null, 'c1'), 'dot')
+    assert.equal(getNodeLod(true, 1.1, 'n1', null, 'c1'), 'dot')
+    assert.equal(getNodeLod(true, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), 'full')
+    assert.equal(getNodeLod(false, 0.9, 'n1', null, 'c1'), 'dot')
   })
 
   it('promotes focused nodes to full at any zoom', () => {
@@ -130,10 +138,18 @@ describe('getNodeLod', () => {
 })
 
 describe('shouldShowNodeLabel', () => {
-  it('shows labels only at full LOD', () => {
+  it('shows labels at dot and full LOD', () => {
     assert.equal(shouldShowNodeLabel('full'), true)
-    assert.equal(shouldShowNodeLabel('dot'), false)
+    assert.equal(shouldShowNodeLabel('dot'), true)
     assert.equal(shouldShowNodeLabel('minimal'), false)
+  })
+})
+
+describe('truncateNodeLabel', () => {
+  it('truncates long labels for dot LOD', () => {
+    assert.equal(truncateNodeLabel('Short title'), 'Short title')
+    assert.equal(truncateNodeLabel('A'.repeat(40)).endsWith('…'), true)
+    assert.ok(truncateNodeLabel('A'.repeat(40)).length <= 28)
   })
 })
 

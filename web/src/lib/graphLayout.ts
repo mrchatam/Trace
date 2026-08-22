@@ -20,8 +20,10 @@ export const EDGE_LABEL_MIN_ZOOM = 0.55
 export const LOD_MINIMAL_MAX_ZOOM = 0.35
 /** Below: colored dots only (no card, no label). */
 export const LOD_DOT_MAX_ZOOM = 0.75
-/** At/above: full node cards when compact overview is active. */
-export const FULL_NODE_MIN_ZOOM = 0.75
+/** At/above: full node cards for all visible nodes (Maps-style: focus-only until very high zoom). */
+export const FULL_CARD_MIN_ZOOM = 1.25
+/** @deprecated Use FULL_CARD_MIN_ZOOM */
+export const FULL_NODE_MIN_ZOOM = FULL_CARD_MIN_ZOOM
 /** Below: hide edges entirely (too dense at overview). */
 export const EDGE_HIDE_MAX_ZOOM = 0.25
 /** Below + many edges: render a sampled subset. */
@@ -65,12 +67,12 @@ export function computeForceLayout(
       'link',
       forceLink(links)
         .id((d) => (d as SimNode).id)
-        .distance(78)
+        .distance(96)
         .strength(0.38),
     )
-    .force('charge', forceManyBody().strength(-150).distanceMax(440))
+    .force('charge', forceManyBody().strength(-180).distanceMax(480))
     .force('center', forceCenter(width / 2, height / 2).strength(0.1))
-    .force('collide', forceCollide(24))
+    .force('collide', forceCollide(32))
 
   simulation.stop()
   for (let i = 0; i < iterations; i++) simulation.tick()
@@ -109,7 +111,7 @@ export function shouldUseCompactNodes(
 
 /** Resolve node detail level from zoom + focus (Maps-style LOD). */
 export function getNodeLod(
-  compactOverview: boolean,
+  _compactOverview: boolean,
   zoom: number,
   nodeId: string,
   selectedId: string | null,
@@ -119,18 +121,20 @@ export function getNodeLod(
   const focused =
     nodeId === selectedId || nodeId === centerId || nodeId === hoveredId
   if (focused) return 'full'
-  if (!compactOverview) {
-    if (zoom < LOD_MINIMAL_MAX_ZOOM) return 'minimal'
-    if (zoom < LOD_DOT_MAX_ZOOM) return 'dot'
-    return 'full'
-  }
-  if (zoom >= FULL_NODE_MIN_ZOOM) return 'full'
+  if (zoom >= FULL_CARD_MIN_ZOOM) return 'full'
   if (zoom >= LOD_MINIMAL_MAX_ZOOM) return 'dot'
   return 'minimal'
 }
 
 export function shouldShowNodeLabel(lod: NodeLod): boolean {
-  return lod === 'full'
+  return lod === 'full' || lod === 'dot'
+}
+
+/** One-line label for dot LOD (keeps dense clusters readable). */
+export function truncateNodeLabel(label: string, maxLen = 28): string {
+  const trimmed = label.trim()
+  if (trimmed.length <= maxLen) return trimmed
+  return `${trimmed.slice(0, maxLen - 1)}…`
 }
 
 export function shouldShowFullNode(
