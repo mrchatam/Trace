@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Trace — local-first project graph CLI + MCP (CGO / tree-sitter required).
-# Default image: trace CLI. Target trace-mcp for stdio MCP only.
+# Targets: trace (default), trace-mcp
 
 FROM golang:1.24-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,17 +13,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cmd/ cmd/
-COPY internal/ internal/
-COPY api/ api/
-COPY scripts/embed-gui.sh scripts/embed-gui.sh
-COPY internal/httpapi/embeddist/ internal/httpapi/embeddist/
-COPY web/package.json web/package-lock.json web/
-COPY web/tsconfig.json web/tsconfig.app.json web/tsconfig.node.json web/vite.config.ts web/index.html web/
-COPY web/src/ web/src/
-COPY web/public/ web/public/
+COPY . .
 
-# Refresh embed if web sources changed; skip npm when embeddist already valid.
 RUN test -f internal/httpapi/embeddist/index.html
 
 RUN --mount=type=cache,target=/go/pkg/mod \
