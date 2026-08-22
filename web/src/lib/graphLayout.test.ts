@@ -6,7 +6,9 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   COMPACT_NODE_THRESHOLD,
+  DOT_LABEL_MIN_ZOOM,
   EDGE_LABEL_MAX,
+  EDGE_OVERVIEW_MAX,
   EDGE_SAMPLE_MIN_COUNT,
   EDGE_SAMPLE_RATIO,
   FULL_CARD_MIN_ZOOM,
@@ -19,9 +21,11 @@ import {
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForLod,
+  filterEdgesForOverview,
   filterNodesByKinds,
   getNodeLod,
   inferGoalBands,
+  isEdgeHighlighted,
   kindCssKey,
   SEMANTIC_LANE_WIDTH,
   SEMANTIC_MIN_NODE_DISTANCE,
@@ -56,6 +60,21 @@ describe('computeForceLayout', () => {
       iterations: 20,
     })
     assert.equal(positions.size, 2)
+  })
+
+  it('accepts nodes with kind metadata for soft lane bias', () => {
+    const nodes = [
+      { id: 'g1', kind: 'goal' },
+      { id: 't1', kind: 'task' },
+      { id: 'd1', kind: 'decision' },
+    ]
+    const edges = [
+      { from: 'g1', to: 't1' },
+      { from: 't1', to: 'd1' },
+    ]
+    const pos = computeForceLayout(nodes, edges, { iterations: 60 })
+    assert.equal(pos.size, 3)
+    assert.ok(pos.get('g1')!.x <= pos.get('t1')!.x + 120)
   })
 })
 
@@ -149,10 +168,12 @@ describe('getNodeLod', () => {
 })
 
 describe('shouldShowNodeLabel', () => {
-  it('shows labels at dot and full LOD', () => {
-    assert.equal(shouldShowNodeLabel('full'), true)
-    assert.equal(shouldShowNodeLabel('dot'), true)
-    assert.equal(shouldShowNodeLabel('minimal'), false)
+  it('shows labels at full LOD and defers dot labels until high zoom', () => {
+    assert.equal(shouldShowNodeLabel('full', 0.5), true)
+    assert.equal(shouldShowNodeLabel('dot', 0.5), false)
+    assert.equal(shouldShowNodeLabel('dot', DOT_LABEL_MIN_ZOOM), true)
+    assert.equal(shouldShowNodeLabel('minimal', 1.5), false)
+    assert.equal(shouldShowNodeLabel('dot', 0.5, true), true)
   })
 })
 
@@ -166,8 +187,8 @@ describe('truncateNodeLabel', () => {
 
 describe('shouldRenderEdges', () => {
   it('hides edges when zoomed out past overview threshold', () => {
-    assert.equal(shouldRenderEdges(0.1), false)
-    assert.equal(shouldRenderEdges(0.3), true)
+    assert.equal(shouldRenderEdges(0.3), false)
+    assert.equal(shouldRenderEdges(0.55), true)
   })
 })
 
@@ -183,7 +204,7 @@ describe('filterEdgesForLod', () => {
       to: `n${i + 1}`,
     }))
     edges.push({ from: 'center', to: 'n0' })
-    const filtered = filterEdgesForLod(edges, LOD_MINIMAL_MAX_ZOOM, new Set(['center']))
+    const filtered = filterEdgesForLod(edges, 0.52, new Set(['center']))
     assert.ok(filtered.length < edges.length)
     assert.ok(filtered.some((e) => e.from === 'center'))
   })
@@ -197,11 +218,54 @@ describe('filterEdgesForLod', () => {
   })
 })
 
+describe('filterEdgesForOverview', () => {
+  it('shows only focus-incident edges in project mode by default', () => {
+    const edges = [
+      { from: 'a', to: 'b', rel: 'relates_to' },
+      { from: 'b', to: 'c', rel: 'blocks' },
+      { from: 'c', to: 'd', rel: 'mentions' },
+    ]
+    const filtered = filterEdgesForOverview(edges, 0.8, new Set(['b']), false)
+    assert.deepEqual(
+      filtered.map((e) => `${e.from}-${e.to}`),
+      ['a-b', 'b-c'],
+    )
+  })
+
+  it('caps overview edges at EDGE_OVERVIEW_MAX with priority rels', () => {
+    const edges = Array.from({ length: EDGE_OVERVIEW_MAX + 40 }, (_, i) => ({
+      from: `n${i}`,
+      to: `n${i + 1}`,
+      rel: i % 5 === 0 ? 'goal_has_task' : 'misc',
+    }))
+    const filtered = filterEdgesForOverview(edges, 0.8, new Set(), false)
+    assert.ok(filtered.length <= EDGE_OVERVIEW_MAX)
+    assert.ok(filtered.some((e) => e.rel === 'goal_has_task'))
+  })
+
+  it('delegates to LOD sampling when show all edges is enabled', () => {
+    const edges = Array.from({ length: EDGE_SAMPLE_MIN_COUNT + 10 }, (_, i) => ({
+      from: `n${i}`,
+      to: `n${i + 1}`,
+    }))
+    const all = filterEdgesForOverview(edges, 0.8, new Set(), true)
+    assert.equal(all.length, edges.length)
+  })
+})
+
+describe('isEdgeHighlighted', () => {
+  it('matches edges incident to hovered node', () => {
+    assert.equal(isEdgeHighlighted({ from: 'a', to: 'b' }, 'a'), true)
+    assert.equal(isEdgeHighlighted({ from: 'a', to: 'b' }, 'c'), false)
+    assert.equal(isEdgeHighlighted({ from: 'a', to: 'b' }, null), false)
+  })
+})
+
 describe('edgeStrokeOpacity', () => {
   it('reduces opacity when zoomed out or edge count is high', () => {
-    assert.equal(edgeStrokeOpacity(0.1, 50), 0)
-    assert.ok(edgeStrokeOpacity(0.3, 50) < edgeStrokeOpacity(0.9, 50))
-    assert.ok(edgeStrokeOpacity(0.3, EDGE_SAMPLE_MIN_COUNT + 1) < edgeStrokeOpacity(0.3, 10))
+    assert.equal(edgeStrokeOpacity(0.3, 50), 0)
+    assert.ok(edgeStrokeOpacity(0.52, EDGE_SAMPLE_MIN_COUNT + 1) < edgeStrokeOpacity(0.9, 50))
+    assert.ok(edgeStrokeOpacity(0.52, EDGE_SAMPLE_MIN_COUNT + 1) < edgeStrokeOpacity(0.52, 10))
   })
 })
 

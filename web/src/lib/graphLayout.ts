@@ -9,6 +9,7 @@ import {
   forceLink,
   forceManyBody,
   forceSimulation,
+  forceX,
   type SimulationNodeDatum,
 } from 'd3-force'
 
@@ -20,17 +21,34 @@ export const EDGE_LABEL_MIN_ZOOM = 0.55
 export const LOD_MINIMAL_MAX_ZOOM = 0.35
 /** Below: colored dots only (no card, no label). */
 export const LOD_DOT_MAX_ZOOM = 0.75
+/** At/above: show one-line labels on dot LOD (keeps mid-zoom readable). */
+export const DOT_LABEL_MIN_ZOOM = 0.95
 /** At/above: full node cards for all visible nodes (Maps-style: focus-only until very high zoom). */
 export const FULL_CARD_MIN_ZOOM = 1.25
 /** @deprecated Use FULL_CARD_MIN_ZOOM */
 export const FULL_NODE_MIN_ZOOM = FULL_CARD_MIN_ZOOM
 /** Below: hide edges entirely (too dense at overview). */
-export const EDGE_HIDE_MAX_ZOOM = 0.25
+export const EDGE_HIDE_MAX_ZOOM = 0.5
 /** Below + many edges: render a sampled subset. */
-export const EDGE_SAMPLE_MIN_ZOOM = 0.45
-export const EDGE_SAMPLE_MIN_COUNT = 100
-export const EDGE_SAMPLE_RATIO = 3
-export const PROJECT_FIT_PADDING = 0.2
+export const EDGE_SAMPLE_MIN_ZOOM = 0.55
+export const EDGE_SAMPLE_MIN_COUNT = 80
+export const EDGE_SAMPLE_RATIO = 4
+/** Max edges rendered in project overview when no focus node (hairball cap). */
+export const EDGE_OVERVIEW_MAX = 150
+/** Rel values preferred when capping overview edges. */
+export const EDGE_PRIORITY_RELS = new Set([
+  'goal_has_task',
+  'decision_affects_task',
+  'blocks',
+  'depends_on',
+  'relates_to',
+  'mentions',
+  'supports',
+  'contradicts',
+])
+export const PROJECT_FIT_PADDING = 0.35
+/** Post–fitView scale (<1 zooms out further for cluster overview). */
+export const PROJECT_FIT_ZOOM_SCALE = 0.88
 
 export type NodeLod = 'minimal' | 'dot' | 'full'
 
@@ -62,6 +80,7 @@ export const KIND_LANE_ORDER = [
 ] as const
 
 export const SEMANTIC_LAYOUT_LABEL = 'by kind'
+export const FORCE_LAYOUT_LABEL = 'force'
 
 const UNGROUPED_GOAL = '__ungrouped__'
 
@@ -240,25 +259,35 @@ export function computeSemanticLayout(
   return positions
 }
 
-type SimNode = SimulationNodeDatum & { id: string }
+type SimNode = SimulationNodeDatum & { id: string; kind?: string }
 
-/** Synchronous d3-force layout for project overview graphs. */
+export type ForceLayoutNode = { id: string; kind?: string }
+
+function normalizeForceNodes(
+  nodes: readonly string[] | readonly ForceLayoutNode[],
+): ForceLayoutNode[] {
+  return nodes.map((n) => (typeof n === 'string' ? { id: n } : n))
+}
+
+/** Synchronous d3-force layout for project overview graphs (organic clusters, soft kind bias). */
 export function computeForceLayout(
-  nodeIds: readonly string[],
+  nodes: readonly string[] | readonly ForceLayoutNode[],
   edges: readonly LayoutEdge[],
   opts: { width?: number; height?: number; iterations?: number } = {},
 ): Map<string, { x: number; y: number }> {
   const width = opts.width ?? 900
   const height = opts.height ?? 700
-  const iterations = opts.iterations ?? 280
-  const idSet = new Set(nodeIds)
+  const iterations = opts.iterations ?? 320
+  const nodeList = normalizeForceNodes(nodes)
+  const idSet = new Set(nodeList.map((n) => n.id))
 
-  const nodes: SimNode[] = nodeIds.map((id, i) => {
-    const angle = (2 * Math.PI * i) / Math.max(nodeIds.length, 1)
+  const simNodes: SimNode[] = nodeList.map((n, i) => {
+    const angle = (2 * Math.PI * i) / Math.max(nodeList.length, 1)
     return {
-      id,
-      x: width / 2 + Math.cos(angle) * 48,
-      y: height / 2 + Math.sin(angle) * 48,
+      id: n.id,
+      kind: n.kind,
+      x: width / 2 + Math.cos(angle) * 64,
+      y: height / 2 + Math.sin(angle) * 64,
     }
   })
 
@@ -266,22 +295,28 @@ export function computeForceLayout(
     .filter((e) => idSet.has(e.from) && idSet.has(e.to))
     .map((e) => ({ source: e.from, target: e.to }))
 
-  const simulation = forceSimulation(nodes)
+  const kindX = (d: SimNode): number => {
+    const lane = kindLaneIndex(d.kind ?? '')
+    return SEMANTIC_PADDING + lane * SEMANTIC_LANE_WIDTH * 0.55
+  }
+
+  const simulation = forceSimulation(simNodes)
     .force(
       'link',
       forceLink(links)
         .id((d) => (d as SimNode).id)
-        .distance(96)
-        .strength(0.38),
+        .distance(128)
+        .strength(0.32),
     )
-    .force('charge', forceManyBody().strength(-180).distanceMax(480))
-    .force('center', forceCenter(width / 2, height / 2).strength(0.1))
-    .force('collide', forceCollide(32))
+    .force('charge', forceManyBody().strength(-240).distanceMax(560))
+    .force('center', forceCenter(width / 2, height / 2).strength(0.06))
+    .force('collide', forceCollide(42))
+    .force('x', forceX<SimNode>(kindX).strength(0.07))
 
   simulation.stop()
   for (let i = 0; i < iterations; i++) simulation.tick()
 
-  return new Map(nodes.map((n) => [n.id, { x: n.x ?? width / 2, y: n.y ?? height / 2 }]))
+  return new Map(simNodes.map((n) => [n.id, { x: n.x ?? width / 2, y: n.y ?? height / 2 }]))
 }
 
 export function countNodesByKind(nodes: readonly { kind: string }[]): Map<string, number> {
@@ -334,8 +369,15 @@ export function getNodeLod(
   return 'minimal'
 }
 
-export function shouldShowNodeLabel(lod: NodeLod): boolean {
-  return lod === 'full' || lod === 'dot'
+export function shouldShowNodeLabel(
+  lod: NodeLod,
+  zoom: number,
+  isHovered = false,
+): boolean {
+  if (lod === 'full') return true
+  if (lod === 'minimal') return false
+  if (isHovered) return true
+  return zoom >= DOT_LABEL_MIN_ZOOM
 }
 
 /** One-line label for dot LOD (keeps dense clusters readable). */
@@ -381,6 +423,56 @@ export function filterEdgesForLod<T extends { from: string; to: string }>(
   return edges.filter(
     (e, i) => focusIds.has(e.from) || focusIds.has(e.to) || i % EDGE_SAMPLE_RATIO === 0,
   )
+}
+
+function isPriorityEdge<T extends { rel?: string }>(edge: T): boolean {
+  if (!edge.rel) return false
+  return EDGE_PRIORITY_RELS.has(edge.rel)
+}
+
+function capEdgesByPriority<T extends { from: string; to: string; rel?: string }>(
+  edges: readonly T[],
+  max: number,
+): T[] {
+  if (edges.length <= max) return [...edges]
+  const priority = edges.filter(isPriorityEdge)
+  if (priority.length >= max) return priority.slice(0, max)
+  const priorityKeys = new Set(priority.map((e) => `${e.from}\x00${e.to}\x00${e.rel ?? ''}`))
+  const rest = edges.filter(
+    (e) => !priorityKeys.has(`${e.from}\x00${e.to}\x00${e.rel ?? ''}`),
+  )
+  return [...priority, ...rest.slice(0, max - priority.length)]
+}
+
+/**
+ * Project overview edge policy: focus-incident only (default), or capped priority
+ * subset; optional show-all falls back to zoom LOD sampling.
+ */
+export function filterEdgesForOverview<T extends { from: string; to: string; rel?: string }>(
+  edges: readonly T[],
+  zoom: number,
+  focusIds: ReadonlySet<string>,
+  showAllEdges: boolean,
+): T[] {
+  if (!shouldRenderEdges(zoom)) return []
+  if (showAllEdges) return filterEdgesForLod(edges, zoom, focusIds)
+
+  const hasFocus = focusIds.size > 0
+  if (hasFocus) {
+    const incident = edges.filter((e) => focusIds.has(e.from) || focusIds.has(e.to))
+    if (incident.length > 0) return incident
+  }
+
+  const capped = capEdgesByPriority(edges, EDGE_OVERVIEW_MAX)
+  return filterEdgesForLod(capped, zoom, focusIds)
+}
+
+export function isEdgeHighlighted(
+  edge: { from: string; to: string },
+  hoveredId: string | null,
+): boolean {
+  if (!hoveredId) return false
+  return edge.from === hoveredId || edge.to === hoveredId
 }
 
 export function shouldShowEdgeLabels(edgeCount: number, zoom: number): boolean {

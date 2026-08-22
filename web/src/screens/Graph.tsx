@@ -38,18 +38,20 @@ import {
   type TaskRow,
 } from '../api/ops'
 import {
+  computeForceLayout,
   computeOverviewPositions,
-  computeSemanticLayout,
   countNodesByKind,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
-  filterEdgesForLod,
+  filterEdgesForOverview,
   filterNodesByKinds,
+  FORCE_LAYOUT_LABEL,
   getNodeLod,
+  isEdgeHighlighted,
   kindCssKey,
   LOD_MINIMAL_MAX_ZOOM,
   PROJECT_FIT_PADDING,
-  SEMANTIC_LAYOUT_LABEL,
+  PROJECT_FIT_ZOOM_SCALE,
   shouldShowEdgeLabels,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
@@ -75,6 +77,7 @@ type GraphNodeData = {
   work_state?: string
   isSeed?: boolean
   lod: NodeLod
+  showLabel: boolean
 }
 
 const GraphNodeView = memo(function GraphNodeView({
@@ -110,7 +113,7 @@ const GraphNodeView = memo(function GraphNodeView({
   }
 
   const minimal = data.lod === 'minimal'
-  const showLabel = shouldShowNodeLabel(data.lod)
+  const showLabel = data.showLabel
 
   return (
     <div
@@ -122,6 +125,7 @@ const GraphNodeView = memo(function GraphNodeView({
       role="button"
       aria-pressed={selected}
       aria-label={aria}
+      title={showLabel ? undefined : data.label}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <span className="graph-node-dot__circle" aria-hidden />
@@ -161,7 +165,7 @@ function computeLayoutPositions(
     to: e.to,
   }))
   if (layoutMode === 'project') {
-    return computeSemanticLayout(nodesMeta, metaEdges)
+    return computeForceLayout(nodesMeta, metaEdges)
   }
   return computeOverviewPositions(
     nodesMeta.map((n) => n.id),
@@ -179,16 +183,19 @@ function buildFlowGraph(
   seedIds: Set<string>,
   compactOverview: boolean,
   zoom: number,
+  layoutMode: 'project' | 'neighborhood',
+  showAllEdges: boolean,
 ): { nodes: Node[]; edges: Edge[] } {
   const metaEdges = Array.isArray(edgesMeta) ? edgesMeta : []
-  const focusIds = new Set<string>()
-  if (centerId) focusIds.add(centerId)
-  if (selectedId) focusIds.add(selectedId)
-  if (hoveredId) focusIds.add(hoveredId)
+  const edgeFocusIds = new Set<string>()
+  if (selectedId) edgeFocusIds.add(selectedId)
+  if (hoveredId) edgeFocusIds.add(hoveredId)
 
   const nodes = nodesMeta.map((node) => {
     const pos = positions.get(node.id) ?? { x: 0, y: 0 }
     const lod = getNodeLod(compactOverview, zoom, node.id, selectedId, centerId, hoveredId)
+    const isHovered = node.id === hoveredId
+    const showLabel = shouldShowNodeLabel(lod, zoom, isHovered)
     const classes = ['graph-node']
     if (node.id === centerId) classes.push('graph-node--center')
     if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
@@ -217,6 +224,7 @@ function buildFlowGraph(
         work_state: node.work_state,
         isSeed: seedIds.has(node.id),
         lod,
+        showLabel,
       },
       className: classes.join(' '),
       selected: selectedId === node.id,
@@ -224,20 +232,32 @@ function buildFlowGraph(
     }
   })
 
-  const visibleEdges = filterEdgesForLod(metaEdges, zoom, focusIds)
+  const visibleEdges =
+    layoutMode === 'project'
+      ? filterEdgesForOverview(metaEdges, zoom, edgeFocusIds, showAllEdges)
+      : filterEdgesForOverview(metaEdges, zoom, edgeFocusIds, true)
   const edgeOpacity = edgeStrokeOpacity(zoom, metaEdges.length)
   const showLabels = shouldShowEdgeLabels(metaEdges.length, zoom)
 
-  const edges: Edge[] = visibleEdges.map((e, i) => ({
-    id: `${e.from}-${e.rel}-${e.to}-${i}`,
-    source: e.from,
-    target: e.to,
-    label: showLabels ? e.rel : undefined,
-    style: { stroke: 'var(--graph-edge-stroke)', strokeWidth: 1, opacity: edgeOpacity },
-    labelStyle: showLabels
-      ? { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }
-      : undefined,
-  }))
+  const edges: Edge[] = visibleEdges.map((e, i) => {
+    const highlighted = isEdgeHighlighted(e, hoveredId)
+    const opacity = highlighted ? Math.min(1, edgeOpacity + 0.35) : edgeOpacity
+    return {
+      id: `${e.from}-${e.rel}-${e.to}-${i}`,
+      source: e.from,
+      target: e.to,
+      label: showLabels ? e.rel : undefined,
+      animated: highlighted,
+      style: {
+        stroke: highlighted ? 'var(--accent)' : 'var(--graph-edge-stroke)',
+        strokeWidth: highlighted ? 2 : 1,
+        opacity,
+      },
+      labelStyle: showLabels
+        ? { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }
+        : undefined,
+    }
+  })
 
   return { nodes, edges }
 }
@@ -249,6 +269,7 @@ function GraphCanvas({
   center,
   selectedId,
   layoutMode,
+  showAllEdges,
   onSelect,
   onExpand,
 }: {
@@ -258,6 +279,7 @@ function GraphCanvas({
   center: string
   selectedId: string | null
   layoutMode: 'project' | 'neighborhood'
+  showAllEdges: boolean
   onSelect: (id: string) => void
   onExpand: (id: string) => void
 }) {
@@ -295,8 +317,22 @@ function GraphCanvas({
         seedIds,
         compactOverview,
         zoom,
+        layoutMode,
+        showAllEdges,
       ),
-    [nodesMeta, positions, edgesMeta, center, selectedId, hoveredId, seedIds, compactOverview, zoom],
+    [
+      nodesMeta,
+      positions,
+      edgesMeta,
+      center,
+      selectedId,
+      hoveredId,
+      seedIds,
+      compactOverview,
+      zoom,
+      layoutMode,
+      showAllEdges,
+    ],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(displayGraph.nodes)
@@ -323,11 +359,16 @@ function GraphCanvas({
     const t = window.setTimeout(() => {
       void fitView({ padding, duration: 0 }).then(() => {
         const vp = getViewport()
-        setZoom(vp.zoom)
+        const nextZoom =
+          layoutMode === 'project' ? clampZoom(vp.zoom * PROJECT_FIT_ZOOM_SCALE) : vp.zoom
+        if (nextZoom !== vp.zoom) {
+          void setViewport({ x: vp.x, y: vp.y, zoom: nextZoom }, { duration: 0 })
+        }
+        setZoom(nextZoom)
       })
     }, 0)
     return () => window.clearTimeout(t)
-  }, [displayGraph.nodes.length, layoutMode, center, fitView, getViewport])
+  }, [displayGraph.nodes.length, layoutMode, center, fitView, getViewport, setViewport])
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_: MouseEvent, node: Node) => {
@@ -452,6 +493,7 @@ export function Graph() {
   const [expandLoading, setExpandLoading] = useState(false)
   const [emptyProject, setEmptyProject] = useState(false)
   const [enabledKinds, setEnabledKinds] = useState<Set<string>>(new Set())
+  const [showAllEdges, setShowAllEdges] = useState(false)
   const bootstrapped = useRef(false)
 
   const seedSet = useMemo(() => new Set<string>(), [])
@@ -644,9 +686,20 @@ export function Graph() {
           {layoutMode === 'project' ? 'project' : 'neighborhood'}
         </span>
         {layoutMode === 'project' ? (
-          <span className="pill pill--subtle" data-testid="graph-layout-hint">
-            Layout: {SEMANTIC_LAYOUT_LABEL}
-          </span>
+          <>
+            <span className="pill pill--subtle" data-testid="graph-layout-hint">
+              Layout: {FORCE_LAYOUT_LABEL}
+            </span>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              data-testid="graph-show-all-edges"
+              aria-pressed={showAllEdges}
+              onClick={() => setShowAllEdges((v) => !v)}
+            >
+              {showAllEdges ? 'All edges' : 'Focus edges'}
+            </button>
+          </>
         ) : null}
         <span className="mono graph-page__meta" data-testid="graph-budget-line">
           center=<span data-testid="graph-center-id">{center || '—'}</span> · nodes=
@@ -749,6 +802,7 @@ export function Graph() {
                   center={center}
                   selectedId={selectedId}
                   layoutMode={layoutMode}
+                  showAllEdges={showAllEdges}
                   onSelect={onSelect}
                   onExpand={onExpand}
                 />
