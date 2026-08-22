@@ -7,12 +7,22 @@ import { describe, it } from 'node:test'
 import {
   COMPACT_NODE_THRESHOLD,
   EDGE_LABEL_MAX,
+  EDGE_SAMPLE_MIN_COUNT,
+  EDGE_SAMPLE_RATIO,
+  FULL_NODE_MIN_ZOOM,
+  LOD_MINIMAL_MAX_ZOOM,
   computeForceLayout,
+  computeOverviewPositions,
   countNodesByKind,
+  edgeStrokeOpacity,
   filterEdgesByNodeIds,
+  filterEdgesForLod,
   filterNodesByKinds,
+  getNodeLod,
+  shouldRenderEdges,
   shouldShowEdgeLabels,
   shouldShowFullNode,
+  shouldShowNodeLabel,
   shouldUseCompactNodes,
 } from './graphLayout.ts'
 
@@ -94,12 +104,86 @@ describe('shouldUseCompactNodes', () => {
 })
 
 describe('shouldShowFullNode', () => {
-  it('reveals full cards on zoom, select, or center', () => {
+  it('reveals full cards on zoom, select, center, or hover', () => {
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1'), false)
     assert.equal(shouldShowFullNode(true, 0.9, 'n1', null, 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', 'n1', 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'c1', null, 'c1'), true)
-    assert.equal(shouldShowFullNode(false, 0.4, 'n1', null, 'c1'), true)
+    assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1', 'n1'), true)
+    assert.equal(shouldShowFullNode(false, 0.4, 'n1', null, 'c1'), false)
+    assert.equal(shouldShowFullNode(false, 0.9, 'n1', null, 'c1'), true)
+  })
+})
+
+describe('getNodeLod', () => {
+  it('steps through minimal → dot → full by zoom in compact project mode', () => {
+    assert.equal(getNodeLod(true, 0.2, 'n1', null, 'c1'), 'minimal')
+    assert.equal(getNodeLod(true, 0.5, 'n1', null, 'c1'), 'dot')
+    assert.equal(getNodeLod(true, FULL_NODE_MIN_ZOOM, 'n1', null, 'c1'), 'full')
+  })
+
+  it('promotes focused nodes to full at any zoom', () => {
+    assert.equal(getNodeLod(true, 0.1, 'n1', 'n1', 'c1'), 'full')
+    assert.equal(getNodeLod(true, 0.1, 'c1', null, 'c1'), 'full')
+    assert.equal(getNodeLod(true, 0.1, 'h1', null, 'c1', 'h1'), 'full')
+  })
+})
+
+describe('shouldShowNodeLabel', () => {
+  it('shows labels only at full LOD', () => {
+    assert.equal(shouldShowNodeLabel('full'), true)
+    assert.equal(shouldShowNodeLabel('dot'), false)
+    assert.equal(shouldShowNodeLabel('minimal'), false)
+  })
+})
+
+describe('shouldRenderEdges', () => {
+  it('hides edges when zoomed out past overview threshold', () => {
+    assert.equal(shouldRenderEdges(0.1), false)
+    assert.equal(shouldRenderEdges(0.3), true)
+  })
+})
+
+describe('filterEdgesForLod', () => {
+  it('returns no edges when zoom is below hide threshold', () => {
+    const edges = [{ from: 'a', to: 'b' }]
+    assert.equal(filterEdgesForLod(edges, 0.1, new Set()).length, 0)
+  })
+
+  it('samples dense graphs at low zoom but keeps focus edges', () => {
+    const edges = Array.from({ length: EDGE_SAMPLE_MIN_COUNT + 10 }, (_, i) => ({
+      from: `n${i}`,
+      to: `n${i + 1}`,
+    }))
+    edges.push({ from: 'center', to: 'n0' })
+    const filtered = filterEdgesForLod(edges, LOD_MINIMAL_MAX_ZOOM, new Set(['center']))
+    assert.ok(filtered.length < edges.length)
+    assert.ok(filtered.some((e) => e.from === 'center'))
+  })
+
+  it('keeps all edges at high zoom', () => {
+    const edges = Array.from({ length: EDGE_SAMPLE_MIN_COUNT + 5 }, (_, i) => ({
+      from: `a${i}`,
+      to: `b${i}`,
+    }))
+    assert.equal(filterEdgesForLod(edges, 0.8, new Set()).length, edges.length)
+  })
+})
+
+describe('edgeStrokeOpacity', () => {
+  it('reduces opacity when zoomed out or edge count is high', () => {
+    assert.equal(edgeStrokeOpacity(0.1, 50), 0)
+    assert.ok(edgeStrokeOpacity(0.3, 50) < edgeStrokeOpacity(0.9, 50))
+    assert.ok(edgeStrokeOpacity(0.3, EDGE_SAMPLE_MIN_COUNT + 1) < edgeStrokeOpacity(0.3, 10))
+  })
+})
+
+describe('computeOverviewPositions', () => {
+  it('places every node id', () => {
+    const ids = ['s1', 'a', 'b']
+    const positions = computeOverviewPositions(ids, new Set(['s1']))
+    assert.equal(positions.size, 3)
+    for (const id of ids) assert.ok(positions.get(id))
   })
 })
 

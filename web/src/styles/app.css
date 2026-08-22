@@ -825,6 +825,21 @@ button {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg) 80%, transparent);
 }
 
+.graph-node-dot--minimal .graph-node-dot__circle {
+  width: 0.45rem;
+  height: 0.45rem;
+  box-shadow: none;
+}
+
+.react-flow__node.graph-node--minimal {
+  pointer-events: none;
+}
+
+.react-flow__node.graph-node--minimal.graph-node--center,
+.react-flow__node.graph-node--minimal.graph-node--selected {
+  pointer-events: all;
+}
+
 .graph-node-dot[data-kind='goal'] .graph-node-dot__circle {
   background: var(--kind-goal);
   border-color: color-mix(in srgb, var(--kind-goal) 60%, var(--border));
