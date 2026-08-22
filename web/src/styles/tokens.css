@@ -37,6 +37,7 @@
   --graph-inspector-min: 18rem;
   --graph-inspector-max: 26rem;
   --graph-canvas-height: min(48rem, calc(100dvh - 14rem));
+  --graph-edge-stroke: color-mix(in srgb, var(--border) 85%, var(--text-muted));
   --duration-fast: 140ms;
   --duration-settle: 200ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

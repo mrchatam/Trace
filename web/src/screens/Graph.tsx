@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useOnViewportChange,
   useReactFlow,
   type Edge,
   type Node,
@@ -17,6 +18,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { Link } from 'react-router-dom'
 import { ErrorBanner, EmptyState } from '../components/ErrorBanner'
+import { GraphCommunitiesPanel } from '../components/GraphCommunitiesPanel'
 import { GraphOrientPanel } from '../components/GraphOrientPanel'
 import { dismissOrient, isOrientDismissed } from '../lib/orientDismiss'
 import { Inspector } from '../components/Inspector'
@@ -33,6 +35,16 @@ import {
   type TaskRow,
 } from '../api/ops'
 import {
+  computeForceLayout,
+  countNodesByKind,
+  filterEdgesByNodeIds,
+  filterNodesByKinds,
+  PROJECT_FIT_PADDING,
+  shouldShowEdgeLabels,
+  shouldShowFullNode,
+  shouldUseCompactNodes,
+} from '../lib/graphLayout'
+import {
   DEPTH,
   EXPAND_MAX_NODES,
   PROJECT_MAX_NODES,
@@ -47,9 +59,30 @@ type GraphNodeData = {
   kind: string
   work_state?: string
   isSeed?: boolean
+  compact?: boolean
 }
 
 function GraphNodeView({ data, id, selected }: NodeProps & { data: GraphNodeData }) {
+  if (data.compact) {
+    return (
+      <div
+        className="graph-node-dot"
+        data-testid={`graph-canvas-node-${id}`}
+        data-kind={data.kind}
+        data-state={data.work_state || undefined}
+        tabIndex={selected ? 0 : -1}
+        role="button"
+        aria-pressed={selected}
+        aria-label={`${data.kind}: ${data.label}`}
+      >
+        <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+        <span className="graph-node-dot__circle" aria-hidden />
+        <span className="graph-node-dot__label">{data.label}</span>
+        <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      </div>
+    )
+  }
+
   return (
     <div
       className="graph-node__inner"
@@ -76,39 +109,68 @@ function GraphNodeView({ data, id, selected }: NodeProps & { data: GraphNodeData
 
 const nodeTypes = { graphNode: GraphNodeView }
 
-function layoutProject(
+function buildFlowNodes(
   nodesMeta: GraphNodeMeta[],
-  edgesMeta: BoundedGraph['edges'],
+  positions: Map<string, { x: number; y: number }>,
   centerId: string,
   selectedId: string | null,
-): { nodes: Node[]; edges: Edge[] } {
-  const count = Math.max(nodesMeta.length, 1)
-  const cols = Math.ceil(Math.sqrt(count))
-  const nodes: Node[] = nodesMeta.map((node, i) => {
-    const col = i % cols
-    const row = Math.floor(i / cols)
+  seedIds: Set<string>,
+  compactOverview: boolean,
+  zoom: number,
+): Node[] {
+  return nodesMeta.map((node) => {
+    const pos = positions.get(node.id) ?? { x: 0, y: 0 }
+    const compact = !shouldShowFullNode(compactOverview, zoom, node.id, selectedId, centerId)
     const classes = ['graph-node']
     if (node.id === centerId) classes.push('graph-node--center')
     if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
+    if (seedIds.has(node.id)) classes.push('graph-node--seed')
+    if (compact) classes.push('graph-node--compact')
     return {
       id: node.id,
       type: 'graphNode',
-      position: { x: col * 200, y: row * 88 },
+      position: pos,
       data: {
         label: node.title,
         kind: node.kind,
         work_state: node.work_state,
+        isSeed: seedIds.has(node.id),
+        compact,
       },
       className: classes.join(' '),
       selected: selectedId === node.id,
       focusable: true,
     }
   })
+}
+
+function layoutProjectForce(
+  nodesMeta: GraphNodeMeta[],
+  edgesMeta: BoundedGraph['edges'],
+  centerId: string,
+  selectedId: string | null,
+  seedIds: Set<string>,
+  compactOverview: boolean,
+  zoom: number,
+): { nodes: Node[]; edges: Edge[] } {
+  const positions = computeForceLayout(
+    nodesMeta.map((n) => n.id),
+    (Array.isArray(edgesMeta) ? edgesMeta : []).map((e) => ({ from: e.from, to: e.to })),
+  )
+  const nodes = buildFlowNodes(nodesMeta, positions, centerId, selectedId, seedIds, compactOverview, zoom)
+  const showLabels = shouldShowEdgeLabels(
+    Array.isArray(edgesMeta) ? edgesMeta.length : 0,
+    zoom,
+  )
   const edges: Edge[] = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e, i) => ({
     id: `${e.from}-${e.rel}-${e.to}-${i}`,
     source: e.from,
     target: e.to,
-    label: e.rel,
+    label: showLabels ? e.rel : undefined,
+    style: { stroke: 'var(--graph-edge-stroke)', strokeWidth: 1, opacity: 0.42 },
+    labelStyle: showLabels
+      ? { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }
+      : undefined,
   }))
   return { nodes, edges }
 }
@@ -119,34 +181,19 @@ function layoutOverview(
   seedIds: Set<string>,
   centerId: string,
   selectedId: string | null,
+  zoom: number,
 ): { nodes: Node[]; edges: Edge[] } {
   const seeds = nodesMeta.filter((n) => seedIds.has(n.id))
   const others = nodesMeta.filter((n) => !seedIds.has(n.id))
   const seedCount = Math.max(seeds.length, 1)
-  const nodes: Node[] = []
+  const positions = new Map<string, { x: number; y: number }>()
 
   seeds.forEach((node, i) => {
     const angle = (2 * Math.PI * i) / seedCount - Math.PI / 2
     const radius = seeds.length === 1 ? 0 : 220
-    const classes = ['graph-node', 'graph-node--seed']
-    if (node.id === centerId) classes.push('graph-node--center')
-    if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
-    nodes.push({
-      id: node.id,
-      type: 'graphNode',
-      position: {
-        x: 400 + radius * Math.cos(angle),
-        y: 280 + radius * Math.sin(angle),
-      },
-      data: {
-        label: node.title,
-        kind: node.kind,
-        work_state: node.work_state,
-        isSeed: true,
-      },
-      className: classes.join(' '),
-      selected: selectedId === node.id,
-      focusable: true,
+    positions.set(node.id, {
+      x: 400 + radius * Math.cos(angle),
+      y: 280 + radius * Math.sin(angle),
     })
   })
 
@@ -156,34 +203,26 @@ function layoutOverview(
     const local = Math.floor(i / seedCount)
     const angle = baseAngle + (local % 5) * 0.35 - 0.7
     const radius = 320 + (local % 4) * 36
-    const classes = ['graph-node']
-    if (node.id === centerId) classes.push('graph-node--center')
-    if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
-    if (seedIds.has(node.id)) classes.push('graph-node--seed')
-    nodes.push({
-      id: node.id,
-      type: 'graphNode',
-      position: {
-        x: 400 + radius * Math.cos(angle),
-        y: 280 + radius * Math.sin(angle),
-      },
-      data: {
-        label: node.title,
-        kind: node.kind,
-        work_state: node.work_state,
-        isSeed: seedIds.has(node.id),
-      },
-      className: classes.join(' '),
-      selected: selectedId === node.id,
-      focusable: true,
+    positions.set(node.id, {
+      x: 400 + radius * Math.cos(angle),
+      y: 280 + radius * Math.sin(angle),
     })
   })
 
+  const nodes = buildFlowNodes(nodesMeta, positions, centerId, selectedId, seedIds, false, zoom)
+  const showLabels = shouldShowEdgeLabels(
+    Array.isArray(edgesMeta) ? edgesMeta.length : 0,
+    zoom,
+  )
   const edges: Edge[] = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e, i) => ({
     id: `${e.from}-${e.rel}-${e.to}-${i}`,
     source: e.from,
     target: e.to,
-    label: e.rel,
+    label: showLabels ? e.rel : undefined,
+    style: { stroke: 'var(--graph-edge-stroke)', strokeWidth: 1, opacity: 0.55 },
+    labelStyle: showLabels
+      ? { fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }
+      : undefined,
   }))
   return { nodes, edges }
 }
@@ -208,16 +247,24 @@ function GraphCanvas({
   onExpand: (id: string) => void
 }) {
   const { fitView } = useReactFlow()
+  const [zoom, setZoom] = useState(1)
+  const compactOverview = shouldUseCompactNodes(nodesMeta.length, layoutMode)
+
+  useOnViewportChange({
+    onChange: (vp) => setZoom(vp.zoom),
+  })
+
   const laid = useMemo(
     () =>
       layoutMode === 'project'
-        ? layoutProject(nodesMeta, edgesMeta, center, selectedId)
-        : layoutOverview(nodesMeta, edgesMeta, seedIds, center, selectedId),
-    [nodesMeta, edgesMeta, seedIds, center, selectedId, layoutMode],
+        ? layoutProjectForce(nodesMeta, edgesMeta, center, selectedId, seedIds, compactOverview, zoom)
+        : layoutOverview(nodesMeta, edgesMeta, seedIds, center, selectedId, zoom),
+    [nodesMeta, edgesMeta, seedIds, center, selectedId, layoutMode, compactOverview, zoom],
   )
   const [nodes, setNodes, onNodesChange] = useNodesState(laid.nodes)
   const flowEdges = Array.isArray(laid.edges) ? laid.edges : []
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowEdges)
+  const fitKeyRef = useRef('')
 
   useEffect(() => {
     setNodes(laid.nodes)
@@ -226,11 +273,15 @@ function GraphCanvas({
 
   useEffect(() => {
     if (laid.nodes.length === 0) return
+    const fitKey = `${layoutMode}:${laid.nodes.length}:${center}`
+    if (fitKeyRef.current === fitKey) return
+    fitKeyRef.current = fitKey
+    const padding = layoutMode === 'project' ? PROJECT_FIT_PADDING : 0.12
     const t = window.setTimeout(() => {
-      void fitView({ padding: 0.12, duration: 200 })
+      void fitView({ padding, duration: 240 })
     }, 0)
     return () => window.clearTimeout(t)
-  }, [laid.nodes.length, layoutMode, fitView])
+  }, [laid.nodes.length, layoutMode, center, fitView])
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_: MouseEvent, node: Node) => {
@@ -257,12 +308,14 @@ function GraphCanvas({
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
         fitView
+        minZoom={0.05}
+        maxZoom={2}
         nodesConnectable={false}
         nodesFocusable
         elementsSelectable
         proOptions={{ hideAttribution: true }}
       >
-        <Background />
+        <Background gap={20} size={1} />
         <Controls />
       </ReactFlow>
     </div>
@@ -285,6 +338,10 @@ function toBoundedGraph(
   }
 }
 
+function allKindsFromNodes(nodes: GraphNodeMeta[]): Set<string> {
+  return new Set(nodes.map((n) => n.kind))
+}
+
 export function Graph() {
   const token = useApiToken()
   const [center, setCenter] = useState('')
@@ -294,6 +351,7 @@ export function Graph() {
   const [searchItems, setSearchItems] = useState<SearchItem[]>([])
   const [q, setQ] = useState('')
   const [kind, setKind] = useState<KindFilter>('all')
+  const [enabledKinds, setEnabledKinds] = useState<Set<string>>(new Set())
   const [nodesMeta, setNodesMeta] = useState<GraphNodeMeta[]>([])
   const [edgesMeta, setEdgesMeta] = useState<BoundedGraph['edges']>([])
   const [graphTruncated, setGraphTruncated] = useState(false)
@@ -330,17 +388,26 @@ export function Graph() {
     return Array.from(s).sort()
   }, [searchItems, nodesMeta])
 
+  const kindCounts = useMemo(() => countNodesByKind(nodesMeta), [nodesMeta])
+
   const visibleNodes = useMemo(() => {
+    if (layoutMode === 'project') {
+      return filterNodesByKinds(nodesMeta, enabledKinds)
+    }
     if (kind === 'all') return nodesMeta
     return nodesMeta.filter((n) => n.kind === kind)
-  }, [nodesMeta, kind])
+  }, [nodesMeta, enabledKinds, layoutMode, kind])
+
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes])
 
   const visibleEdges = useMemo(() => {
     const meta = Array.isArray(edgesMeta) ? edgesMeta : []
+    if (layoutMode === 'project') {
+      return filterEdgesByNodeIds(meta, visibleNodeIds)
+    }
     if (kind === 'all') return meta
-    const ids = new Set(visibleNodes.map((n) => n.id))
-    return meta.filter((e) => ids.has(e.from) && ids.has(e.to))
-  }, [edgesMeta, visibleNodes, kind])
+    return filterEdgesByNodeIds(meta, visibleNodeIds)
+  }, [edgesMeta, visibleNodeIds, layoutMode, kind])
 
   const applyTaskWorkState = useCallback((nodes: GraphNodeMeta[], taskItems: TaskRow[]) => {
     const byId = new Map(taskItems.map((t) => [t.id, t]))
@@ -382,6 +449,7 @@ export function Graph() {
       )
       setNodesMeta(nodes)
       setEdgesMeta(graphRes.edges ?? [])
+      setEnabledKinds(allKindsFromNodes(nodes))
       setGraphTruncated(graphRes.truncated)
       const total = (graphRes as BoundedGraph & { total_entities?: number }).total_entities
       setTotalEntities(typeof total === 'number' ? total : nodes.length)
@@ -456,6 +524,23 @@ export function Graph() {
     setOrientDismissed(true)
   }
 
+  function toggleCommunityKind(kindName: string) {
+    setEnabledKinds((prev) => {
+      const next = new Set(prev)
+      if (next.has(kindName)) next.delete(kindName)
+      else next.add(kindName)
+      return next
+    })
+  }
+
+  function selectAllCommunities() {
+    setEnabledKinds(allKindsFromNodes(nodesMeta))
+  }
+
+  function clearAllCommunities() {
+    setEnabledKinds(new Set())
+  }
+
   const loading = overviewLoading || expandLoading
   const showCanvas = graph != null && visibleNodes.length > 0
 
@@ -464,9 +549,9 @@ export function Graph() {
       <h1 className="page-title">Graph</h1>
       {!orientDismissed ? <GraphOrientPanel onDismiss={handleDismissOrient} /> : null}
       <p className="page-lead">
-        Full project graph on first load (bounded). Click to inspect; double-click or “Use as center”
-        for a focused neighborhood. Project cap {PROJECT_MAX_NODES} · neighborhood depth {DEPTH} ·
-        expand ≤{EXPAND_MAX_NODES}.
+        Full project graph on first load (bounded, force-directed). Click to inspect; double-click or
+        “Use as center” for a focused neighborhood. Project cap {PROJECT_MAX_NODES} · neighborhood
+        depth {DEPTH} · expand ≤{EXPAND_MAX_NODES}.
       </p>
 
       {project ? (
@@ -687,18 +772,29 @@ export function Graph() {
               ))}
             </ul>
             <div className="graph-shell">
-              <ReactFlowProvider>
-                <GraphCanvas
-                  nodesMeta={visibleNodes}
-                  edgesMeta={visibleEdges}
-                  seedIds={seedSet}
-                  center={center}
-                  selectedId={selectedId}
-                  layoutMode={layoutMode}
-                  onSelect={onSelect}
-                  onExpand={onExpand}
-                />
-              </ReactFlowProvider>
+              <div className="graph-main">
+                {layoutMode === 'project' ? (
+                  <GraphCommunitiesPanel
+                    counts={kindCounts}
+                    enabledKinds={enabledKinds}
+                    onToggle={toggleCommunityKind}
+                    onSelectAll={selectAllCommunities}
+                    onClearAll={clearAllCommunities}
+                  />
+                ) : null}
+                <ReactFlowProvider>
+                  <GraphCanvas
+                    nodesMeta={visibleNodes}
+                    edgesMeta={visibleEdges}
+                    seedIds={seedSet}
+                    center={center}
+                    selectedId={selectedId}
+                    layoutMode={layoutMode}
+                    onSelect={onSelect}
+                    onExpand={onExpand}
+                  />
+                </ReactFlowProvider>
+              </div>
               {selectedId ? (
                 <Inspector
                   selectedId={selectedId}

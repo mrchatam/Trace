@@ -52,8 +52,8 @@ jobs:
           npm ci
           npm run build
 
-      - name: overviewCompose node tests
-        run: node --experimental-strip-types --test src/lib/overviewCompose.test.ts
+      - name: web lib node tests
+        run: node --experimental-strip-types --test src/lib/*.test.ts
 
   embed-gui:
     name: Embed GUI (SPA → go:embed)
