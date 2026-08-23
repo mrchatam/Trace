@@ -14,12 +14,12 @@ Orchestrator paste:
 Phase 00–43 complete — do not re-run closed rows.
 @docs/TODO.md
 
-- Active phase: **none** — Phase 43 GitHub hygiene complete
-- Next runnable: **idle** (human promotion only)
+- Active phase: **44** — Scoped graph linking & scope semantics
+- Next runnable: **P44-00** (phase planner)
 - Follow docs/rules/agent-loop-protocol.md
 ```
 
-(Phase 00–43 complete. **P43-S01-02 done** 2026-08-22 — GitHub triage + eval/CI fixes; successor **no successor**.)
+(Phase 00–43 complete. **P43-S01-02 done** 2026-08-22 — GitHub triage + eval/CI fixes. **Phase 44 promoted** 2026-08-23 — scoped graph linking intake; board [`TODO/phase-44.md`](TODO/phase-44.md).)
 ---
 
 ## Phase boards
@@ -70,8 +70,9 @@ Phase 00–43 complete — do not re-run closed rows.
 | 41+ | Layers & intent | done | — | [TODO/phase-41.md](TODO/phase-41.md) |
 | 42+ | Concept & index | done | — | [TODO/phase-42.md](TODO/phase-42.md) |
 | 43 | GitHub hygiene (issues + Actions) | done | — | [TODO/phase-43.md](TODO/phase-43.md) |
+| 44 | Scoped graph linking & scope semantics | active | P44-00 | [TODO/phase-44.md](TODO/phase-44.md) |
 
-(P43 complete 2026-08-22 — GitHub triage + eval/CI remediation; DR-HANDOFF CLOSED; successor **no successor**.)
+(P43 complete 2026-08-22 — GitHub triage + eval/CI remediation; DR-HANDOFF CLOSED. **P44 scaffold** 2026-08-23 — plan-only; first runnable **P44-00**.)
 
 ---
 
