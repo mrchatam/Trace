@@ -1,5 +1,20 @@
 import { kindCssKey } from '../lib/graphLayout'
 
+const KIND_SWATCH_VAR: Record<string, string> = {
+  goal: 'var(--kind-goal)',
+  task: 'var(--kind-task)',
+  decision: 'var(--kind-decision)',
+  assumption: 'var(--kind-assumption)',
+  discovery: 'var(--kind-discovery)',
+  'plan-change': 'var(--kind-plan-change)',
+  claim: 'var(--kind-claim)',
+  evidence: 'var(--kind-evidence)',
+  capability: 'var(--kind-capability)',
+  review: 'var(--kind-review)',
+  change: 'var(--kind-change)',
+  regression: 'var(--kind-regression)',
+}
+
 type GraphCommunitiesPanelProps = {
   counts: Map<string, number>
   enabledKinds: Set<string>
@@ -44,6 +59,8 @@ export function GraphCommunitiesPanel({
         {kinds.map((kind) => {
           const count = counts.get(kind) ?? 0
           const inputId = `graph-community-${kind}`
+          const cssKey = kindCssKey(kind)
+          const swatch = KIND_SWATCH_VAR[cssKey] ?? 'var(--kind-unknown)'
           return (
             <li key={kind}>
               <label className="graph-communities__row" htmlFor={inputId}>
@@ -54,9 +71,18 @@ export function GraphCommunitiesPanel({
                   data-testid={`graph-community-${kind}`}
                   onChange={() => onToggle(kind)}
                 />
-                <span className="graph-communities__dot" data-kind={kindCssKey(kind)} aria-hidden />
-                <span className="graph-communities__kind">{kind}</span>
-                <span className="graph-communities__count">{count}</span>
+                <span
+                  className="graph-communities__dot"
+                  data-kind={cssKey}
+                  style={{ background: swatch, borderColor: swatch }}
+                  aria-hidden
+                />
+                <span className="graph-communities__kind" title={kind}>
+                  {kind}
+                </span>
+                <span className="graph-communities__count" aria-label={`${count} nodes`}>
+                  {count}
+                </span>
               </label>
             </li>
           )

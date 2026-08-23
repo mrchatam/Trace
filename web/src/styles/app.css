@@ -759,48 +759,62 @@ button {
 }
 
 .graph-communities__dot {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.7rem;
+  height: 0.7rem;
   border-radius: 50%;
   background: var(--kind-unknown);
+  border: 1px solid color-mix(in srgb, var(--kind-unknown) 50%, var(--border));
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 70%, transparent);
 }
 
 .graph-communities__dot[data-kind='goal'] {
   background: var(--kind-goal);
+  border-color: color-mix(in srgb, var(--kind-goal) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='task'] {
   background: var(--kind-task);
+  border-color: color-mix(in srgb, var(--kind-task) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='decision'] {
   background: var(--kind-decision);
+  border-color: color-mix(in srgb, var(--kind-decision) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='assumption'] {
   background: var(--kind-assumption);
+  border-color: color-mix(in srgb, var(--kind-assumption) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='discovery'] {
   background: var(--kind-discovery);
+  border-color: color-mix(in srgb, var(--kind-discovery) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='plan-change'] {
   background: var(--kind-plan-change);
+  border-color: color-mix(in srgb, var(--kind-plan-change) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='claim'] {
   background: var(--kind-claim);
+  border-color: color-mix(in srgb, var(--kind-claim) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='evidence'] {
   background: var(--kind-evidence);
+  border-color: color-mix(in srgb, var(--kind-evidence) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='capability'] {
   background: var(--kind-capability);
+  border-color: color-mix(in srgb, var(--kind-capability) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='review'] {
   background: var(--kind-review);
+  border-color: color-mix(in srgb, var(--kind-review) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='change'] {
   background: var(--kind-change);
+  border-color: color-mix(in srgb, var(--kind-change) 55%, var(--border));
 }
 .graph-communities__dot[data-kind='regression'] {
   background: var(--kind-regression);
+  border-color: color-mix(in srgb, var(--kind-regression) 55%, var(--border));
 }
 
 .graph-communities__kind {
@@ -808,6 +822,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .graph-communities__count {
@@ -902,6 +917,83 @@ button {
   border-color: color-mix(in srgb, var(--kind-regression) 60%, var(--border));
 }
 
+/* Status ring (secondary cue) — readable at dot + minimal LOD */
+.graph-node-dot[data-status='done'] .graph-node-dot__circle,
+.graph-node__inner[data-status='done'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-done) 85%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.graph-node-dot[data-status='in-progress'] .graph-node-dot__circle,
+.graph-node__inner[data-status='in-progress'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-in-progress) 90%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.graph-node-dot[data-status='pending'] .graph-node-dot__circle,
+.graph-node__inner[data-status='pending'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-pending) 75%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.graph-node-dot[data-status='skipped'] .graph-node-dot__circle,
+.graph-node__inner[data-status='skipped'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-skipped) 80%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.graph-node-dot[data-status='fail'] .graph-node-dot__circle,
+.graph-node__inner[data-status='fail'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-fail) 90%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.graph-node-dot[data-status='blocked'] .graph-node-dot__circle,
+.graph-node__inner[data-status='blocked'] {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-blocked) 90%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+/* Goal-band tint (tertiary) — soft outer halo; kind fill stays primary */
+.graph-node-dot[data-goal-band='0'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-0) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='1'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-1) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='2'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-2) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='3'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-3) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='4'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-4) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='5'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-5) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='6'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-6) 70%, transparent);
+  outline-offset: 2px;
+}
+.graph-node-dot[data-goal-band='7'] .graph-node-dot__circle {
+  outline: 1.5px solid color-mix(in srgb, var(--goal-band-7) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.graph-node-dot--minimal[data-goal-band] .graph-node-dot__circle {
+  outline-width: 1px;
+  outline-offset: 1px;
+}
+
 .graph-node-dot__label {
   font-size: 0.55rem;
   line-height: 1.15;
@@ -913,6 +1005,29 @@ button {
   -webkit-box-orient: vertical;
   max-width: 100%;
   white-space: nowrap;
+}
+
+/* Reveal labels via CSS :hover — avoids React LOD rebuild on mousemove */
+.graph-node-dot__label--hover-only {
+  opacity: 0;
+  pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.react-flow__node:hover .graph-node-dot__label--hover-only,
+.react-flow__node.graph-node--hovered .graph-node-dot__label--hover-only {
+  opacity: 1;
+  max-height: 2rem;
+}
+
+.react-flow__node.graph-node--hovered {
+  z-index: 950 !important;
+}
+
+.react-flow__edge.graph-edge--hot path {
+  stroke: var(--accent) !important;
 }
 
 .react-flow__node.graph-node--detail {
@@ -1390,11 +1505,14 @@ button {
   border-inline-end-color: var(--state-pending);
 }
 .graph-node__state[data-state='DONE'],
-.graph-node__state[data-state='SKIPPED'],
-.react-flow__node.graph-node .graph-node__state[data-state='DONE'],
-.react-flow__node.graph-node .graph-node__state[data-state='SKIPPED'] {
+.react-flow__node.graph-node .graph-node__state[data-state='DONE'] {
   color: var(--state-done);
   border-inline-end-color: var(--state-done);
+}
+.graph-node__state[data-state='SKIPPED'],
+.react-flow__node.graph-node .graph-node__state[data-state='SKIPPED'] {
+  color: var(--state-skipped);
+  border-inline-end-color: var(--state-skipped);
 }
 .graph-node__state[data-state='FAIL'],
 .react-flow__node.graph-node .graph-node__state[data-state='FAIL'] {

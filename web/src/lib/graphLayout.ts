@@ -46,9 +46,16 @@ export const EDGE_PRIORITY_RELS = new Set([
   'supports',
   'contradicts',
 ])
-export const PROJECT_FIT_PADDING = 0.35
-/** Post–fitView scale (<1 zooms out further for cluster overview). */
-export const PROJECT_FIT_ZOOM_SCALE = 0.88
+/** fitView padding so content fills the viewport (not a tiny centered blob). */
+export const PROJECT_FIT_PADDING = 0.15
+/**
+ * @deprecated Extra post-fit zoom-out fights fitView; keep at 1 and do not apply.
+ * Retained so older imports compile during transition.
+ */
+export const PROJECT_FIT_ZOOM_SCALE = 1
+
+/** Distinct goal-band accent slots (CSS `--goal-band-N`). */
+export const GOAL_BAND_TINT_COUNT = 8
 
 export type NodeLod = 'minimal' | 'dot' | 'full'
 
@@ -108,6 +115,27 @@ export const SEMANTIC_MIN_NODE_DISTANCE = 20
 /** Map API kind (plan_change) to CSS data-kind token (plan-change). */
 export function kindCssKey(kind: string): string {
   return kind.replace(/_/g, '-')
+}
+
+/** Map work_state to CSS data-state token (IN_PROGRESS → in-progress). */
+export function statusCssKey(workState: string | undefined | null): string | undefined {
+  if (!workState) return undefined
+  return workState.trim().toLowerCase().replace(/_/g, '-')
+}
+
+/** Stable hash → goal-band tint index for secondary cluster accent. */
+export function goalBandTintIndex(goalId: string | null | undefined): number {
+  if (!goalId || goalId === UNGROUPED_GOAL) return -1
+  let h = 0
+  for (let i = 0; i < goalId.length; i++) {
+    h = (h * 31 + goalId.charCodeAt(i)) | 0
+  }
+  return Math.abs(h) % GOAL_BAND_TINT_COUNT
+}
+
+/** Stable React Flow edge id (no list-index → no remount when filters shift). */
+export function stableEdgeId(edge: { from: string; to: string; rel?: string }): string {
+  return `${edge.from}|${edge.rel ?? ''}|${edge.to}`
 }
 
 function kindLaneIndex(kind: string): number {
@@ -348,17 +376,20 @@ export function shouldUseCompactNodes(
   return layoutMode === 'project' && nodeCount >= COMPACT_NODE_THRESHOLD
 }
 
-/** Resolve node detail level from zoom + focus (Maps-style LOD). */
+/**
+ * Resolve node detail level from zoom + selection/center focus (Maps-style LOD).
+ * Hover must NOT promote to full — that remounts the node DOM and flashes the canvas.
+ * Pass `hoveredId` only for API compat; it is ignored.
+ */
 export function getNodeLod(
   compactOverview: boolean,
   zoom: number,
   nodeId: string,
   selectedId: string | null,
   centerId: string,
-  hoveredId: string | null = null,
+  _hoveredId: string | null = null,
 ): NodeLod {
-  const focused =
-    nodeId === selectedId || nodeId === centerId || nodeId === hoveredId
+  const focused = nodeId === selectedId || nodeId === centerId
   if (focused) return 'full'
   if (compactOverview && zoom < FULL_CARD_MIN_ZOOM) {
     if (zoom < LOD_MINIMAL_MAX_ZOOM) return 'minimal'
@@ -369,14 +400,17 @@ export function getNodeLod(
   return 'minimal'
 }
 
+/**
+ * Whether the label is always visible at this LOD/zoom.
+ * Hover-only labels are handled in CSS (`graph-node-dot__label--hover-only`) to avoid rebuilds.
+ */
 export function shouldShowNodeLabel(
   lod: NodeLod,
   zoom: number,
-  isHovered = false,
+  _isHovered = false,
 ): boolean {
   if (lod === 'full') return true
   if (lod === 'minimal') return false
-  if (isHovered) return true
   return zoom >= DOT_LABEL_MIN_ZOOM
 }
 
@@ -396,6 +430,19 @@ export function shouldShowFullNode(
   hoveredId: string | null = null,
 ): boolean {
   return getNodeLod(compactOverview, zoom, nodeId, selectedId, centerId, hoveredId) === 'full'
+}
+
+/** Patch edge stroke for hover without changing edge membership or ids. */
+export function edgeHoverStyle(
+  base: { stroke?: string; strokeWidth?: number; opacity?: number },
+  highlighted: boolean,
+): { stroke: string; strokeWidth: number; opacity: number } {
+  const baseOpacity = typeof base.opacity === 'number' ? base.opacity : 0.42
+  return {
+    stroke: highlighted ? 'var(--accent)' : (base.stroke ?? 'var(--graph-edge-stroke)'),
+    strokeWidth: highlighted ? 2 : (base.strokeWidth ?? 1),
+    opacity: highlighted ? Math.min(1, baseOpacity + 0.35) : baseOpacity,
+  }
 }
 
 export function shouldRenderEdges(zoom: number): boolean {

@@ -41,20 +41,24 @@ import {
   computeForceLayout,
   computeOverviewPositions,
   countNodesByKind,
+  edgeHoverStyle,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForOverview,
   filterNodesByKinds,
   FORCE_LAYOUT_LABEL,
   getNodeLod,
+  goalBandTintIndex,
+  inferGoalBands,
   isEdgeHighlighted,
   kindCssKey,
   LOD_MINIMAL_MAX_ZOOM,
   PROJECT_FIT_PADDING,
-  PROJECT_FIT_ZOOM_SCALE,
   shouldShowEdgeLabels,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
+  stableEdgeId,
+  statusCssKey,
   truncateNodeLabel,
   type NodeLod,
 } from '../lib/graphLayout'
@@ -75,6 +79,8 @@ type GraphNodeData = {
   label: string
   kind: string
   work_state?: string
+  goal_id?: string
+  goalBand: number
   isSeed?: boolean
   lod: NodeLod
   showLabel: boolean
@@ -86,6 +92,8 @@ const GraphNodeView = memo(function GraphNodeView({
   selected,
 }: NodeProps & { data: GraphNodeData }) {
   const aria = `${data.kind}: ${data.label}`
+  const stateKey = statusCssKey(data.work_state)
+  const goalBandAttr = data.goalBand >= 0 ? String(data.goalBand) : undefined
 
   if (data.lod === 'full') {
     return (
@@ -94,6 +102,8 @@ const GraphNodeView = memo(function GraphNodeView({
         data-testid={`graph-canvas-node-${id}`}
         data-kind={kindCssKey(data.kind)}
         data-state={data.work_state || undefined}
+        data-status={stateKey}
+        data-goal-band={goalBandAttr}
         tabIndex={selected ? 0 : -1}
         role="button"
         aria-pressed={selected}
@@ -114,6 +124,9 @@ const GraphNodeView = memo(function GraphNodeView({
 
   const minimal = data.lod === 'minimal'
   const showLabel = data.showLabel
+  const labelClass = showLabel
+    ? 'graph-node-dot__label'
+    : 'graph-node-dot__label graph-node-dot__label--hover-only'
 
   return (
     <div
@@ -121,17 +134,19 @@ const GraphNodeView = memo(function GraphNodeView({
       data-testid={`graph-canvas-node-${id}`}
       data-kind={kindCssKey(data.kind)}
       data-state={data.work_state || undefined}
+      data-status={stateKey}
+      data-goal-band={goalBandAttr}
       tabIndex={selected ? 0 : -1}
       role="button"
       aria-pressed={selected}
       aria-label={aria}
-      title={showLabel ? undefined : data.label}
+      title={data.label}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <span className="graph-node-dot__circle" aria-hidden />
-      {showLabel ? (
-        <span className="graph-node-dot__label">{truncateNodeLabel(data.label)}</span>
-      ) : null}
+      {minimal ? null : (
+        <span className={labelClass}>{truncateNodeLabel(data.label)}</span>
+      )}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   )
@@ -173,29 +188,33 @@ function computeLayoutPositions(
   )
 }
 
+/**
+ * Structural React Flow graph. Must NOT depend on hover — hover only patches
+ * className/style on stable node/edge ids (see applyHoverStyles).
+ */
 function buildFlowGraph(
   nodesMeta: GraphNodeMeta[],
   positions: Map<string, { x: number; y: number }>,
   edgesMeta: BoundedGraph['edges'],
   centerId: string,
   selectedId: string | null,
-  hoveredId: string | null,
   seedIds: Set<string>,
   compactOverview: boolean,
   zoom: number,
   layoutMode: 'project' | 'neighborhood',
   showAllEdges: boolean,
+  goalBands: Map<string, string>,
 ): { nodes: Node[]; edges: Edge[] } {
   const metaEdges = Array.isArray(edgesMeta) ? edgesMeta : []
   const edgeFocusIds = new Set<string>()
   if (selectedId) edgeFocusIds.add(selectedId)
-  if (hoveredId) edgeFocusIds.add(hoveredId)
 
   const nodes = nodesMeta.map((node) => {
     const pos = positions.get(node.id) ?? { x: 0, y: 0 }
-    const lod = getNodeLod(compactOverview, zoom, node.id, selectedId, centerId, hoveredId)
-    const isHovered = node.id === hoveredId
-    const showLabel = shouldShowNodeLabel(lod, zoom, isHovered)
+    const lod = getNodeLod(compactOverview, zoom, node.id, selectedId, centerId)
+    const showLabel = shouldShowNodeLabel(lod, zoom)
+    const goalId = node.goal_id ?? goalBands.get(node.id)
+    const goalBand = goalBandTintIndex(goalId)
     const classes = ['graph-node']
     if (node.id === centerId) classes.push('graph-node--center')
     if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
@@ -205,13 +224,11 @@ function buildFlowGraph(
     if (lod === 'full') classes.push('graph-node--detail')
     const zIndex =
       lod === 'full'
-        ? node.id === hoveredId
-          ? 1000
-          : node.id === selectedId
-            ? 900
-            : node.id === centerId
-              ? 850
-              : 800
+        ? node.id === selectedId
+          ? 900
+          : node.id === centerId
+            ? 850
+            : 800
         : undefined
     return {
       id: node.id,
@@ -222,6 +239,8 @@ function buildFlowGraph(
         label: node.title,
         kind: node.kind,
         work_state: node.work_state,
+        goal_id: goalId,
+        goalBand,
         isSeed: seedIds.has(node.id),
         lod,
         showLabel,
@@ -238,20 +257,23 @@ function buildFlowGraph(
       : filterEdgesForOverview(metaEdges, zoom, edgeFocusIds, true)
   const edgeOpacity = edgeStrokeOpacity(zoom, metaEdges.length)
   const showLabels = shouldShowEdgeLabels(metaEdges.length, zoom)
+  const seenIds = new Set<string>()
 
-  const edges: Edge[] = visibleEdges.map((e, i) => {
-    const highlighted = isEdgeHighlighted(e, hoveredId)
-    const opacity = highlighted ? Math.min(1, edgeOpacity + 0.35) : edgeOpacity
+  const edges: Edge[] = visibleEdges.map((e) => {
+    let id = stableEdgeId(e)
+    if (seenIds.has(id)) id = `${id}#${seenIds.size}`
+    seenIds.add(id)
     return {
-      id: `${e.from}-${e.rel}-${e.to}-${i}`,
+      id,
       source: e.from,
       target: e.to,
       label: showLabels ? e.rel : undefined,
-      animated: highlighted,
+      animated: false,
+      className: 'graph-edge',
       style: {
-        stroke: highlighted ? 'var(--accent)' : 'var(--graph-edge-stroke)',
-        strokeWidth: highlighted ? 2 : 1,
-        opacity,
+        stroke: 'var(--graph-edge-stroke)',
+        strokeWidth: 1,
+        opacity: edgeOpacity,
       },
       labelStyle: showLabels
         ? { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }
@@ -260,6 +282,46 @@ function buildFlowGraph(
   })
 
   return { nodes, edges }
+}
+
+function applyHoverStyles(
+  nodes: Node[],
+  edges: Edge[],
+  hoveredId: string | null,
+): { nodes: Node[]; edges: Edge[] } {
+  return {
+    nodes: nodes.map((n) => {
+      const base = (n.className ?? '').replace(/\s*graph-node--hovered\b/g, '').trim()
+      const next =
+        hoveredId && n.id === hoveredId ? `${base} graph-node--hovered`.trim() : base
+      return n.className === next ? n : { ...n, className: next }
+    }),
+    edges: edges.map((e) => {
+      const highlighted =
+        hoveredId != null && isEdgeHighlighted({ from: e.source, to: e.target }, hoveredId)
+      const baseClass = (e.className ?? 'graph-edge').replace(/\s*graph-edge--hot\b/g, '').trim()
+      const nextClass = highlighted ? `${baseClass} graph-edge--hot`.trim() : baseClass
+      const baseOpacity = typeof e.style?.opacity === 'number' ? e.style.opacity : 0.42
+      // Structural edges always carry the un-highlighted opacity from buildFlowGraph.
+      const nextStyle = edgeHoverStyle(
+        {
+          stroke: 'var(--graph-edge-stroke)',
+          strokeWidth: 1,
+          opacity: baseOpacity,
+        },
+        highlighted,
+      )
+      if (
+        e.className === nextClass &&
+        e.style?.stroke === nextStyle.stroke &&
+        e.style?.strokeWidth === nextStyle.strokeWidth &&
+        e.style?.opacity === nextStyle.opacity
+      ) {
+        return e
+      }
+      return { ...e, className: nextClass, style: nextStyle }
+    }),
+  }
 }
 
 function GraphCanvas({
@@ -305,6 +367,15 @@ function GraphCanvas({
     [nodesMeta, edgesMeta, seedIds, layoutMode],
   )
 
+  const goalBands = useMemo(() => {
+    const metaEdges = (Array.isArray(edgesMeta) ? edgesMeta : []).map((e) => ({
+      from: e.from,
+      to: e.to,
+    }))
+    return inferGoalBands(nodesMeta, metaEdges)
+  }, [nodesMeta, edgesMeta])
+
+  // Structural graph only — hover must not rebuild LOD / edge membership / positions.
   const displayGraph = useMemo(
     () =>
       buildFlowGraph(
@@ -313,12 +384,12 @@ function GraphCanvas({
         edgesMeta,
         center,
         selectedId,
-        hoveredId,
         seedIds,
         compactOverview,
         zoom,
         layoutMode,
         showAllEdges,
+        goalBands,
       ),
     [
       nodesMeta,
@@ -326,12 +397,12 @@ function GraphCanvas({
       edgesMeta,
       center,
       selectedId,
-      hoveredId,
       seedIds,
       compactOverview,
       zoom,
       layoutMode,
       showAllEdges,
+      goalBands,
     ],
   )
 
@@ -339,10 +410,15 @@ function GraphCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState(displayGraph.edges)
   const fitKeyRef = useRef('')
 
+  const styledGraph = useMemo(
+    () => applyHoverStyles(displayGraph.nodes, displayGraph.edges, hoveredId),
+    [displayGraph, hoveredId],
+  )
+
   useEffect(() => {
-    setNodes(displayGraph.nodes)
-    setEdges(displayGraph.edges)
-  }, [displayGraph, setNodes, setEdges])
+    setNodes(styledGraph.nodes)
+    setEdges(styledGraph.edges)
+  }, [styledGraph, setNodes, setEdges])
 
   useEffect(() => {
     return () => {
@@ -355,20 +431,15 @@ function GraphCanvas({
     const fitKey = `${layoutMode}:${displayGraph.nodes.length}:${center}`
     if (fitKeyRef.current === fitKey) return
     fitKeyRef.current = fitKey
-    const padding = layoutMode === 'project' ? PROJECT_FIT_PADDING : 0.12
+    const padding = layoutMode === 'project' ? PROJECT_FIT_PADDING : 0.14
     const t = window.setTimeout(() => {
-      void fitView({ padding, duration: 0 }).then(() => {
+      void fitView({ padding, duration: 0, includeHiddenNodes: false }).then(() => {
         const vp = getViewport()
-        const nextZoom =
-          layoutMode === 'project' ? clampZoom(vp.zoom * PROJECT_FIT_ZOOM_SCALE) : vp.zoom
-        if (nextZoom !== vp.zoom) {
-          void setViewport({ x: vp.x, y: vp.y, zoom: nextZoom }, { duration: 0 })
-        }
-        setZoom(nextZoom)
+        setZoom(clampZoom(vp.zoom))
       })
     }, 0)
     return () => window.clearTimeout(t)
-  }, [displayGraph.nodes.length, layoutMode, center, fitView, getViewport, setViewport])
+  }, [displayGraph.nodes.length, layoutMode, center, fitView, getViewport])
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_: MouseEvent, node: Node) => {
@@ -386,6 +457,10 @@ function GraphCanvas({
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_: MouseEvent, node: Node) => {
     setHoveredId(node.id)
+  }, [])
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    setHoveredId(null)
   }, [])
 
   useEffect(() => {
@@ -413,10 +488,6 @@ function GraphCanvas({
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [getViewport, setViewport])
-
-  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
-    setHoveredId(null)
-  }, [])
 
   return (
     <div className="graph-canvas" data-testid="graph-canvas" ref={canvasRef}>

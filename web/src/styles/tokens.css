@@ -63,8 +63,19 @@
   --state-in-progress: #2f5d3a;
   --state-pending: #5a6356;
   --state-done: #1f5c38;
+  --state-skipped: #6a7366;
   --state-fail: #8b2e2e;
   --state-blocked: #7a5a12;
+
+  /* Goal-band secondary accents (cluster tint rings) */
+  --goal-band-0: #1d4d6e;
+  --goal-band-1: #5c3d2e;
+  --goal-band-2: #4a3d6b;
+  --goal-band-3: #1a5c5c;
+  --goal-band-4: #6b4a1a;
+  --goal-band-5: #6b2e3a;
+  --goal-band-6: #3d4a6b;
+  --goal-band-7: #3a5a2a;
 }
 
 [data-theme='dark'] {
@@ -102,8 +113,18 @@
   --state-in-progress: #7cbc8a;
   --state-pending: #9aa494;
   --state-done: #8bc9a0;
+  --state-skipped: #a8b0a4;
   --state-fail: #e08a8a;
   --state-blocked: #e0c06a;
+
+  --goal-band-0: #7eb6d4;
+  --goal-band-1: #c49a7c;
+  --goal-band-2: #b0a0d4;
+  --goal-band-3: #6fc0bc;
+  --goal-band-4: #d4a857;
+  --goal-band-5: #d4899a;
+  --goal-band-6: #9aabc9;
+  --goal-band-7: #9bc47f;
 }
 
 @font-face {

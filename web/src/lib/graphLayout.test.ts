@@ -13,17 +13,21 @@ import {
   EDGE_SAMPLE_RATIO,
   FULL_CARD_MIN_ZOOM,
   FULL_NODE_MIN_ZOOM,
+  GOAL_BAND_TINT_COUNT,
   LOD_MINIMAL_MAX_ZOOM,
+  PROJECT_FIT_PADDING,
   computeForceLayout,
   computeOverviewPositions,
   computeSemanticLayout,
   countNodesByKind,
+  edgeHoverStyle,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForLod,
   filterEdgesForOverview,
   filterNodesByKinds,
   getNodeLod,
+  goalBandTintIndex,
   inferGoalBands,
   isEdgeHighlighted,
   kindCssKey,
@@ -34,6 +38,8 @@ import {
   shouldShowFullNode,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
+  stableEdgeId,
+  statusCssKey,
   truncateNodeLabel,
 } from './graphLayout.ts'
 
@@ -137,7 +143,8 @@ describe('shouldShowFullNode', () => {
     assert.equal(shouldShowFullNode(true, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'n1', 'n1', 'c1'), true)
     assert.equal(shouldShowFullNode(true, 0.4, 'c1', null, 'c1'), true)
-    assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1', 'n1'), true)
+    // Hover must not promote to full (avoids remount flash)
+    assert.equal(shouldShowFullNode(true, 0.4, 'n1', null, 'c1', 'n1'), false)
     assert.equal(shouldShowFullNode(false, 0.4, 'n1', null, 'c1'), false)
     assert.equal(shouldShowFullNode(false, 0.9, 'n1', null, 'c1'), false)
     assert.equal(shouldShowFullNode(false, FULL_CARD_MIN_ZOOM, 'n1', null, 'c1'), true)
@@ -154,10 +161,10 @@ describe('getNodeLod', () => {
     assert.equal(getNodeLod(false, 0.9, 'n1', null, 'c1'), 'dot')
   })
 
-  it('promotes focused nodes to full at any zoom', () => {
+  it('promotes selected/center to full but ignores hover', () => {
     assert.equal(getNodeLod(true, 0.1, 'n1', 'n1', 'c1'), 'full')
     assert.equal(getNodeLod(true, 0.1, 'c1', null, 'c1'), 'full')
-    assert.equal(getNodeLod(true, 0.1, 'h1', null, 'c1', 'h1'), 'full')
+    assert.equal(getNodeLod(true, 0.1, 'h1', null, 'c1', 'h1'), 'minimal')
   })
 
   it('forces dot/minimal LOD in compact overview until very high zoom', () => {
@@ -168,12 +175,13 @@ describe('getNodeLod', () => {
 })
 
 describe('shouldShowNodeLabel', () => {
-  it('shows labels at full LOD and defers dot labels until high zoom', () => {
+  it('shows labels at full LOD and defers dot labels until high zoom (hover via CSS)', () => {
     assert.equal(shouldShowNodeLabel('full', 0.5), true)
     assert.equal(shouldShowNodeLabel('dot', 0.5), false)
     assert.equal(shouldShowNodeLabel('dot', DOT_LABEL_MIN_ZOOM), true)
     assert.equal(shouldShowNodeLabel('minimal', 1.5), false)
-    assert.equal(shouldShowNodeLabel('dot', 0.5, true), true)
+    // Hover flag is ignored — CSS :hover reveals labels without rebuild
+    assert.equal(shouldShowNodeLabel('dot', 0.5, true), false)
   })
 })
 
@@ -282,6 +290,56 @@ describe('kindCssKey', () => {
   it('maps underscores to hyphens for CSS tokens', () => {
     assert.equal(kindCssKey('plan_change'), 'plan-change')
     assert.equal(kindCssKey('task'), 'task')
+  })
+})
+
+describe('statusCssKey', () => {
+  it('maps work_state to CSS data-status tokens', () => {
+    assert.equal(statusCssKey('IN_PROGRESS'), 'in-progress')
+    assert.equal(statusCssKey('DONE'), 'done')
+    assert.equal(statusCssKey('SKIPPED'), 'skipped')
+    assert.equal(statusCssKey(null), undefined)
+    assert.equal(statusCssKey(undefined), undefined)
+  })
+})
+
+describe('goalBandTintIndex', () => {
+  it('returns stable tint slots in range for goal ids', () => {
+    const a = goalBandTintIndex('goal-alpha')
+    const b = goalBandTintIndex('goal-alpha')
+    const c = goalBandTintIndex('goal-beta')
+    assert.equal(a, b)
+    assert.ok(a >= 0 && a < GOAL_BAND_TINT_COUNT)
+    assert.ok(c >= 0 && c < GOAL_BAND_TINT_COUNT)
+    assert.equal(goalBandTintIndex(null), -1)
+    assert.equal(goalBandTintIndex(undefined), -1)
+    assert.equal(goalBandTintIndex('__ungrouped__'), -1)
+  })
+})
+
+describe('stableEdgeId', () => {
+  it('builds index-free edge ids', () => {
+    assert.equal(stableEdgeId({ from: 'a', to: 'b', rel: 'blocks' }), 'a|blocks|b')
+    assert.equal(stableEdgeId({ from: 'a', to: 'b' }), 'a||b')
+  })
+})
+
+describe('edgeHoverStyle', () => {
+  it('boosts stroke without changing membership semantics', () => {
+    const hot = edgeHoverStyle({ stroke: 'var(--graph-edge-stroke)', strokeWidth: 1, opacity: 0.42 }, true)
+    assert.equal(hot.stroke, 'var(--accent)')
+    assert.equal(hot.strokeWidth, 2)
+    assert.ok(hot.opacity > 0.42)
+    const cold = edgeHoverStyle({ opacity: 0.42 }, false)
+    assert.equal(cold.stroke, 'var(--graph-edge-stroke)')
+    assert.equal(cold.strokeWidth, 1)
+    assert.equal(cold.opacity, 0.42)
+  })
+})
+
+describe('PROJECT_FIT_PADDING', () => {
+  it('uses comfortable content padding (not overly zoomed out)', () => {
+    assert.ok(PROJECT_FIT_PADDING >= 0.12 && PROJECT_FIT_PADDING <= 0.18)
   })
 })
 
