@@ -1293,8 +1293,12 @@ func TestReviewGetShowList(t *testing.T) {
 	emptyOut := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list"})
 	})
-	if strings.TrimSpace(emptyOut) != "[]" {
-		t.Fatalf("empty list want [], got %q", emptyOut)
+	var emptyPage map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(emptyOut)), &emptyPage); err != nil {
+		t.Fatalf("empty list json: %v (%q)", err, emptyOut)
+	}
+	if emptyPage["count"] != float64(0) {
+		t.Fatalf("empty list want count 0, got %#v", emptyPage)
 	}
 
 	taskOut := captureStdout(t, func() int {
@@ -1342,26 +1346,36 @@ func TestReviewGetShowList(t *testing.T) {
 	listOut := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list"})
 	})
-	var listed []map[string]any
-	if err := json.Unmarshal([]byte(listOut), &listed); err != nil {
+	var listPage map[string]any
+	if err := json.Unmarshal([]byte(listOut), &listPage); err != nil {
 		t.Fatalf("list: %v (%s)", err, listOut)
 	}
-	if len(listed) != 1 || listed[0]["id"] != revID {
-		t.Fatalf("list: %#v", listed)
+	listed, _ := listPage["items"].([]any)
+	if listPage["count"] != float64(1) || len(listed) != 1 {
+		t.Fatalf("list: %#v", listPage)
 	}
-	if _, hasBody := listed[0]["body"]; hasBody {
-		t.Fatalf("list must omit body: %#v", listed[0])
+	row0, _ := listed[0].(map[string]any)
+	if row0["id"] != revID {
+		t.Fatalf("list: %#v", listPage)
+	}
+	if _, hasBody := row0["body"]; hasBody {
+		t.Fatalf("list must omit body: %#v", row0)
 	}
 
 	byTask := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list", "--task", taskID})
 	})
-	var filtered []map[string]any
-	if err := json.Unmarshal([]byte(byTask), &filtered); err != nil {
+	var filteredPage map[string]any
+	if err := json.Unmarshal([]byte(byTask), &filteredPage); err != nil {
 		t.Fatalf("list --task: %v", err)
 	}
-	if len(filtered) != 1 || filtered[0]["id"] != revID {
-		t.Fatalf("list --task: %#v", filtered)
+	filtered, _ := filteredPage["items"].([]any)
+	if len(filtered) != 1 {
+		t.Fatalf("list --task: %#v", filteredPage)
+	}
+	f0, _ := filtered[0].(map[string]any)
+	if f0["id"] != revID {
+		t.Fatalf("list --task: %#v", filteredPage)
 	}
 }
 

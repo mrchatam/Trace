@@ -156,9 +156,16 @@ func (s *Service) GetReview(ctx context.Context, id string) (store.Review, error
 }
 
 // ListReviews returns all reviews ordered by created_at (G19 thin store wrap).
+// Prefer ListReviewsFiltered for agent/HTTP surfaces.
 func (s *Service) ListReviews(ctx context.Context) ([]store.Review, error) {
 	_ = ctx
 	return s.store.ListReviews()
+}
+
+// ListReviewsFiltered returns a bounded review page (limit/cursor/task_id).
+func (s *Service) ListReviewsFiltered(ctx context.Context, f store.ReviewListFilter) (store.ReviewListResult, error) {
+	_ = ctx
+	return s.store.ListReviewsFiltered(f)
 }
 
 // ListReviewsByTaskID returns reviews linked via review_judges_task to taskID,

@@ -540,7 +540,7 @@ func (s *Store) GetReview(id string) (Review, error) {
 	return r, nil
 }
 
-// ListReviews returns all reviews ordered by created_at, then id.
+// ListReviews returns all reviews ordered by created_at, then id (unbounded; prefer ListReviewsFiltered).
 func (s *Store) ListReviews() ([]Review, error) {
 	rows, err := s.db.Query(`
 		SELECT id, title, body, source_type, confidence, status, result, created_at, updated_at, last_verified_at

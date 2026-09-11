@@ -96,7 +96,16 @@ func cmdReviewList(root string, args []string) int {
 	fs := flag.NewFlagSet("review list", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	taskID := fs.String("task", "", "optional task UUID filter (review_judges_task)")
-	if err := fs.Parse(args); err != nil {
+	limit := fs.Int("limit", store.DefaultReviewListLimit, "max rows (default 50, max 500); ignored with --all")
+	cursor := fs.String("cursor", "", "opaque pagination cursor from a prior next_cursor")
+	all := fs.Bool("all", false, "return all matching reviews (no limit; prefer --limit for agents)")
+	if err := fs.Parse(flagsFirst(args, map[string]bool{
+		"task": true, "limit": true, "cursor": true, "all": false,
+	})); err != nil {
+		return exitUsage
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintf(os.Stderr, "usage: trace review list [--task <id>] [--limit N] [--cursor C] [--all]\n")
 		return exitUsage
 	}
 
@@ -117,23 +126,35 @@ func cmdReviewList(root string, args []string) int {
 	}
 	ctx := context.Background()
 
-	var list []store.Review
-	if *taskID != "" {
-		list, err = svc.ListReviewsByTaskID(ctx, *taskID)
+	filt := store.ReviewListFilter{TaskID: *taskID, Cursor: *cursor}
+	if *all {
+		filt.Limit = -1
 	} else {
-		list, err = svc.ListReviews(ctx)
+		filt.Limit = *limit
 	}
+	res, err := svc.ListReviewsFiltered(ctx, filt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "review: %v\n", err)
 		return exitFail
 	}
-	out := make([]reviewListRow, 0, len(list))
-	for _, r := range list {
+	out := make([]reviewListRow, 0, len(res.Reviews))
+	for _, r := range res.Reviews {
 		out = append(out, reviewListRow{
 			ID: r.ID, Title: r.Title, Result: r.Result, Status: r.Status,
 		})
 	}
-	_ = json.NewEncoder(os.Stdout).Encode(out)
+	payload := map[string]any{
+		"items":     out,
+		"count":     len(out),
+		"truncated": res.Truncated,
+	}
+	if res.NextCursor != "" {
+		payload["next_cursor"] = res.NextCursor
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(payload); err != nil {
+		fmt.Fprintf(os.Stderr, "review: %v\n", err)
+		return exitFail
+	}
 	return exitOK
 }
 

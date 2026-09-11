@@ -686,7 +686,7 @@ paths:
     get:
       tags: [reviews]
       operationId: listReviews
-      summary: List reviews
+      summary: List reviews (paged; body omitted on list)
       x-trace-wave: p1
       x-trace-gui: true
       parameters:
@@ -696,19 +696,39 @@ paths:
           schema:
             type: string
             format: uuid
+          description: Optional task UUID filter (review_judges_task)
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor from a prior next_cursor
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
       responses:
         "200":
-          description: Review list
+          description: Review list page
           content:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required: [items, truncated]
                 properties:
                   items:
                     type: array
                     items:
                       $ref: "#/components/schemas/ReviewSummary"
+                  next_cursor:
+                    type: string
+                    nullable: true
+                  truncated:
+                    type: boolean
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -770,18 +790,44 @@ paths:
     get:
       tags: [plans]
       operationId: listPlans
-      summary: Plan tree / plan listing (separate from budgeted graph)
+      summary: Plan tree / plan listing (requires goal_id or bounded goal page)
       x-trace-wave: p1
       x-trace-gui: true
+      parameters:
+        - name: goal_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: When set, return the plan for this goal only
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+          description: Max goals when goal_id omitted (default 20)
       responses:
         "200":
-          description: Plan tree summary
+          description: Plan tree summary page
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
-                description: Schema TODO — align to library plan tree in S03/S05
+                required: [items, count, truncated]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  count:
+                    type: integer
+                  truncated:
+                    type: boolean
+                    description: True when more goals exist beyond limit
         default:
           $ref: "#/components/responses/Error"
 
@@ -1565,6 +1611,7 @@ components:
         body:
           type: string
           nullable: true
+          description: Present on get/create; omitted on list
         result:
           type: string
           enum: [PASS, FAIL, UNCERTAIN]

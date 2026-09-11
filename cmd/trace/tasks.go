@@ -23,6 +23,7 @@ type taskListRow struct {
 type tasksConflictsResponse struct {
 	OK        bool                  `json:"ok"`
 	Conflicts []domain.WorkConflict `json:"conflicts"`
+	Truncated bool                  `json:"truncated,omitempty"`
 }
 
 func cmdTasks(root string, args []string) int {
@@ -140,17 +141,18 @@ func cmdTasksConflicts(root string, args []string) int {
 		return code
 	}
 
-	conflicts, err := svc.DetectWorkConflicts(context.Background(), domain.DetectWorkConflictsOpts{
+	report, err := svc.DetectWorkConflicts(context.Background(), domain.DetectWorkConflictsOpts{
 		TaskID: *taskID,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tasks conflicts: %v\n", err)
 		return exitFail
 	}
+	conflicts := report.Conflicts
 	if conflicts == nil {
 		conflicts = []domain.WorkConflict{}
 	}
-	resp := tasksConflictsResponse{OK: true, Conflicts: conflicts}
+	resp := tasksConflictsResponse{OK: true, Conflicts: conflicts, Truncated: report.Truncated}
 	if err := json.NewEncoder(os.Stdout).Encode(resp); err != nil {
 		fmt.Fprintf(os.Stderr, "tasks conflicts: %v\n", err)
 		return exitFail

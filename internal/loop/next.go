@@ -675,13 +675,14 @@ func goalKeywordsFromTitle(title string) []string {
 
 func buildWorkConflictsSection(ctx context.Context, dom *domain.Service, seedTaskID, freshness string) (WorkConflictsSection, error) {
 	const workConflictsCap = 8
-	conflicts, err := dom.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{
+	report, err := dom.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{
 		TaskID: seedTaskID,
 		Limit:  workConflictsCap,
 	})
 	if err != nil {
 		return WorkConflictsSection{}, err
 	}
+	conflicts := report.Conflicts
 	if conflicts == nil {
 		conflicts = []domain.WorkConflict{}
 	}

@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -51,9 +52,13 @@ func TestDetectOverlappingOpenTasks(t *testing.T) {
 	}
 	_ = st
 
-	conflicts, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
+	report, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	conflicts := report.Conflicts
+	if report.Truncated {
+		t.Fatal("unexpected truncated on small fixture")
 	}
 	if len(conflicts) != 1 {
 		t.Fatalf("conflicts len=%d want 1: %+v", len(conflicts), conflicts)
@@ -95,10 +100,11 @@ func TestRedundantSimilarTitleSameGoal(t *testing.T) {
 	mustInProgress(t, svc, taskA.ID)
 	mustInProgress(t, svc, taskB.ID)
 
-	conflicts, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
+	report, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	conflicts := report.Conflicts
 	if len(conflicts) != 1 {
 		t.Fatalf("conflicts len=%d want 1: %+v", len(conflicts), conflicts)
 	}
@@ -149,11 +155,33 @@ func TestNoConflictWhenTasksDisjoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conflicts, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
+	report, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	conflicts := report.Conflicts
 	if len(conflicts) != 0 {
 		t.Fatalf("expected no conflicts: %+v", conflicts)
+	}
+}
+
+func TestDetectWorkConflictsInputCapTruncated(t *testing.T) {
+	svc, st := openDomain(t)
+	ctx := context.Background()
+
+	for i := 0; i < domain.MaxConflictInputTasks+1; i++ {
+		if _, err := st.UpsertTask(store.Task{
+			Title:     fmt.Sprintf("cap-task-%d", i),
+			WorkState: store.WorkStatePending,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := svc.DetectWorkConflicts(ctx, domain.DetectWorkConflictsOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Truncated {
+		t.Fatal("want truncated when active tasks exceed MaxConflictInputTasks")
 	}
 }
