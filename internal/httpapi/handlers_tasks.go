@@ -56,7 +56,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 			ID: t.ID, Title: t.Title, WorkState: t.WorkState, GoalID: t.GoalID,
 		})
 	}
-	out := map[string]any{"items": items}
+	out := map[string]any{"items": items, "truncated": res.Truncated}
 	if res.NextCursor != "" {
 		out["next_cursor"] = res.NextCursor
 	}

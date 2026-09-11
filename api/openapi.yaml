@@ -1193,6 +1193,10 @@ components:
         next_cursor:
           type: string
           nullable: true
+          description: Opaque cursor for the next page; omit/null when complete
+        truncated:
+          type: boolean
+          description: True when more rows exist beyond this page (next_cursor set)
 
     EntitySummary:
       type: object

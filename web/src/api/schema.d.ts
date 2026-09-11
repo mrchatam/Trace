@@ -740,6 +740,8 @@ export interface components {
         TaskListResponse: {
             items: components["schemas"]["TaskRow"][];
             next_cursor?: string | null;
+            /** True when more rows exist beyond this page (next_cursor set) */
+            truncated?: boolean;
         };
         EntitySummary: {
             /** Format: uuid */

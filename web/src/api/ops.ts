@@ -50,17 +50,20 @@ export function listTasks(
  * Pages with limit 100 while next_cursor is set; concatenates items.
  * Display lists may still call listTasks({ limit: 100 }) separately.
  */
+/** Safety cap: 50 pages × 100 = 5000 tasks (matches MaxTaskListLimit scale). */
+export const LIST_TASKS_FOR_PICK_MAX_PAGES = 50
+
 export async function listTasksForPick(
   query: { goal_id?: string; work_state?: string } = {},
   opt: TokenOpt = {},
 ): Promise<TaskRow[]> {
   const items: TaskRow[] = []
   let cursor: string | undefined
-  for (;;) {
+  for (let page = 0; page < LIST_TASKS_FOR_PICK_MAX_PAGES; page++) {
     const res = await listTasks({ ...query, limit: 100, cursor }, opt)
     items.push(...(res.items ?? []))
     const next = res.next_cursor
-    if (!next) break
+    if (!next) return items
     cursor = next
   }
   return items
