@@ -25,17 +25,19 @@ type TasksInput struct {
 
 // CapabilityInput mirrors `trace capability declare|list|require|unrequire|missing`.
 type CapabilityInput struct {
-	Project    string `json:"project,omitempty" jsonschema:"optional project root override"`
-	Action     string `json:"action" jsonschema:"declare|list|require|unrequire|missing"`
-	Kind       string `json:"kind,omitempty" jsonschema:"SKILL|RULE|MCP|TOOL|HOOK (declare/list)"`
-	Slug       string `json:"slug,omitempty" jsonschema:"capability slug (declare)"`
-	Title      string `json:"title,omitempty" jsonschema:"optional title (declare)"`
-	Status     string `json:"status,omitempty" jsonschema:"AVAILABLE|UNAVAILABLE|UNKNOWN (declare/list)"`
-	Body       string `json:"body,omitempty" jsonschema:"optional body (declare)"`
-	ID         string `json:"id,omitempty" jsonschema:"optional UUID (declare)"`
-	TaskID     string `json:"task,omitempty" jsonschema:"task UUID (require|unrequire|missing); alias task_id"`
-	TaskIDAlt  string `json:"task_id,omitempty" jsonschema:"alias for task"`
-	Capability string `json:"capability,omitempty" jsonschema:"capability id or slug (require|unrequire)"`
+	Project    string  `json:"project,omitempty" jsonschema:"optional project root override"`
+	Action     string  `json:"action" jsonschema:"declare|list|require|unrequire|missing"`
+	Kind       string  `json:"kind,omitempty" jsonschema:"SKILL|RULE|MCP|TOOL|HOOK (declare/list)"`
+	Slug       string  `json:"slug,omitempty" jsonschema:"capability slug (declare)"`
+	Title      string  `json:"title,omitempty" jsonschema:"optional title (declare)"`
+	Status     string  `json:"status,omitempty" jsonschema:"AVAILABLE|UNAVAILABLE|UNKNOWN (declare/list)"`
+	Body       string  `json:"body,omitempty" jsonschema:"optional body (declare)"`
+	ID         string  `json:"id,omitempty" jsonschema:"optional UUID (declare)"`
+	TaskID     string  `json:"task,omitempty" jsonschema:"task UUID (require|unrequire|missing); alias task_id"`
+	TaskIDAlt  string  `json:"task_id,omitempty" jsonschema:"alias for task"`
+	Capability string  `json:"capability,omitempty" jsonschema:"capability id or slug (require|unrequire)"`
+	Limit      float64 `json:"limit,omitempty" jsonschema:"list: optional max rows (default 50, cap 500)"`
+	All        bool    `json:"all,omitempty" jsonschema:"list: when true, return all matching capabilities"`
 }
 
 func (in CapabilityInput) resolvedTaskID() string {
@@ -187,8 +189,17 @@ func (s *Server) capabilityList(ctx context.Context, in CapabilityInput) (*sdkmc
 	}
 	defer st.Close()
 	svc := domain.New(st)
+	capLimit := store.DefaultTaskListLimit
+	if in.All {
+		capLimit = 0
+	} else if in.Limit > 0 {
+		capLimit = int(in.Limit)
+		if capLimit > store.MaxTaskListLimit {
+			capLimit = store.MaxTaskListLimit
+		}
+	}
 	list, err := svc.ListCapabilities(ctx, domain.ListCapabilitiesFilter{
-		Kind: in.Kind, Status: in.Status,
+		Kind: in.Kind, Status: in.Status, Limit: capLimit,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("trace_capability: %w", err)

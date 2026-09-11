@@ -101,6 +101,8 @@ func cmdCapabilityList(root string, args []string) int {
 	fs.SetOutput(os.Stderr)
 	kind := fs.String("kind", "", "optional SKILL|RULE|MCP|TOOL|HOOK")
 	status := fs.String("status", "", "optional AVAILABLE|UNAVAILABLE|UNKNOWN")
+	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); ignored with --all")
+	all := fs.Bool("all", false, "return all matching capabilities (no limit)")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage
 	}
@@ -111,8 +113,14 @@ func cmdCapabilityList(root string, args []string) int {
 	}
 	defer st.Close()
 
+	capLimit := *limit
+	if *all {
+		capLimit = 0
+	} else if capLimit > store.MaxTaskListLimit {
+		capLimit = store.MaxTaskListLimit
+	}
 	list, err := svc.ListCapabilities(context.Background(), domain.ListCapabilitiesFilter{
-		Kind: *kind, Status: *status,
+		Kind: *kind, Status: *status, Limit: capLimit,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "capability: %v\n", err)

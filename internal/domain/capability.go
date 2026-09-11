@@ -48,6 +48,7 @@ type CapabilitySpec struct {
 type ListCapabilitiesFilter struct {
 	Kind   string
 	Status string
+	Limit  int // 0 = unbounded; >0 applies SQL LIMIT
 }
 
 // NormalizeCapabilityKind returns a valid kind. Empty and unknown fail closed.
@@ -191,7 +192,7 @@ func (s *Service) ListCapabilities(ctx context.Context, f ListCapabilitiesFilter
 		}
 		status = st
 	}
-	return s.store.ListCapabilities(store.CapabilityListFilter{Kind: kind, Status: status})
+	return s.store.ListCapabilities(store.CapabilityListFilter{Kind: kind, Status: status, Limit: f.Limit})
 }
 
 // RequireCapability attaches a capability requirement to a task.
