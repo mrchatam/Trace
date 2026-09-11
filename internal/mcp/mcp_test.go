@@ -1875,3 +1875,51 @@ func moduleRoot(t *testing.T) string {
 		dir = parent
 	}
 }
+
+
+func TestTraceContextFormatBothIncludesWarning(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "Both warn"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
+	res, _, err := callContext(srv, ctx, tracemcp.ContextInput{TaskID: task.ID, Depth: 1, Format: "both"})
+	if err != nil {
+		t.Fatalf("trace_context both: %v", err)
+	}
+	text := mustText(t, res)
+	if !strings.Contains(text, "WARNING") || !strings.Contains(text, "prefer") {
+		snip := text
+		if len(snip) > 400 {
+			snip = snip[:400]
+		}
+		t.Fatalf("format=both response missing prefer-json warning: %s", snip)
+	}
+	if !strings.Contains(text, "warnings") {
+		snip := text
+		if len(snip) > 400 {
+			snip = snip[:400]
+		}
+		t.Fatalf("format=both JSON should include warnings field: %s", snip)
+	}
+	// JSON portion before markdown separator should unmarshal with warnings.
+	jsonPart := text
+	if i := strings.Index(text, "\n---\n"); i >= 0 {
+		jsonPart = text[:i]
+	}
+	var pkt compiler.Packet
+	if err := json.Unmarshal([]byte(jsonPart), &pkt); err != nil {
+		t.Fatalf("unmarshal both JSON: %v", err)
+	}
+	if len(pkt.Warnings) == 0 || !strings.Contains(pkt.Warnings[0], "prefer") {
+		t.Fatalf("packet warnings=%v", pkt.Warnings)
+	}
+}

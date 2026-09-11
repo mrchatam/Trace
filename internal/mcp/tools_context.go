@@ -17,7 +17,7 @@ type ContextInput struct {
 	TaskID     string  `json:"task_id" jsonschema:"task UUID"`
 	Depth      float64 `json:"depth,omitempty" jsonschema:"expand depth 1=TaskContext 2=ExpandContext; default 1; max 2"`
 	MaxLayer   float64 `json:"max_layer,omitempty" jsonschema:"progressive layer ceiling 1=L0–L1 (default) 2|3=opt-in deeper layers"`
-	Format     string  `json:"format,omitempty" jsonschema:"json|markdown|both; default json"`
+	Format     string  `json:"format,omitempty" jsonschema:"json|markdown|both; default json; prefer json (both emits loud warning and ~2x tokens)"`
 	IncludeWhy bool    `json:"include_why,omitempty" jsonschema:"include why_trace; default false"`
 	Query      string  `json:"query,omitempty" jsonschema:"optional agent query merged into context (task moat preserved)"`
 }
@@ -93,6 +93,7 @@ func (s *Server) toolContext(ctx context.Context, _ *sdkmcp.CallToolRequest, in 
 	case "markdown":
 		out = pkt.Markdown()
 	case "both":
+		pkt.AppendWarning(compiler.FormatBothWarning)
 		b, err := pkt.JSON()
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_context: %w", err)
