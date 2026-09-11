@@ -219,12 +219,39 @@ type causalEntityRow struct {
 	LastVerifiedAt *string
 }
 
-func (s *Store) listCausalEntities(table string) ([]causalEntityRow, error) {
-	rows, err := s.db.Query(fmt.Sprintf(`
+// CountInTable returns COUNT(*) for an allowlisted entity table (graph budgets).
+func (s *Store) CountInTable(table string) (int, error) {
+	switch table {
+	case "goals", "tasks", "decisions", "assumptions", "discoveries", "plan_changes",
+		"claims", "evidence", "reviews", "capabilities", "changes", "regressions":
+	default:
+		return 0, fmt.Errorf("store: count: table %q not allowlisted", table)
+	}
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&n); err != nil {
+		return 0, fmt.Errorf("store: count %s: %w", table, err)
+	}
+	return n, nil
+}
+
+// listCausalEntities lists causal rows. limit < 0 means unbounded; 0 means empty.
+func (s *Store) listCausalEntities(table string, limit int) ([]causalEntityRow, error) {
+	if limit == 0 {
+		return nil, nil
+	}
+	q := fmt.Sprintf(`
 		SELECT id, title, body, source_type, confidence, status, created_at, updated_at, last_verified_at
 		FROM %s
 		ORDER BY created_at ASC, id ASC
-	`, table))
+	`, table)
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list %s: %w", table, err)
 	}
@@ -247,7 +274,7 @@ func (s *Store) listCausalEntities(table string) ([]causalEntityRow, error) {
 
 // ListDecisions returns all decisions ordered by created_at, then id.
 func (s *Store) ListDecisions() ([]Decision, error) {
-	rows, err := s.listCausalEntities("decisions")
+	rows, err := s.listCausalEntities("decisions", -1)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +287,7 @@ func (s *Store) ListDecisions() ([]Decision, error) {
 
 // ListAssumptions returns all assumptions ordered by created_at, then id.
 func (s *Store) ListAssumptions() ([]Assumption, error) {
-	rows, err := s.listCausalEntities("assumptions")
+	rows, err := s.listCausalEntities("assumptions", -1)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +327,7 @@ func (s *Store) ListDiscoveries() ([]Discovery, error) {
 
 // ListPlanChanges returns all plan_changes ordered by created_at, then id.
 func (s *Store) ListPlanChanges() ([]PlanChange, error) {
-	rows, err := s.listCausalEntities("plan_changes")
+	rows, err := s.listCausalEntities("plan_changes", -1)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +340,7 @@ func (s *Store) ListPlanChanges() ([]PlanChange, error) {
 
 // ListClaims returns all claims ordered by created_at, then id.
 func (s *Store) ListClaims() ([]Claim, error) {
-	rows, err := s.listCausalEntities("claims")
+	rows, err := s.listCausalEntities("claims", -1)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +353,7 @@ func (s *Store) ListClaims() ([]Claim, error) {
 
 // ListEvidence returns all evidence ordered by created_at, then id.
 func (s *Store) ListEvidence() ([]Evidence, error) {
-	rows, err := s.listCausalEntities("evidence")
+	rows, err := s.listCausalEntities("evidence", -1)
 	if err != nil {
 		return nil, err
 	}
