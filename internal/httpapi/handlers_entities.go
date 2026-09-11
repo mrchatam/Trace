@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mrchatam/Trace/internal/config"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/loop"
+	"github.com/mrchatam/Trace/internal/planner"
 	"github.com/mrchatam/Trace/internal/store"
 )
 
@@ -300,6 +303,7 @@ type createTransitionRequest struct {
 	AsOperator       bool     `json:"as_operator"`
 	AllowMissingCaps bool     `json:"allow_missing_caps"`
 	EvidenceIDs      []string `json:"evidence_ids"`
+	Enforce          bool     `json:"enforce"`
 }
 
 func (s *Server) handleCreateTransition(w http.ResponseWriter, r *http.Request) {
@@ -323,6 +327,36 @@ func (s *Server) handleCreateTransition(w http.ResponseWriter, r *http.Request) 
 	}
 	defer st.Close()
 	svc := domain.New(st)
+
+	load := config.LoadEnforceModeDetail(s.Root())
+	var warnings []string
+	if load.Invalid && load.Warning != "" {
+		warnings = append(warnings, load.Warning)
+	}
+	toDone := strings.EqualFold(strings.TrimSpace(in.ToState), store.WorkStateDone)
+	runGate, rejectOnFail := config.DoneGateAction(in.Enforce, load.Mode)
+	if toDone && runGate {
+		plan := planner.New(st)
+		allowed, violations, gateErr := loop.EvaluateGate(r.Context(), svc, plan, st, in.TaskID, loop.GateForDone)
+		if gateErr != nil {
+			writeEnvelope(w, http.StatusInternalServerError, "GATE_ERROR", gateErr.Error(), nil)
+			return
+		}
+		if !allowed {
+			if rejectOnFail {
+				msg := "gate blocked"
+				if len(violations) > 0 {
+					msg = violations[0].Message
+				}
+				writeEnvelope(w, http.StatusConflict, "GATE_BLOCKED", msg, nil)
+				return
+			}
+			for _, v := range violations {
+				warnings = append(warnings, v.Message)
+			}
+		}
+	}
+
 	err = svc.TransitionTask(r.Context(), in.TaskID, in.ToState, domain.TransitionOptions{
 		Actor: actor, Reason: in.Reason, EvidenceIDs: in.EvidenceIDs,
 		AllowDoneWithoutReview: in.AllowDone, AllowOperatorDone: in.AsOperator,
@@ -340,6 +374,9 @@ func (s *Server) handleCreateTransition(w http.ResponseWriter, r *http.Request) 
 	out := map[string]any{"task_id": t.ID, "work_state": t.WorkState}
 	if in.AllowDone {
 		out["warning"] = "allow_done escape hatch used; Review PASS and as_operator were bypassed; missing capabilities still need allow_missing_caps"
+	}
+	if len(warnings) > 0 {
+		out["warnings"] = warnings
 	}
 	writeJSON(w, http.StatusOK, out)
 }

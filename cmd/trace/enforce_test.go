@@ -630,3 +630,58 @@ func TestHelpIncludesSeedExportStrict(t *testing.T) {
 		t.Fatalf("help missing seed export block: %q", out)
 	}
 }
+
+
+func TestTransitionDoneConfigWarnWithoutFlag(t *testing.T) {
+	dir := t.TempDir()
+	_, taskID := setupVerificationDebtFixture(t, dir)
+	createReviewPassForTask(t, dir, taskID)
+	writeTraceConfig(t, dir, `{"enforce":"warn"}`)
+
+	code, _, stderr := runCapture(t, []string{
+		"-C", dir, "transition", "--task", taskID, "--to", "DONE",
+		"--reason", "promote", "--as-operator",
+	})
+	if code != exitOK {
+		t.Fatalf("warn mode want exitOK got %d stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stderr, "warn:") {
+		t.Fatalf("warn mode want gate warn on stderr got %q", stderr)
+	}
+	assertTaskWorkState(t, dir, taskID, store.WorkStateDone)
+}
+
+func TestTransitionDoneConfigStrictWithoutFlag(t *testing.T) {
+	dir := t.TempDir()
+	_, taskID := setupVerificationDebtFixture(t, dir)
+	createReviewPassForTask(t, dir, taskID)
+	writeTraceConfig(t, dir, `{"enforce":"strict"}`)
+
+	code, _, stderr := runCapture(t, []string{
+		"-C", dir, "transition", "--task", taskID, "--to", "DONE",
+		"--reason", "promote", "--as-operator",
+	})
+	if code != exitGateBlocked {
+		t.Fatalf("strict mode want blocked got %d stderr=%q", code, stderr)
+	}
+	assertTaskWorkState(t, dir, taskID, store.WorkStateInProgress)
+}
+
+func TestTransitionDoneConfigMalformedTreatAsWarn(t *testing.T) {
+	dir := t.TempDir()
+	_, taskID := setupVerificationDebtFixture(t, dir)
+	createReviewPassForTask(t, dir, taskID)
+	writeTraceConfig(t, dir, "{not json")
+
+	code, _, stderr := runCapture(t, []string{
+		"-C", dir, "transition", "--task", taskID, "--to", "DONE",
+		"--reason", "promote", "--as-operator",
+	})
+	if code != exitOK {
+		t.Fatalf("malformed→warn want exitOK got %d stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stderr, "malformed") {
+		t.Fatalf("want malformed config warning got %q", stderr)
+	}
+	assertTaskWorkState(t, dir, taskID, store.WorkStateDone)
+}

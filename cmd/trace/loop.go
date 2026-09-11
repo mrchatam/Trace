@@ -314,7 +314,9 @@ func cmdLoopStatus(root string, args []string) int {
 		fmt.Fprintf(os.Stderr, "loop status: %v\n", err)
 		return exitFail
 	}
-	mode := config.LoadEnforceMode(abs)
+	load := config.LoadEnforceModeDetail(abs)
+	config.WarnInvalidEnforce(load, os.Stderr)
+	mode := load.Mode
 	if (mode == config.EnforceWarn || mode == config.EnforceStrict) && len(res.Violations) > 0 {
 		for _, v := range res.Violations {
 			fmt.Fprintf(os.Stderr, "loop status: %s\n", v.Message)
