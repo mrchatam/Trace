@@ -379,7 +379,7 @@ func BuildSeedDocument(ctx context.Context, st *store.Store, opts ExportOpts) (S
 		doc.Goals = append(doc.Goals, SeedEntity{ID: g.ID, Title: g.Title, Body: g.Body})
 	}
 
-	tasks, err := st.ListTasks()
+	tasks, err := st.ListAllTasks()
 	if err != nil {
 		return SeedDocument{}, err
 	}

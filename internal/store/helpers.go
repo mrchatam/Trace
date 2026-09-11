@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // ListGoals returns all goals ordered by created_at, then id.
@@ -35,35 +36,157 @@ func (s *Store) ListGoals() ([]Goal, error) {
 	return out, nil
 }
 
-// ListTasks returns all tasks ordered by created_at, then id.
-func (s *Store) ListTasks() ([]Task, error) {
+// Task list budgets (Laws 6–7): agent/HTTP surfaces must page; seed/graph may use ListAllTasks.
+const (
+	DefaultTaskListLimit     = 50
+	HTTPDefaultTaskListLimit = 100
+	MaxTaskListLimit         = 500
+)
+
+// TaskListFilter controls bounded task listing.
+type TaskListFilter struct {
+	GoalID      string
+	WorkStates  []string // empty = any state
+	Limit       int      // 0 → DefaultTaskListLimit; capped at MaxTaskListLimit
+	Cursor      string   // opaque keyset cursor from a prior NextCursor
+	IncludeBody bool     // list rows omit body unless true
+}
+
+// TaskListResult is a page of tasks.
+type TaskListResult struct {
+	Tasks      []Task
+	NextCursor string
+	Truncated  bool
+}
+
+// ListAllTasks returns every task ordered by created_at, then id (no limit).
+// Prefer ListTasksFiltered for agent/HTTP surfaces.
+func (s *Store) ListAllTasks() ([]Task, error) {
 	rows, err := s.db.Query(`
 		SELECT id, goal_id, title, body, source_type, confidence, status, work_state, created_at, updated_at, last_verified_at
 		FROM tasks
 		ORDER BY created_at ASC, id ASC
 	`)
 	if err != nil {
-		return nil, fmt.Errorf("store: list tasks: %w", err)
+		return nil, fmt.Errorf("store: list all tasks: %w", err)
 	}
 	defer rows.Close()
 	return scanTasks(rows)
 }
 
-// ListTasksByGoalID returns tasks with goal_id = goalID, ordered by created_at.
+// ListTasks is an alias for ListAllTasks for older internal callers.
+// Deprecated: use ListTasksFiltered (agent/HTTP) or ListAllTasks (seed/graph).
+func (s *Store) ListTasks() ([]Task, error) {
+	return s.ListAllTasks()
+}
+
+// ListTasksByGoalID returns all tasks for a goal (unbounded). Prefer ListTasksFiltered with GoalID.
 func (s *Store) ListTasksByGoalID(goalID string) ([]Task, error) {
 	if goalID == "" {
 		return nil, fmt.Errorf("store: list tasks by goal: goal_id required")
 	}
-	rows, err := s.db.Query(`
-		SELECT id, goal_id, title, body, source_type, confidence, status, work_state, created_at, updated_at, last_verified_at
-		FROM tasks WHERE goal_id = ?
-		ORDER BY created_at ASC, id ASC
-	`, goalID)
+	res, err := s.ListTasksFiltered(TaskListFilter{GoalID: goalID, Limit: -1, IncludeBody: true})
 	if err != nil {
-		return nil, fmt.Errorf("store: list tasks by goal: %w", err)
+		return nil, err
+	}
+	return res.Tasks, nil
+}
+
+// ListTasksFiltered returns a bounded task page. Limit -1 means unbounded (internal).
+func (s *Store) ListTasksFiltered(f TaskListFilter) (TaskListResult, error) {
+	limit := f.Limit
+	unbounded := limit < 0
+	if !unbounded {
+		if limit <= 0 {
+			limit = DefaultTaskListLimit
+		}
+		if limit > MaxTaskListLimit {
+			limit = MaxTaskListLimit
+		}
+	}
+
+	bodyCol := "'' AS body"
+	if f.IncludeBody {
+		bodyCol = "body"
+	}
+
+	q := fmt.Sprintf(`
+		SELECT id, goal_id, title, %s, source_type, confidence, status, work_state, created_at, updated_at, last_verified_at
+		FROM tasks
+		WHERE 1=1
+	`, bodyCol)
+	var args []any
+	if f.GoalID != "" {
+		q += ` AND goal_id = ?`
+		args = append(args, f.GoalID)
+	}
+	if len(f.WorkStates) > 0 {
+		q += ` AND work_state IN (` + placeholders(len(f.WorkStates)) + `)`
+		for _, ws := range f.WorkStates {
+			args = append(args, ws)
+		}
+	}
+	if curCreated, curID, ok := decodeTaskCursor(f.Cursor); ok {
+		q += ` AND (created_at > ? OR (created_at = ? AND id > ?))`
+		args = append(args, curCreated, curCreated, curID)
+	} else if strings.TrimSpace(f.Cursor) != "" {
+		return TaskListResult{}, fmt.Errorf("store: list tasks: invalid cursor")
+	}
+	q += ` ORDER BY created_at ASC, id ASC`
+	fetch := limit
+	if !unbounded {
+		fetch = limit + 1
+		q += ` LIMIT ?`
+		args = append(args, fetch)
+	}
+
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return TaskListResult{}, fmt.Errorf("store: list tasks filtered: %w", err)
 	}
 	defer rows.Close()
-	return scanTasks(rows)
+	tasks, err := scanTasks(rows)
+	if err != nil {
+		return TaskListResult{}, err
+	}
+	out := TaskListResult{Tasks: tasks}
+	if !unbounded && len(tasks) > limit {
+		out.Truncated = true
+		out.Tasks = tasks[:limit]
+		last := out.Tasks[len(out.Tasks)-1]
+		out.NextCursor = encodeTaskCursor(last.CreatedAt, last.ID)
+	}
+	if out.Tasks == nil {
+		out.Tasks = []Task{}
+	}
+	return out, nil
+}
+
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	s := "?"
+	for i := 1; i < n; i++ {
+		s += ",?"
+	}
+	return s
+}
+
+func encodeTaskCursor(createdAt, id string) string {
+	return createdAt + "\x1f" + id
+}
+
+func decodeTaskCursor(cur string) (createdAt, id string, ok bool) {
+	cur = strings.TrimSpace(cur)
+	if cur == "" {
+		return "", "", false
+	}
+	i := strings.IndexByte(cur, '\x1f')
+	if i <= 0 || i >= len(cur)-1 {
+		return "", "", false
+	}
+	return cur[:i], cur[i+1:], true
 }
 
 func scanTasks(rows *sql.Rows) ([]Task, error) {

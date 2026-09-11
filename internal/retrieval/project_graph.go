@@ -85,7 +85,7 @@ func (e *Engine) collectProjectNodes() ([]GraphNode, error) {
 		nodes = append(nodes, GraphNode{ID: g.ID, Kind: "goal", Title: g.Title})
 	}
 
-	tasks, err := e.store.ListTasks()
+	tasks, err := e.store.ListAllTasks()
 	if err != nil {
 		return nil, err
 	}

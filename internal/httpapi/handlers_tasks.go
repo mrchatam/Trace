@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/mrchatam/Trace/internal/store"
@@ -25,27 +26,41 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 
 	goalID := strings.TrimSpace(r.URL.Query().Get("goal_id"))
 	workState := strings.TrimSpace(r.URL.Query().Get("work_state"))
-
-	var tasks []store.Task
-	if goalID != "" {
-		tasks, err = st.ListTasksByGoalID(goalID)
-	} else {
-		tasks, err = st.ListTasks()
+	cursor := strings.TrimSpace(r.URL.Query().Get("cursor"))
+	limit := store.HTTPDefaultTaskListLimit
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		n, perr := strconv.Atoi(raw)
+		if perr != nil || n < 1 {
+			writeEnvelope(w, http.StatusBadRequest, "BAD_REQUEST", "limit must be a positive integer", nil)
+			return
+		}
+		limit = n
 	}
+
+	filt := store.TaskListFilter{
+		GoalID: goalID,
+		Cursor: cursor,
+		Limit:  limit,
+	}
+	if workState != "" {
+		filt.WorkStates = []string{workState}
+	}
+	res, err := st.ListTasksFiltered(filt)
 	if err != nil {
 		mapDomainErr(w, err)
 		return
 	}
-	items := make([]taskListRow, 0, len(tasks))
-	for _, t := range tasks {
-		if workState != "" && t.WorkState != workState {
-			continue
-		}
+	items := make([]taskListRow, 0, len(res.Tasks))
+	for _, t := range res.Tasks {
 		items = append(items, taskListRow{
 			ID: t.ID, Title: t.Title, WorkState: t.WorkState, GoalID: t.GoalID,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	out := map[string]any{"items": items}
+	if res.NextCursor != "" {
+		out["next_cursor"] = res.NextCursor
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {

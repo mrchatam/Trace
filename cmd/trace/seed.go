@@ -113,7 +113,7 @@ func collectExportViolations(
 		return out, nil
 	}
 
-	tasks, err := st.ListTasks()
+	tasks, err := st.ListAllTasks()
 	if err != nil {
 		return nil, err
 	}
