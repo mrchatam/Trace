@@ -6,13 +6,29 @@ import (
 	"strings"
 )
 
-// ListGoals returns all goals ordered by created_at, then id.
+// ListGoals returns all goals ordered by created_at, then id (unbounded).
 func (s *Store) ListGoals() ([]Goal, error) {
-	rows, err := s.db.Query(`
+	return s.ListGoalsLimited(-1)
+}
+
+// ListGoalsLimited returns up to limit goals. limit < 0 means unbounded; 0 means empty.
+func (s *Store) ListGoalsLimited(limit int) ([]Goal, error) {
+	if limit == 0 {
+		return nil, nil
+	}
+	q := `
 		SELECT id, title, body, source_type, confidence, status, created_at, updated_at, last_verified_at
 		FROM goals
 		ORDER BY created_at ASC, id ASC
-	`)
+	`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list goals: %w", err)
 	}
@@ -272,9 +288,14 @@ func (s *Store) listCausalEntities(table string, limit int) ([]causalEntityRow, 
 	return out, rows.Err()
 }
 
-// ListDecisions returns all decisions ordered by created_at, then id.
+// ListDecisions returns all decisions ordered by created_at, then id (unbounded).
 func (s *Store) ListDecisions() ([]Decision, error) {
-	rows, err := s.listCausalEntities("decisions", -1)
+	return s.ListDecisionsLimited(-1)
+}
+
+// ListDecisionsLimited returns up to limit decisions. limit < 0 unbounded; 0 empty.
+func (s *Store) ListDecisionsLimited(limit int) ([]Decision, error) {
+	rows, err := s.listCausalEntities("decisions", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -285,9 +306,14 @@ func (s *Store) ListDecisions() ([]Decision, error) {
 	return out, nil
 }
 
-// ListAssumptions returns all assumptions ordered by created_at, then id.
+// ListAssumptions returns all assumptions ordered by created_at, then id (unbounded).
 func (s *Store) ListAssumptions() ([]Assumption, error) {
-	rows, err := s.listCausalEntities("assumptions", -1)
+	return s.ListAssumptionsLimited(-1)
+}
+
+// ListAssumptionsLimited returns up to limit assumptions. limit < 0 unbounded; 0 empty.
+func (s *Store) ListAssumptionsLimited(limit int) ([]Assumption, error) {
+	rows, err := s.listCausalEntities("assumptions", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -298,13 +324,29 @@ func (s *Store) ListAssumptions() ([]Assumption, error) {
 	return out, nil
 }
 
-// ListDiscoveries returns all discoveries ordered by created_at, then id.
+// ListDiscoveries returns all discoveries ordered by created_at, then id (unbounded).
 func (s *Store) ListDiscoveries() ([]Discovery, error) {
-	rows, err := s.db.Query(`
+	return s.ListDiscoveriesLimited(-1)
+}
+
+// ListDiscoveriesLimited returns up to limit discoveries. limit < 0 unbounded; 0 empty.
+func (s *Store) ListDiscoveriesLimited(limit int) ([]Discovery, error) {
+	if limit == 0 {
+		return nil, nil
+	}
+	q := `
 		SELECT id, title, body, source_type, confidence, status, severity, created_at, updated_at, last_verified_at
 		FROM discoveries
 		ORDER BY created_at ASC, id ASC
-	`)
+	`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list discoveries: %w", err)
 	}
@@ -325,9 +367,14 @@ func (s *Store) ListDiscoveries() ([]Discovery, error) {
 	return out, rows.Err()
 }
 
-// ListPlanChanges returns all plan_changes ordered by created_at, then id.
+// ListPlanChanges returns all plan_changes ordered by created_at, then id (unbounded).
 func (s *Store) ListPlanChanges() ([]PlanChange, error) {
-	rows, err := s.listCausalEntities("plan_changes", -1)
+	return s.ListPlanChangesLimited(-1)
+}
+
+// ListPlanChangesLimited returns up to limit plan_changes. limit < 0 unbounded; 0 empty.
+func (s *Store) ListPlanChangesLimited(limit int) ([]PlanChange, error) {
+	rows, err := s.listCausalEntities("plan_changes", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -338,9 +385,14 @@ func (s *Store) ListPlanChanges() ([]PlanChange, error) {
 	return out, nil
 }
 
-// ListClaims returns all claims ordered by created_at, then id.
+// ListClaims returns all claims ordered by created_at, then id (unbounded).
 func (s *Store) ListClaims() ([]Claim, error) {
-	rows, err := s.listCausalEntities("claims", -1)
+	return s.ListClaimsLimited(-1)
+}
+
+// ListClaimsLimited returns up to limit claims. limit < 0 unbounded; 0 empty.
+func (s *Store) ListClaimsLimited(limit int) ([]Claim, error) {
+	rows, err := s.listCausalEntities("claims", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -351,9 +403,14 @@ func (s *Store) ListClaims() ([]Claim, error) {
 	return out, nil
 }
 
-// ListEvidence returns all evidence ordered by created_at, then id.
+// ListEvidence returns all evidence ordered by created_at, then id (unbounded).
 func (s *Store) ListEvidence() ([]Evidence, error) {
-	rows, err := s.listCausalEntities("evidence", -1)
+	return s.ListEvidenceLimited(-1)
+}
+
+// ListEvidenceLimited returns up to limit evidence. limit < 0 unbounded; 0 empty.
+func (s *Store) ListEvidenceLimited(limit int) ([]Evidence, error) {
+	rows, err := s.listCausalEntities("evidence", limit)
 	if err != nil {
 		return nil, err
 	}

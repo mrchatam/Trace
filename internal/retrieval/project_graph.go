@@ -19,7 +19,7 @@ var projectGraphCountTables = []string{
 
 // ProjectGraph returns a bounded view of project entities and edges between them.
 // max_nodes is required (1..5000). Truncated=true when total entities exceed the budget.
-// Nodes are collected in kind order and stop once MaxNodes is filled; tasks use SQL LIMIT.
+// Nodes are collected in kind order and stop once MaxNodes is filled; each kind uses SQL LIMIT.
 func (e *Engine) ProjectGraph(ctx context.Context, opts ProjectGraphOpts) (*BoundedGraph, error) {
 	_ = ctx
 	if opts.MaxNodes < 1 {
@@ -95,14 +95,18 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 		return r
 	}
 
-	goals, err := e.store.ListGoals()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, g := range goals {
-		if !appendNode(GraphNode{ID: g.ID, Kind: "goal", Title: g.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		goals, err := e.store.ListGoalsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, g := range goals {
+			if !appendNode(GraphNode{ID: g.ID, Kind: "goal", Title: g.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
 	if rem := remaining(); rem > 0 {
@@ -119,76 +123,106 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				return nodes, total, nil
 			}
 		}
+	} else {
+		return nodes, total, nil
 	}
 
-	decisions, err := e.store.ListDecisions()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, d := range decisions {
-		if !appendNode(GraphNode{ID: d.ID, Kind: "decision", Title: d.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		decisions, err := e.store.ListDecisionsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, d := range decisions {
+			if !appendNode(GraphNode{ID: d.ID, Kind: "decision", Title: d.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	assumptions, err := e.store.ListAssumptions()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, a := range assumptions {
-		if !appendNode(GraphNode{ID: a.ID, Kind: "assumption", Title: a.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		assumptions, err := e.store.ListAssumptionsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, a := range assumptions {
+			if !appendNode(GraphNode{ID: a.ID, Kind: "assumption", Title: a.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	discoveries, err := e.store.ListDiscoveries()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, d := range discoveries {
-		if !appendNode(GraphNode{ID: d.ID, Kind: "discovery", Title: d.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		discoveries, err := e.store.ListDiscoveriesLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, d := range discoveries {
+			if !appendNode(GraphNode{ID: d.ID, Kind: "discovery", Title: d.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	planChanges, err := e.store.ListPlanChanges()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, p := range planChanges {
-		if !appendNode(GraphNode{ID: p.ID, Kind: "plan_change", Title: p.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		planChanges, err := e.store.ListPlanChangesLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, p := range planChanges {
+			if !appendNode(GraphNode{ID: p.ID, Kind: "plan_change", Title: p.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	claims, err := e.store.ListClaims()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, c := range claims {
-		if !appendNode(GraphNode{ID: c.ID, Kind: "claim", Title: c.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		claims, err := e.store.ListClaimsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, c := range claims {
+			if !appendNode(GraphNode{ID: c.ID, Kind: "claim", Title: c.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	evidence, err := e.store.ListEvidence()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, ev := range evidence {
-		if !appendNode(GraphNode{ID: ev.ID, Kind: "evidence", Title: ev.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		evidence, err := e.store.ListEvidenceLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, ev := range evidence {
+			if !appendNode(GraphNode{ID: ev.ID, Kind: "evidence", Title: ev.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
-	reviews, err := e.store.ListReviews()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, r := range reviews {
-		if !appendNode(GraphNode{ID: r.ID, Kind: "review", Title: r.Title}) {
-			return nodes, total, nil
+	if rem := remaining(); rem > 0 {
+		reviews, err := e.store.ListReviewsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
+		for _, r := range reviews {
+			if !appendNode(GraphNode{ID: r.ID, Kind: "review", Title: r.Title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
 	}
 
 	if rem := remaining(); rem > 0 {
@@ -201,33 +235,41 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				return nodes, total, nil
 			}
 		}
+	} else {
+		return nodes, total, nil
 	}
 
-	changes, err := e.store.ListAllChanges()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, c := range changes {
-		title := c.Reason
-		if title == "" {
-			title = c.ID
+	if rem := remaining(); rem > 0 {
+		changes, err := e.store.ListChangesLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
-		if !appendNode(GraphNode{ID: c.ID, Kind: "change", Title: title}) {
-			return nodes, total, nil
+		for _, c := range changes {
+			title := c.Reason
+			if title == "" {
+				title = c.ID
+			}
+			if !appendNode(GraphNode{ID: c.ID, Kind: "change", Title: title}) {
+				return nodes, total, nil
+			}
 		}
+	} else {
+		return nodes, total, nil
 	}
 
-	regressions, err := e.store.ListAllRegressions()
-	if err != nil {
-		return nil, 0, err
-	}
-	for _, r := range regressions {
-		title := r.Summary
-		if title == "" {
-			title = r.ID
+	if rem := remaining(); rem > 0 {
+		regressions, err := e.store.ListRegressionsLimited(rem)
+		if err != nil {
+			return nil, 0, err
 		}
-		if !appendNode(GraphNode{ID: r.ID, Kind: "regression", Title: title}) {
-			return nodes, total, nil
+		for _, r := range regressions {
+			title := r.Summary
+			if title == "" {
+				title = r.ID
+			}
+			if !appendNode(GraphNode{ID: r.ID, Kind: "regression", Title: title}) {
+				return nodes, total, nil
+			}
 		}
 	}
 

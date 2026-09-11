@@ -216,14 +216,30 @@ func (s *Store) ListChangesRecent(limit int, taskID string) ([]Change, error) {
 	return out, rows.Err()
 }
 
-// ListAllChanges returns every change row.
+// ListAllChanges returns every change row (unbounded).
 func (s *Store) ListAllChanges() ([]Change, error) {
-	rows, err := s.db.Query(`
+	return s.ListChangesLimited(-1)
+}
+
+// ListChangesLimited returns up to limit changes. limit < 0 unbounded; 0 empty.
+func (s *Store) ListChangesLimited(limit int) ([]Change, error) {
+	if limit == 0 {
+		return []Change{}, nil
+	}
+	q := `
 		SELECT id, task_id, git_commit, parent_change_id, actor, reason, status,
 			source_type, confidence, created_at, updated_at, last_verified_at
 		FROM changes
 		ORDER BY created_at ASC, id ASC
-	`)
+	`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list all changes: %w", err)
 	}

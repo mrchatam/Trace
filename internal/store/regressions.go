@@ -225,11 +225,27 @@ const regressionSelect = `
 			summary, actor, source_type, confidence, created_at, updated_at
 		FROM regressions`
 
-// ListAllRegressions returns every regression row.
+// ListAllRegressions returns every regression row (unbounded).
 func (s *Store) ListAllRegressions() ([]Regression, error) {
-	rows, err := s.db.Query(regressionSelect + `
+	return s.ListRegressionsLimited(-1)
+}
+
+// ListRegressionsLimited returns up to limit regressions. limit < 0 unbounded; 0 empty.
+func (s *Store) ListRegressionsLimited(limit int) ([]Regression, error) {
+	if limit == 0 {
+		return []Regression{}, nil
+	}
+	q := regressionSelect + `
 		ORDER BY created_at ASC, id ASC
-	`)
+	`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list all regressions: %w", err)
 	}
