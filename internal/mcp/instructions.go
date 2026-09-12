@@ -4,7 +4,7 @@ package mcp
 func ServerInstructions() string {
 	return `## Trace MCP — start here (moat-first)
 
-1. **Pick work:** trace_tasks → trace_context task_id=<uuid> [query=<optional agent query>]
+1. **Pick work:** trace_tasks (capped page; default limit 50 — pass cursor/limit/work_state, avoid all=true) → trace_context task_id=<uuid> [query=<optional agent query>] (prefer format=json; avoid format=both)
 2. **Deliberation loop:** trace_loop action=next|status → implement → trace_loop action=apply
 3. **Gate before edits:** trace_loop action=gate (for=edit) — or CLI trace loop gate
 4. **Review path:** trace_review before DONE; trace_transition with evidence
@@ -13,7 +13,7 @@ func ServerInstructions() string {
 ## Read tools (compose-first — not CG single explore)
 
 When task-scoped discovery needed, rank: trace_search → trace_why → trace_impact → trace_capability
-Use progressive caps; never request full graph dump.
+Use progressive caps; never request full graph dump or unbounded trace_tasks all=true on large projects.
 
 ## Optional convenience (after moat + compose-first)
 

@@ -45,19 +45,46 @@ func TestLoadEnforceModeValidValues(t *testing.T) {
 	}
 }
 
-func TestLoadEnforceModeMalformedJSON(t *testing.T) {
+func TestLoadEnforceModeMalformedJSONTreatAsWarn(t *testing.T) {
 	dir := t.TempDir()
 	writeTraceConfig(t, dir, "{not json")
-	if got := config.LoadEnforceMode(dir); got != config.EnforceOff {
-		t.Fatalf("LoadEnforceMode() = %q want %q", got, config.EnforceOff)
+	load := config.LoadEnforceModeDetail(dir)
+	if load.Mode != config.EnforceWarn || !load.Invalid {
+		t.Fatalf("LoadEnforceModeDetail() = %+v want warn+invalid", load)
+	}
+	if got := config.LoadEnforceMode(dir); got != config.EnforceWarn {
+		t.Fatalf("LoadEnforceMode() = %q want %q", got, config.EnforceWarn)
 	}
 }
 
-func TestLoadEnforceModeUnknownValue(t *testing.T) {
+func TestLoadEnforceModeUnknownValueTreatAsWarn(t *testing.T) {
 	dir := t.TempDir()
 	writeTraceConfig(t, dir, `{"enforce":"yolo"}`)
-	if got := config.LoadEnforceMode(dir); got != config.EnforceOff {
-		t.Fatalf("LoadEnforceMode() = %q want %q", got, config.EnforceOff)
+	load := config.LoadEnforceModeDetail(dir)
+	if load.Mode != config.EnforceWarn || !load.Invalid {
+		t.Fatalf("LoadEnforceModeDetail() = %+v want warn+invalid", load)
+	}
+}
+
+func TestDoneGateAction(t *testing.T) {
+	cases := []struct {
+		explicit bool
+		mode     config.EnforceMode
+		run      bool
+		reject   bool
+	}{
+		{false, config.EnforceOff, false, false},
+		{false, config.EnforceWarn, true, false},
+		{false, config.EnforceStrict, true, true},
+		{true, config.EnforceOff, true, true},
+		{true, config.EnforceWarn, true, true},
+	}
+	for _, tc := range cases {
+		run, reject := config.DoneGateAction(tc.explicit, tc.mode)
+		if run != tc.run || reject != tc.reject {
+			t.Fatalf("DoneGateAction(%v,%q)=(%v,%v) want (%v,%v)",
+				tc.explicit, tc.mode, run, reject, tc.run, tc.reject)
+		}
 	}
 }
 

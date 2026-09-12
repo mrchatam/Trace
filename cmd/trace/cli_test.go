@@ -16,6 +16,32 @@ import (
 	"github.com/mrchatam/Trace/internal/store"
 )
 
+func decodeTasksPage(t *testing.T, out string) []map[string]any {
+	t.Helper()
+	var page struct {
+		Items      []map[string]any `json:"items"`
+		Count      int              `json:"count"`
+		Truncated  bool             `json:"truncated"`
+		NextCursor string           `json:"next_cursor"`
+	}
+	if err := json.Unmarshal([]byte(out), &page); err != nil {
+		t.Fatalf("tasks page json: %v (%s)", err, out)
+	}
+	if page.Items == nil {
+		page.Items = []map[string]any{}
+	}
+	return page.Items
+}
+
+func tasksPageEmpty(out string) bool {
+	var page map[string]any
+	if err := json.Unmarshal([]byte(out), &page); err != nil {
+		return false
+	}
+	items, _ := page["items"].([]any)
+	return len(items) == 0
+}
+
 func TestDispatchHelpVersionUnknown(t *testing.T) {
 	if code := run(nil); code != exitOK {
 		t.Fatalf("empty args: exit %d", code)
@@ -886,17 +912,14 @@ func TestTasksListAfterSeed(t *testing.T) {
 	emptyOut := captureStdout(t, func() int {
 		return run([]string{"-C", emptyDir, "tasks"})
 	})
-	if strings.TrimSpace(emptyOut) != "[]" {
+	if !tasksPageEmpty(emptyOut) {
 		t.Fatalf("empty tasks: %q", emptyOut)
 	}
 
 	out := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "tasks"})
 	})
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(out), &rows); err != nil {
-		t.Fatalf("tasks json: %v (%s)", err, out)
-	}
+	rows := decodeTasksPage(t, out)
 	if len(rows) != 1 {
 		t.Fatalf("tasks len: %v", rows)
 	}
@@ -913,17 +936,14 @@ func TestTasksListAfterSeed(t *testing.T) {
 	filtered := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "tasks", "--goal", goalID})
 	})
-	var filt []map[string]any
-	if err := json.Unmarshal([]byte(filtered), &filt); err != nil {
-		t.Fatalf("tasks --goal: %v (%s)", err, filtered)
-	}
+	filt := decodeTasksPage(t, filtered)
 	if len(filt) != 1 || filt[0]["id"] != taskID {
 		t.Fatalf("filtered: %v", filt)
 	}
 	other := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "tasks", "--goal", "cccccccc-cccc-cccc-cccc-cccccccccccc"})
 	})
-	if strings.TrimSpace(other) != "[]" {
+	if !tasksPageEmpty(other) {
 		t.Fatalf("unknown goal filter: %q", other)
 	}
 }
@@ -980,10 +1000,7 @@ func TestSeedImportRelativePathAgainstC(t *testing.T) {
 	tasksOut := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "tasks"})
 	})
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(tasksOut), &rows); err != nil {
-		t.Fatalf("tasks: %v (%s)", err, tasksOut)
-	}
+	rows := decodeTasksPage(t, tasksOut)
 	if len(rows) != 1 || rows[0]["id"] != "dddddddd-dddd-dddd-dddd-dddddddddddd" {
 		t.Fatalf("tasks after relative seed: %v", rows)
 	}
@@ -1276,8 +1293,12 @@ func TestReviewGetShowList(t *testing.T) {
 	emptyOut := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list"})
 	})
-	if strings.TrimSpace(emptyOut) != "[]" {
-		t.Fatalf("empty list want [], got %q", emptyOut)
+	var emptyPage map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(emptyOut)), &emptyPage); err != nil {
+		t.Fatalf("empty list json: %v (%q)", err, emptyOut)
+	}
+	if emptyPage["count"] != float64(0) {
+		t.Fatalf("empty list want count 0, got %#v", emptyPage)
 	}
 
 	taskOut := captureStdout(t, func() int {
@@ -1325,26 +1346,36 @@ func TestReviewGetShowList(t *testing.T) {
 	listOut := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list"})
 	})
-	var listed []map[string]any
-	if err := json.Unmarshal([]byte(listOut), &listed); err != nil {
+	var listPage map[string]any
+	if err := json.Unmarshal([]byte(listOut), &listPage); err != nil {
 		t.Fatalf("list: %v (%s)", err, listOut)
 	}
-	if len(listed) != 1 || listed[0]["id"] != revID {
-		t.Fatalf("list: %#v", listed)
+	listed, _ := listPage["items"].([]any)
+	if listPage["count"] != float64(1) || len(listed) != 1 {
+		t.Fatalf("list: %#v", listPage)
 	}
-	if _, hasBody := listed[0]["body"]; hasBody {
-		t.Fatalf("list must omit body: %#v", listed[0])
+	row0, _ := listed[0].(map[string]any)
+	if row0["id"] != revID {
+		t.Fatalf("list: %#v", listPage)
+	}
+	if _, hasBody := row0["body"]; hasBody {
+		t.Fatalf("list must omit body: %#v", row0)
 	}
 
 	byTask := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "review", "list", "--task", taskID})
 	})
-	var filtered []map[string]any
-	if err := json.Unmarshal([]byte(byTask), &filtered); err != nil {
+	var filteredPage map[string]any
+	if err := json.Unmarshal([]byte(byTask), &filteredPage); err != nil {
 		t.Fatalf("list --task: %v", err)
 	}
-	if len(filtered) != 1 || filtered[0]["id"] != revID {
-		t.Fatalf("list --task: %#v", filtered)
+	filtered, _ := filteredPage["items"].([]any)
+	if len(filtered) != 1 {
+		t.Fatalf("list --task: %#v", filteredPage)
+	}
+	f0, _ := filtered[0].(map[string]any)
+	if f0["id"] != revID {
+		t.Fatalf("list --task: %#v", filteredPage)
 	}
 }
 

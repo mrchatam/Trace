@@ -105,6 +105,7 @@ type Packet struct {
 	TaskID               string                   `json:"task_id"`
 	GeneratedAt          time.Time                `json:"generated_at"`
 	Budget               Budget                   `json:"budget"`
+	Warnings             []string                 `json:"warnings,omitempty"`
 	IntentSummary        *IntentSummary           `json:"intent_summary,omitempty"`
 	IndexHonesty         *IndexHonesty            `json:"index_honesty,omitempty"`
 	GraphSyncHonesty     *GraphSyncHonesty        `json:"graph_sync_honesty,omitempty"`
@@ -119,6 +120,22 @@ type Packet struct {
 	Tendencies           []TendencyItem           `json:"tendencies"`
 	SuccessfulApproaches []SuccessfulApproachItem `json:"successful_approaches"`
 	markdown             string                   // cached render when requested
+}
+
+// FormatBothWarning is emitted when callers request format=both (prefer json).
+const FormatBothWarning = "WARNING: format=both doubles response size (JSON + markdown); prefer format=json for agents. Schema docs recommend json."
+
+// AppendWarning adds a loud honesty warning (deduped).
+func (p *Packet) AppendWarning(msg string) {
+	if msg == "" {
+		return
+	}
+	for _, w := range p.Warnings {
+		if w == msg {
+			return
+		}
+	}
+	p.Warnings = append(p.Warnings, msg)
 }
 
 // JSON returns the canonical JSON encoding.

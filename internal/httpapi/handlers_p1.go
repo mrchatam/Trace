@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,26 +33,40 @@ func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request) {
 	defer st.Close()
 	svc := domain.New(st)
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
-	var list []store.Review
-	if taskID != "" {
-		list, err = svc.ListReviewsByTaskID(r.Context(), taskID)
-	} else {
-		list, err = svc.ListReviews(r.Context())
+	cursor := strings.TrimSpace(r.URL.Query().Get("cursor"))
+	limit := store.HTTPDefaultReviewListLimit
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		n, perr := strconv.Atoi(raw)
+		if perr != nil || n < 1 {
+			writeEnvelope(w, http.StatusBadRequest, "BAD_REQUEST", "limit must be a positive integer", nil)
+			return
+		}
+		limit = n
 	}
+	res, err := svc.ListReviewsFiltered(r.Context(), store.ReviewListFilter{
+		TaskID: taskID,
+		Cursor: cursor,
+		Limit:  limit,
+	})
 	if err != nil {
 		mapDomainErr(w, err)
 		return
 	}
-	items := make([]reviewSummary, 0, len(list))
-	for _, rv := range list {
-		item := reviewSummary{ID: rv.ID, Title: rv.Title, Body: rv.Body}
+	items := make([]reviewSummary, 0, len(res.Reviews))
+	for _, rv := range res.Reviews {
+		// List omits body; get keeps full body.
+		item := reviewSummary{ID: rv.ID, Title: rv.Title}
 		if rv.Result != "" {
-			res := rv.Result
-			item.Result = &res
+			result := rv.Result
+			item.Result = &result
 		}
 		items = append(items, item)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	out := map[string]any{"items": items, "truncated": res.Truncated}
+	if res.NextCursor != "" {
+		out["next_cursor"] = res.NextCursor
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleCreateReview(w http.ResponseWriter, r *http.Request) {
@@ -113,6 +128,8 @@ func (s *Server) handleGetReview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+const defaultPlanListGoalLimit = 20
+
 func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 	st, err := s.openStore()
 	if err != nil {
@@ -120,12 +137,40 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer st.Close()
+
+	goalID := strings.TrimSpace(r.URL.Query().Get("goal_id"))
+	ps := planner.New(st)
+
+	if goalID != "" {
+		view, err := ps.GetPlan(r.Context(), goalID)
+		if err != nil {
+			mapDomainErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{view}, "count": 1, "truncated": false})
+		return
+	}
+
+	limit := defaultPlanListGoalLimit
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		n, perr := strconv.Atoi(raw)
+		if perr != nil || n < 1 {
+			writeEnvelope(w, http.StatusBadRequest, "BAD_REQUEST", "limit must be a positive integer", nil)
+			return
+		}
+		limit = n
+	}
+
 	goals, err := st.ListGoals()
 	if err != nil {
 		mapDomainErr(w, err)
 		return
 	}
-	ps := planner.New(st)
+	truncated := false
+	if len(goals) > limit {
+		truncated = true
+		goals = goals[:limit]
+	}
 	items := make([]any, 0, len(goals))
 	for _, g := range goals {
 		view, err := ps.GetPlan(r.Context(), g.ID)
@@ -134,7 +179,7 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, view)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items), "truncated": truncated})
 }
 
 func (s *Server) handlePlanBootstrap(w http.ResponseWriter, r *http.Request) {

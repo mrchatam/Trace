@@ -49,6 +49,7 @@ type TaskCapabilityRequirement struct {
 type CapabilityListFilter struct {
 	Kind   string // empty = any
 	Status string // empty = any
+	Limit  int    // 0 = unbounded; >0 applies SQL LIMIT
 }
 
 // UpsertCapability inserts or replaces a capability by id. Empty ID allocates a UUID.
@@ -147,6 +148,10 @@ func (s *Store) ListCapabilities(f CapabilityListFilter) ([]Capability, error) {
 		args = append(args, f.Status)
 	}
 	q += ` ORDER BY slug ASC, id ASC`
+	if f.Limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, f.Limit)
+	}
 
 	rows, err := s.db.Query(q, args...)
 	if err != nil {

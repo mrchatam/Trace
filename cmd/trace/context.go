@@ -102,6 +102,8 @@ func cmdContext(root string, args []string) int {
 			fmt.Println()
 		}
 	case "both":
+		pkt.AppendWarning(compiler.FormatBothWarning)
+		fmt.Fprintf(os.Stderr, "context: %s\n", compiler.FormatBothWarning)
 		b, err := pkt.JSON()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "context: %v\n", err)

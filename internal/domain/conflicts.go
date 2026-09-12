@@ -17,13 +17,6 @@ const (
 	minTitleSimilarRunes = 8
 )
 
-var activeWorkStates = map[string]struct{}{
-	store.WorkStatePending:        {},
-	store.WorkStateInProgress:     {},
-	store.WorkStateAwaitingReview: {},
-	store.WorkStateBlocked:        {},
-}
-
 // WorkConflict is an advisory overlap between two active tasks.
 type WorkConflict struct {
 	TaskA       string          `json:"task_a"`
@@ -33,10 +26,19 @@ type WorkConflict struct {
 	SeedOverlap []ImpactSeedRef `json:"seed_overlap,omitempty"`
 }
 
+// MaxConflictInputTasks caps how many active tasks are scanned for conflicts.
+const MaxConflictInputTasks = 200
+
 // DetectWorkConflictsOpts controls advisory conflict detection.
 type DetectWorkConflictsOpts struct {
 	TaskID string // optional: only conflicts involving this task
-	Limit  int    // max entries; 0 = unlimited
+	Limit  int    // max conflict entries; 0 = unlimited
+}
+
+// WorkConflictsReport is DetectWorkConflicts output with input-scan advisory.
+type WorkConflictsReport struct {
+	Conflicts []WorkConflict `json:"conflicts"`
+	Truncated bool           `json:"truncated"` // true if active-task input scan hit MaxConflictInputTasks
 }
 
 type taskConflictProfile struct {
@@ -48,30 +50,32 @@ type taskConflictProfile struct {
 }
 
 // DetectWorkConflicts returns bounded, stably sorted advisory conflicts between active tasks.
-func (s *Service) DetectWorkConflicts(ctx context.Context, opts DetectWorkConflictsOpts) ([]WorkConflict, error) {
+// Active tasks are loaded via ListTasksFiltered with a hard input cap (MaxConflictInputTasks).
+func (s *Service) DetectWorkConflicts(ctx context.Context, opts DetectWorkConflictsOpts) (WorkConflictsReport, error) {
 	_ = ctx
-	tasks, err := s.store.ListTasks()
-	if err != nil {
-		return nil, err
-	}
 	filterID := strings.TrimSpace(opts.TaskID)
 
-	var active []store.Task
-	for _, t := range tasks {
-		if _, ok := activeWorkStates[t.WorkState]; !ok {
-			continue
-		}
-		if filterID != "" && t.ID != filterID {
-			// keep all active tasks for pairwise scan; filter applied after detection
-		}
-		active = append(active, t)
+	activeStates := []string{
+		store.WorkStatePending,
+		store.WorkStateInProgress,
+		store.WorkStateAwaitingReview,
+		store.WorkStateBlocked,
 	}
+	res, err := s.store.ListTasksFiltered(store.TaskListFilter{
+		WorkStates: activeStates,
+		Limit:      MaxConflictInputTasks,
+	})
+	if err != nil {
+		return WorkConflictsReport{}, err
+	}
+	active := res.Tasks
+	inputTruncated := res.Truncated
 
 	profiles := make([]taskConflictProfile, 0, len(active))
 	for _, t := range active {
 		paths, err := s.taskChangePaths(t.ID)
 		if err != nil {
-			return nil, err
+			return WorkConflictsReport{}, err
 		}
 		seeds := s.seedsFromPathsBestEffort(paths)
 		seedKeys := make(map[string]ImpactSeedRef, len(seeds))
@@ -111,7 +115,7 @@ func (s *Service) DetectWorkConflicts(ctx context.Context, opts DetectWorkConfli
 	if conflicts == nil {
 		conflicts = []WorkConflict{}
 	}
-	return conflicts, nil
+	return WorkConflictsReport{Conflicts: conflicts, Truncated: inputTruncated}, nil
 }
 
 func detectPairConflict(a, b taskConflictProfile) (WorkConflict, bool) {

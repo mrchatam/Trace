@@ -540,13 +540,30 @@ func (s *Store) GetReview(id string) (Review, error) {
 	return r, nil
 }
 
-// ListReviews returns all reviews ordered by created_at, then id.
+// ListReviews returns all reviews ordered by created_at, then id (unbounded; prefer ListReviewsFiltered).
 func (s *Store) ListReviews() ([]Review, error) {
-	rows, err := s.db.Query(`
+	return s.ListReviewsLimited(-1)
+}
+
+// ListReviewsLimited returns up to limit reviews (no agent max cap; for graph budgets).
+// limit < 0 unbounded; 0 empty. Prefer ListReviewsFiltered for agent/HTTP paging.
+func (s *Store) ListReviewsLimited(limit int) ([]Review, error) {
+	if limit == 0 {
+		return []Review{}, nil
+	}
+	q := `
 		SELECT id, title, body, source_type, confidence, status, result, created_at, updated_at, last_verified_at
 		FROM reviews
 		ORDER BY created_at ASC, id ASC
-	`)
+	`
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		q += ` LIMIT ?`
+		rows, err = s.db.Query(q, limit)
+	} else {
+		rows, err = s.db.Query(q)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("store: list reviews: %w", err)
 	}

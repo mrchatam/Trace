@@ -810,7 +810,7 @@ func TestTraceConfigEnforceDefaultOff(t *testing.T) {
 	}
 }
 
-func TestTraceConfigEnforceMalformedFailClosedOff(t *testing.T) {
+func TestTraceConfigEnforceMalformedTreatAsWarn(t *testing.T) {
 	dir, taskID := setupBlockedLoopStatusFixture(t)
 	writeTraceConfig(t, dir, "{not json")
 
@@ -818,12 +818,15 @@ func TestTraceConfigEnforceMalformedFailClosedOff(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("want exitOK got %d", code)
 	}
-	if stderr != "" {
-		t.Fatalf("stderr want empty (fail-closed off) got %q", stderr)
+	if !strings.Contains(stderr, "malformed") && !strings.Contains(stderr, "treating enforce as warn") {
+		t.Fatalf("stderr want malformed→warn honesty got %q", stderr)
+	}
+	if !strings.Contains(stderr, "loop status:") {
+		t.Fatalf("stderr want violation surface under warn got %q", stderr)
 	}
 }
 
-func TestTraceConfigEnforceInvalidValueFailClosedOff(t *testing.T) {
+func TestTraceConfigEnforceInvalidValueTreatAsWarn(t *testing.T) {
 	dir, taskID := setupBlockedLoopStatusFixture(t)
 	writeTraceConfig(t, dir, `{"enforce":"loud"}`)
 
@@ -831,8 +834,11 @@ func TestTraceConfigEnforceInvalidValueFailClosedOff(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("want exitOK got %d", code)
 	}
-	if stderr != "" {
-		t.Fatalf("stderr want empty got %q", stderr)
+	if !strings.Contains(stderr, "unknown enforce") && !strings.Contains(stderr, "treating as warn") {
+		t.Fatalf("stderr want unknown→warn honesty got %q", stderr)
+	}
+	if !strings.Contains(stderr, "loop status:") {
+		t.Fatalf("stderr want violation surface under warn got %q", stderr)
 	}
 }
 

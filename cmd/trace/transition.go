@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mrchatam/Trace/internal/config"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/loop"
 	"github.com/mrchatam/Trace/internal/planner"
@@ -33,7 +34,7 @@ func cmdTransition(root string, args []string) int {
 	allowDone := fs.Bool("allow-done", false, "AllowDoneWithoutReview escape hatch (loud WARNING on success)")
 	asOperator := fs.Bool("as-operator", false, "AllowOperatorDone (conscious claim; flag≠identity / not verified operator identity; Actor string ≠ auth)")
 	allowMissingCaps := fs.Bool("allow-missing-caps", false, "AllowMissingCapabilities override")
-	enforce := fs.Bool("enforce", false, "Run deliberation gate before DONE (--to DONE only)")
+	enforce := fs.Bool("enforce", false, "Run deliberation gate before DONE (--to DONE only); also honored via .trace/config.json enforce warn|strict")
 	var evidence stringList
 	fs.Var(&evidence, "evidence", "evidence id (repeatable)")
 	if err := fs.Parse(args); err != nil {
@@ -41,7 +42,7 @@ func cmdTransition(root string, args []string) int {
 	}
 	if *taskID == "" || *to == "" || strings.TrimSpace(*reason) == "" {
 		fmt.Fprintf(os.Stderr, "usage: trace transition --task <id> --to <state> --reason <text> [--actor <a>] [--as-operator] [--allow-done] [--allow-missing-caps] [--enforce] [--evidence id]\n")
-		fmt.Fprintf(os.Stderr, "note: DONE requires linked Review PASS + --as-operator (no linked FAIL), or --allow-done hatch; --as-operator is a conscious claim (flag≠identity / not verified identity); --evidence alone does not authorize DONE; Actor is not authorization; --allow-done does not bypass missing capabilities (use --allow-missing-caps); optional --enforce runs deliberation gate (GateForDone) before DONE\n")
+		fmt.Fprintf(os.Stderr, "note: DONE requires linked Review PASS + --as-operator (no linked FAIL), or --allow-done hatch; --as-operator is a conscious claim (flag≠identity / not verified identity); --evidence alone does not authorize DONE; Actor is not authorization; --allow-done does not bypass missing capabilities (use --allow-missing-caps); --enforce or .trace/config.json enforce=warn|strict runs deliberation gate (GateForDone) before DONE\n")
 		return exitUsage
 	}
 	if *actor == "" {
@@ -64,7 +65,13 @@ func cmdTransition(root string, args []string) int {
 		return code
 	}
 	ctx := context.Background()
-	if *enforce && strings.EqualFold(strings.TrimSpace(*to), store.WorkStateDone) {
+
+	load := config.LoadEnforceModeDetail(abs)
+	config.WarnInvalidEnforce(load, os.Stderr)
+
+	toDone := strings.EqualFold(strings.TrimSpace(*to), store.WorkStateDone)
+	runGate, rejectOnFail := config.DoneGateAction(*enforce, load.Mode)
+	if toDone && runGate {
 		plan := planner.New(st)
 		allowed, violations, gateErr := loop.EvaluateGate(ctx, svc, plan, st, *taskID, loop.GateForDone)
 		if gateErr != nil {
@@ -72,14 +79,20 @@ func cmdTransition(root string, args []string) int {
 			return exitFail
 		}
 		if !allowed {
-			if len(violations) > 0 {
-				fmt.Fprintf(os.Stderr, "transition: %s\n", violations[0].Message)
-			} else {
-				fmt.Fprintln(os.Stderr, "transition: gate blocked")
+			if rejectOnFail {
+				if len(violations) > 0 {
+					fmt.Fprintf(os.Stderr, "transition: %s\n", violations[0].Message)
+				} else {
+					fmt.Fprintln(os.Stderr, "transition: gate blocked")
+				}
+				return exitGateBlocked
 			}
-			return exitGateBlocked
+			for _, v := range violations {
+				fmt.Fprintf(os.Stderr, "transition: warn: %s\n", v.Message)
+			}
 		}
 	}
+
 	err = svc.TransitionTask(ctx, *taskID, *to, domain.TransitionOptions{
 		Actor:                    *actor,
 		Reason:                   *reason,

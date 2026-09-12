@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/store"
@@ -22,6 +23,7 @@ type taskListRow struct {
 type tasksConflictsResponse struct {
 	OK        bool                  `json:"ok"`
 	Conflicts []domain.WorkConflict `json:"conflicts"`
+	Truncated bool                  `json:"truncated,omitempty"`
 }
 
 func cmdTasks(root string, args []string) int {
@@ -35,11 +37,18 @@ func cmdTasksList(root string, args []string) int {
 	fs := flag.NewFlagSet("tasks", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	goalID := fs.String("goal", "", "optional goal UUID filter")
-	if err := fs.Parse(flagsFirst(args, map[string]bool{"goal": true})); err != nil {
+	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); ignored with --all")
+	cursor := fs.String("cursor", "", "opaque pagination cursor from a prior next_cursor")
+	all := fs.Bool("all", false, "return all matching tasks (no limit; prefer --limit for agents)")
+	var workStates multiFlag
+	fs.Var(&workStates, "work-state", "filter by work_state (repeatable); default any")
+	if err := fs.Parse(flagsFirst(args, map[string]bool{
+		"goal": true, "limit": true, "cursor": true, "work-state": true, "all": false,
+	})); err != nil {
 		return exitUsage
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintf(os.Stderr, "usage: trace tasks [--goal <id>]\n")
+		fmt.Fprintf(os.Stderr, "usage: trace tasks [--goal <id>] [--work-state STATE]... [--limit N] [--cursor C] [--all]\n")
 		return exitUsage
 	}
 
@@ -58,31 +67,50 @@ func cmdTasksList(root string, args []string) int {
 		return code
 	}
 
-	var tasks []store.Task
-	if *goalID != "" {
-		tasks, err = st.ListTasksByGoalID(*goalID)
-	} else {
-		tasks, err = st.ListTasks()
+	filt := store.TaskListFilter{
+		GoalID:     *goalID,
+		WorkStates: []string(workStates),
+		Cursor:     *cursor,
 	}
+	if *all {
+		filt.Limit = -1
+	} else {
+		filt.Limit = *limit
+	}
+	res, err := st.ListTasksFiltered(filt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tasks: %v\n", err)
 		return exitFail
 	}
 
-	out := make([]taskListRow, 0, len(tasks))
-	for _, t := range tasks {
-		out = append(out, taskListRow{
-			ID:        t.ID,
-			Title:     t.Title,
-			WorkState: t.WorkState,
-			GoalID:    t.GoalID,
+	outRows := make([]taskListRow, 0, len(res.Tasks))
+	for _, t := range res.Tasks {
+		outRows = append(outRows, taskListRow{
+			ID: t.ID, Title: t.Title, WorkState: t.WorkState, GoalID: t.GoalID,
 		})
 	}
-	if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
+	payload := map[string]any{
+		"items":     outRows,
+		"count":     len(outRows),
+		"truncated": res.Truncated,
+	}
+	if res.NextCursor != "" {
+		payload["next_cursor"] = res.NextCursor
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(payload); err != nil {
 		fmt.Fprintf(os.Stderr, "tasks: %v\n", err)
 		return exitFail
 	}
 	return exitOK
+}
+
+// multiFlag collects repeatable string flags.
+type multiFlag []string
+
+func (m *multiFlag) String() string { return strings.Join(*m, ",") }
+func (m *multiFlag) Set(v string) error {
+	*m = append(*m, v)
+	return nil
 }
 
 func cmdTasksConflicts(root string, args []string) int {
@@ -113,17 +141,18 @@ func cmdTasksConflicts(root string, args []string) int {
 		return code
 	}
 
-	conflicts, err := svc.DetectWorkConflicts(context.Background(), domain.DetectWorkConflictsOpts{
+	report, err := svc.DetectWorkConflicts(context.Background(), domain.DetectWorkConflictsOpts{
 		TaskID: *taskID,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tasks conflicts: %v\n", err)
 		return exitFail
 	}
+	conflicts := report.Conflicts
 	if conflicts == nil {
 		conflicts = []domain.WorkConflict{}
 	}
-	resp := tasksConflictsResponse{OK: true, Conflicts: conflicts}
+	resp := tasksConflictsResponse{OK: true, Conflicts: conflicts, Truncated: report.Truncated}
 	if err := json.NewEncoder(os.Stdout).Encode(resp); err != nil {
 		fmt.Fprintf(os.Stderr, "tasks conflicts: %v\n", err)
 		return exitFail

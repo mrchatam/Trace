@@ -1355,30 +1355,33 @@ func TestTraceTasksParity(t *testing.T) {
 		t.Fatalf("trace_tasks: %v", err)
 	}
 	text := mustText(t, res)
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(text), &rows); err != nil {
+	var page map[string]any
+	if err := json.Unmarshal([]byte(text), &page); err != nil {
 		t.Fatalf("tasks json: %v\n%s", err, text)
 	}
+	rows, _ := page["items"].([]any)
 	if len(rows) != 1 {
 		t.Fatalf("want 1 task, got %s", text)
 	}
+	row0, _ := rows[0].(map[string]any)
 	for _, k := range []string{"id", "title", "work_state", "goal_id"} {
-		if _, ok := rows[0][k]; !ok {
-			t.Fatalf("missing key %q in %v", k, rows[0])
+		if _, ok := row0[k]; !ok {
+			t.Fatalf("missing key %q in %v", k, row0)
 		}
 	}
-	if rows[0]["id"] != task.ID || rows[0]["title"] != "T" {
-		t.Fatalf("row mismatch: %v", rows[0])
+	if row0["id"] != task.ID || row0["title"] != "T" {
+		t.Fatalf("row mismatch: %v", row0)
 	}
 
 	filtered, _, err := callTasks(srv, ctx, tracemcp.TasksInput{GoalID: g.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var frows []map[string]any
-	if err := json.Unmarshal([]byte(mustText(t, filtered)), &frows); err != nil {
+	var fpage map[string]any
+	if err := json.Unmarshal([]byte(mustText(t, filtered)), &fpage); err != nil {
 		t.Fatal(err)
 	}
+	frows, _ := fpage["items"].([]any)
 	if len(frows) != 1 {
 		t.Fatalf("goal filter: %v", frows)
 	}
@@ -1386,10 +1389,11 @@ func TestTraceTasksParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var erows []map[string]any
-	if err := json.Unmarshal([]byte(mustText(t, empty)), &erows); err != nil {
+	var epage map[string]any
+	if err := json.Unmarshal([]byte(mustText(t, empty)), &epage); err != nil {
 		t.Fatal(err)
 	}
+	erows, _ := epage["items"].([]any)
 	if len(erows) != 0 {
 		t.Fatalf("want empty filter result, got %v", erows)
 	}
@@ -1869,5 +1873,53 @@ func moduleRoot(t *testing.T) string {
 			t.Fatal("go.mod not found")
 		}
 		dir = parent
+	}
+}
+
+
+func TestTraceContextFormatBothIncludesWarning(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "Both warn"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
+	res, _, err := callContext(srv, ctx, tracemcp.ContextInput{TaskID: task.ID, Depth: 1, Format: "both"})
+	if err != nil {
+		t.Fatalf("trace_context both: %v", err)
+	}
+	text := mustText(t, res)
+	if !strings.Contains(text, "WARNING") || !strings.Contains(text, "prefer") {
+		snip := text
+		if len(snip) > 400 {
+			snip = snip[:400]
+		}
+		t.Fatalf("format=both response missing prefer-json warning: %s", snip)
+	}
+	if !strings.Contains(text, "warnings") {
+		snip := text
+		if len(snip) > 400 {
+			snip = snip[:400]
+		}
+		t.Fatalf("format=both JSON should include warnings field: %s", snip)
+	}
+	// JSON portion before markdown separator should unmarshal with warnings.
+	jsonPart := text
+	if i := strings.Index(text, "\n---\n"); i >= 0 {
+		jsonPart = text[:i]
+	}
+	var pkt compiler.Packet
+	if err := json.Unmarshal([]byte(jsonPart), &pkt); err != nil {
+		t.Fatalf("unmarshal both JSON: %v", err)
+	}
+	if len(pkt.Warnings) == 0 || !strings.Contains(pkt.Warnings[0], "prefer") {
+		t.Fatalf("packet warnings=%v", pkt.Warnings)
 	}
 }

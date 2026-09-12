@@ -8,7 +8,11 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/mrchatam/Trace/internal/config"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/loop"
+	"github.com/mrchatam/Trace/internal/planner"
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 // AddInput mirrors `trace add <kind> --title …`.
@@ -44,6 +48,7 @@ type TransitionInput struct {
 	AsOperator       bool     `json:"as_operator,omitempty" jsonschema:"AllowOperatorDone; conscious claim flag≠identity / not verified operator identity; required with Review PASS; Actor ≠ auth"`
 	AllowMissingCaps bool     `json:"allow_missing_caps,omitempty" jsonschema:"AllowMissingCapabilities override"`
 	EvidenceIDs      []string `json:"evidence_ids,omitempty" jsonschema:"evidence ids (do not alone authorize DONE)"`
+	Enforce          bool     `json:"enforce,omitempty" jsonschema:"run GateForDone before DONE (also honored via .trace/config.json enforce warn|strict)"`
 }
 
 // ReviewInput mirrors `trace review create|set`.
@@ -212,7 +217,7 @@ func (s *Server) toolTransition(ctx context.Context, _ *sdkmcp.CallToolRequest, 
 	if actor == "" {
 		actor = "mcp"
 	}
-	_, st, err := s.openStore(in.Project)
+	abs, st, err := s.openStore(in.Project)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -221,6 +226,34 @@ func (s *Server) toolTransition(ctx context.Context, _ *sdkmcp.CallToolRequest, 
 		return nil, nil, err
 	}
 	svc := domain.New(st)
+
+	load := config.LoadEnforceModeDetail(abs)
+	var warnings []string
+	if load.Invalid && load.Warning != "" {
+		warnings = append(warnings, load.Warning)
+	}
+	toDone := strings.EqualFold(strings.TrimSpace(in.ToState), store.WorkStateDone)
+	runGate, rejectOnFail := config.DoneGateAction(in.Enforce, load.Mode)
+	if toDone && runGate {
+		plan := planner.New(st)
+		allowed, violations, gateErr := loop.EvaluateGate(ctx, svc, plan, st, in.TaskID, loop.GateForDone)
+		if gateErr != nil {
+			return nil, nil, fmt.Errorf("trace_transition: gate: %w", gateErr)
+		}
+		if !allowed {
+			if rejectOnFail {
+				msg := "gate blocked"
+				if len(violations) > 0 {
+					msg = violations[0].Message
+				}
+				return nil, nil, fmt.Errorf("trace_transition: %s", msg)
+			}
+			for _, v := range violations {
+				warnings = append(warnings, v.Message)
+			}
+		}
+	}
+
 	err = svc.TransitionTask(ctx, in.TaskID, in.ToState, domain.TransitionOptions{
 		Actor:                    actor,
 		Reason:                   in.Reason,
@@ -235,6 +268,9 @@ func (s *Server) toolTransition(ctx context.Context, _ *sdkmcp.CallToolRequest, 
 	out := map[string]any{"ok": true, "task": in.TaskID, "to": in.ToState}
 	if in.AllowDone {
 		out["warning"] = "allow_done escape hatch used; Review PASS and as_operator were bypassed; missing capabilities still need allow_missing_caps"
+	}
+	if len(warnings) > 0 {
+		out["warnings"] = warnings
 	}
 	b, err := json.Marshal(out)
 	if err != nil {

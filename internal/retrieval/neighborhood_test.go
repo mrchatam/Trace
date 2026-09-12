@@ -195,3 +195,78 @@ func TestNeighborhoodEdgesJSONNotNull(t *testing.T) {
 		t.Fatalf("edges must JSON-marshal as [] not null: %s", b)
 	}
 }
+
+func TestProjectGraphSQLLimitsStopAtBudget(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc := domain.New(st)
+	ctx := context.Background()
+	// Fill budget with goals so later kinds must not be needed to satisfy MaxNodes.
+	for i := 0; i < 5; i++ {
+		if _, err := svc.CreateGoal(ctx, domain.GoalInput{Title: fmt.Sprintf("G%d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 20; i++ {
+		if _, err := svc.CreateDecision(ctx, domain.DecisionInput{Title: fmt.Sprintf("D%d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	eng := retrieval.New(st)
+	out, err := eng.ProjectGraph(ctx, retrieval.ProjectGraphOpts{MaxNodes: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.Truncated || len(out.Nodes) != 3 {
+		t.Fatalf("truncation: nodes=%d truncated=%v total=%d", len(out.Nodes), out.Truncated, out.TotalEntities)
+	}
+	for _, n := range out.Nodes {
+		if n.Kind != "goal" {
+			t.Fatalf("budget filled by goals; unexpected kind %q id=%s", n.Kind, n.ID)
+		}
+	}
+	if out.TotalEntities < 25 {
+		t.Fatalf("TotalEntities=%d want COUNT of goals+decisions (>=25)", out.TotalEntities)
+	}
+}
+
+func TestProjectGraphDecisionLimitAfterGoals(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc := domain.New(st)
+	ctx := context.Background()
+	g, err := svc.CreateGoal(ctx, domain.GoalInput{Title: "OnlyGoal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 10; i++ {
+		if _, err := svc.CreateDecision(ctx, domain.DecisionInput{Title: fmt.Sprintf("D%d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	eng := retrieval.New(st)
+	out, err := eng.ProjectGraph(ctx, retrieval.ProjectGraphOpts{MaxNodes: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Nodes) != 4 || !out.Truncated {
+		t.Fatalf("want 4 nodes truncated; got %+v", out)
+	}
+	if out.Nodes[0].ID != g.ID || out.Nodes[0].Kind != "goal" {
+		t.Fatalf("first node want goal %q got %+v", g.ID, out.Nodes[0])
+	}
+	for _, n := range out.Nodes[1:] {
+		if n.Kind != "decision" {
+			t.Fatalf("remaining slots want decision got %+v", n)
+		}
+	}
+}

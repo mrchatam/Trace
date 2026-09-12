@@ -85,7 +85,8 @@ else
     fail "G4 TRACE-EVIDENCE* contains deliberation — ${ev:-no TRACE-EVIDENCE*.md found}"
   fi
 
-  task_rows=$("$TRACE_BIN" -C "$WS" tasks list 2>/dev/null | grep -c . || echo 0)
+  # Prefer page JSON count from bounded tasks list (agents must not grep line counts).
+  task_rows=$("$TRACE_BIN" -C "$WS" tasks --limit 500 2>/dev/null | python3 -c 'import sys,json; d=json.load(sys.stdin); print(int(d.get("count", 0)))' 2>/dev/null || echo 0)
   if [[ "$task_rows" -ge 5 ]]; then pass "G5 trace tasks >= 5 rows"; else fail "G5 trace tasks >= 5 rows — count=$task_rows"; fi
 
   unc=$("$TRACE_BIN" -C "$WS" query 'SELECT COUNT(*) FROM uncertainties WHERE resolved_at IS NOT NULL' 2>/dev/null | tail -1 || echo 0)
