@@ -20,6 +20,16 @@ func cmdReview(root string, args []string) int {
 		return exitUsage
 	}
 	sub := args[0]
+	if sub == "-h" || sub == "--help" || sub == "help" {
+		fmt.Fprintf(os.Stderr, "usage: trace review create|set|get|show|list|residual …\n")
+		fmt.Fprintf(os.Stderr, "  create   Create a review (+optional --task/--scope)\n")
+		fmt.Fprintf(os.Stderr, "  set      Set review result\n")
+		fmt.Fprintf(os.Stderr, "  get|show Get review by --id\n")
+		fmt.Fprintf(os.Stderr, "  list     List reviews [--task]\n")
+		fmt.Fprintf(os.Stderr, "  residual add|list residual items\n")
+		fmt.Fprintf(os.Stderr, "Top-level: trace help\n")
+		return exitOK
+	}
 	switch sub {
 	case "create":
 		return cmdReviewCreate(root, args[1:])

@@ -22,7 +22,7 @@ type LoopInput struct {
 	TaskID   string          `json:"task_id,omitempty" jsonschema:"next|status|gate: seed task UUID"`
 	GoalID   string          `json:"goal_id,omitempty" jsonschema:"status: optional seed goal UUID (derived from task when omitted)"`
 	For      string          `json:"for,omitempty" jsonschema:"gate: orient|edit|execute|done|export (default edit)"`
-	Envelope json.RawMessage `json:"envelope,omitempty" jsonschema:"apply: trace.loop.apply.v1 JSON object or string"`
+	Envelope any `json:"envelope,omitempty" jsonschema:"apply: trace.loop.apply.v1 JSON object or string (not a byte array)"`
 }
 
 const mcpGateSchemaVersion = "trace.loop.gate.v1"
@@ -215,17 +215,58 @@ func parseMCPLoopGateFor(s string) (loop.GateFor, error) {
 	}
 }
 
-func parseLoopEnvelope(raw json.RawMessage) ([]byte, error) {
-	if len(raw) == 0 {
+func parseLoopEnvelope(raw any) ([]byte, error) {
+	if raw == nil {
 		return nil, fmt.Errorf("trace_loop apply: envelope is required")
 	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		s = strings.TrimSpace(s)
+	switch v := raw.(type) {
+	case string:
+		s := strings.TrimSpace(v)
 		if s == "" {
 			return nil, fmt.Errorf("trace_loop apply: envelope is required")
 		}
 		return []byte(s), nil
+	case []byte:
+		if len(v) == 0 {
+			return nil, fmt.Errorf("trace_loop apply: envelope is required")
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				return nil, fmt.Errorf("trace_loop apply: envelope is required")
+			}
+			return []byte(s), nil
+		}
+		return append([]byte(nil), v...), nil
+	case json.RawMessage:
+		if len(v) == 0 {
+			return nil, fmt.Errorf("trace_loop apply: envelope is required")
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				return nil, fmt.Errorf("trace_loop apply: envelope is required")
+			}
+			return []byte(s), nil
+		}
+		return []byte(v), nil
+	case map[string]any, []any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("trace_loop apply: envelope: %w", err)
+		}
+		return b, nil
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("trace_loop apply: envelope: %w", err)
+		}
+		// Reject bare null / empty encodings
+		if string(b) == "null" || string(b) == `""` {
+			return nil, fmt.Errorf("trace_loop apply: envelope is required")
+		}
+		return b, nil
 	}
-	return raw, nil
 }
