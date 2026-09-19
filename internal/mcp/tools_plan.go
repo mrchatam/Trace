@@ -131,10 +131,13 @@ func (s *Server) planShow(ctx context.Context, psvc *planner.Service, st *store.
 	if view.Phases == nil {
 		view.Phases = []planner.PhaseView{}
 	}
-	tasks, err := st.ListTasksByGoalID(goalID)
+	taskPage, err := st.ListTasksFiltered(store.TaskListFilter{
+		GoalID: goalID, Limit: store.DefaultTaskListLimit, IncludeBody: true,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("trace_plan show: %w", err)
 	}
+	tasks := taskPage.Tasks
 	taskRows := make([]map[string]any, 0, len(tasks))
 	for _, t := range tasks {
 		taskRows = append(taskRows, map[string]any{

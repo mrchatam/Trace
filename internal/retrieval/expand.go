@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 const (
@@ -150,11 +152,13 @@ func (e *Engine) neighbors(h Hit) ([]Hit, error) {
 			}
 		}
 	case "goal":
-		tasks, err := e.store.ListTasksByGoalID(h.EntityID)
+		taskPage, err := e.store.ListTasksFiltered(store.TaskListFilter{
+			GoalID: h.EntityID, Limit: store.DefaultTaskListLimit,
+		})
 		if err != nil {
 			return nil, err
 		}
-		for _, t := range tasks {
+		for _, t := range taskPage.Tasks {
 			// DF-35: title/id OK; never attach sibling task body via goal expand.
 			out = append(out, Hit{
 				EntityType: "task",

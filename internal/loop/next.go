@@ -191,10 +191,13 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 	}
 	goalID := *task.GoalID
 
-	tasks, err := in.Store.ListTasksByGoalID(goalID)
+	taskPage, err := in.Store.ListTasksFiltered(store.TaskListFilter{
+		GoalID: goalID, Limit: store.DefaultTaskListLimit, IncludeBody: true,
+	})
 	if err != nil {
 		return NextPacket{}, fmt.Errorf("loop next: list tasks for goal %q: %w", goalID, err)
 	}
+	tasks := taskPage.Tasks
 	taskRows := make([]TaskSummary, 0, len(tasks))
 	for _, row := range tasks {
 		taskRows = append(taskRows, TaskSummary{
