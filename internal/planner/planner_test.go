@@ -403,3 +403,28 @@ func TestMissingGoalWrapped(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestCreateCoarsePlanFailsWhenAppendEventFails(t *testing.T) {
+	svc, st := openPlanner(t)
+	ctx := context.Background()
+	g := mustGoal(t, st, "append-fail-goal")
+
+	db := st.Conn()
+	if db == nil {
+		t.Fatal("expected root store Conn")
+	}
+	if _, err := db.Exec(`DROP TABLE events`); err != nil {
+		t.Fatalf("DROP events: %v", err)
+	}
+
+	_, err := svc.CreateCoarsePlan(ctx, planner.CoarsePlanInput{
+		GoalID: g.ID,
+		Phases: []planner.PhaseInput{{
+			Title:  "P",
+			Scopes: []planner.ScopeInput{{Title: "S"}},
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected CreateCoarsePlan to fail when AppendEvent cannot write")
+	}
+}
