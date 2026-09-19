@@ -186,6 +186,25 @@ func TestInitCreatesDB(t *testing.T) {
 	}
 }
 
+func TestInitSucceedsOnUnbornGitHead(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	dir := t.TempDir()
+	cmd := exec.Command("git", "init", "-q")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init on unborn HEAD exit %d want %d", code, exitOK)
+	}
+	db := filepath.Join(dir, ".trace", "trace.db")
+	if _, err := os.Stat(db); err != nil {
+		t.Fatalf("expected db at %s: %v", db, err)
+	}
+}
+
 func TestCausalWhyContextRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	if code := run([]string{"-C", dir, "init"}); code != exitOK {

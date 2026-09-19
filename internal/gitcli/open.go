@@ -115,9 +115,13 @@ func (r *Repo) IsRepo(ctx context.Context) (bool, error) {
 }
 
 // Head implements vcs.Repository.
+// Unborn HEAD (git init with no commits) maps to vcs.ErrNotFound.
 func (r *Repo) Head(ctx context.Context) (string, error) {
 	out, err := r.run.run(ctx, "rev-parse", "HEAD")
 	if err != nil {
+		if isUnbornHeadErr(err) {
+			return "", &vcs.Error{Op: "Head", Err: vcs.ErrNotFound}
+		}
 		return "", &vcs.Error{Op: "Head", Err: err}
 	}
 	oid := strings.TrimSpace(out)
@@ -125,6 +129,20 @@ func (r *Repo) Head(ctx context.Context) (string, error) {
 		return "", &vcs.Error{Op: "Head", Err: vcs.ErrNotFound}
 	}
 	return oid, nil
+}
+
+// isUnbornHeadErr reports whether err is from rev-parse HEAD with no commits.
+func isUnbornHeadErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	// git: fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+	// Also: fatal: Needed a single revision / bad revision 'HEAD'
+	return strings.Contains(msg, "unknown revision") ||
+		strings.Contains(msg, "ambiguous argument") ||
+		strings.Contains(msg, "needed a single revision") ||
+		strings.Contains(msg, "bad revision")
 }
 
 var _ vcs.Repository = (*Repo)(nil)
