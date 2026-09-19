@@ -576,6 +576,7 @@ func rebuildOutcomeResultTable(tx *sql.Tx) error {
 }
 
 // SyncFileFTS refreshes FTS rows for a file path and its symbols.
+// Uses runInTx so it participates in an outer WithTx (IndexFile atomic unit).
 func (s *Store) SyncFileFTS(path string) error {
 	path = NormalizePath(path)
 	if path == "" {
@@ -586,48 +587,40 @@ func (s *Store) SyncFileFTS(path string) error {
 		return err
 	}
 
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("store: begin sync file fts: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.Exec(`DELETE FROM fts_docs WHERE entity_type = 'file' AND entity_id = ?`, f.ID); err != nil {
-		return fmt.Errorf("store: delete file fts: %w", err)
-	}
-	// Drop symbols previously indexed for this path (by path column + type).
-	if _, err := tx.Exec(`DELETE FROM fts_docs WHERE entity_type = 'symbol' AND path = ?`, path); err != nil {
-		return fmt.Errorf("store: delete symbol fts: %w", err)
-	}
-
-	if err := insertFTS(tx, "file", f.ID, f.Path, "", f.Path, "", ""); err != nil {
-		return err
-	}
-
-	symRows, err := tx.Query(`
-		SELECT id, name, kind FROM symbols WHERE file_id = ?
-	`, f.ID)
-	if err != nil {
-		return fmt.Errorf("store: list symbols for file fts: %w", err)
-	}
-	for symRows.Next() {
-		var id, name, kind string
-		if err := symRows.Scan(&id, &name, &kind); err != nil {
-			symRows.Close()
-			return fmt.Errorf("store: scan symbol for file fts: %w", err)
+	return s.runInTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`DELETE FROM fts_docs WHERE entity_type = 'file' AND entity_id = ?`, f.ID); err != nil {
+			return fmt.Errorf("store: delete file fts: %w", err)
 		}
-		if err := insertFTS(tx, "symbol", id, name, "", path, name, kind); err != nil {
-			symRows.Close()
+		// Drop symbols previously indexed for this path (by path column + type).
+		if _, err := tx.Exec(`DELETE FROM fts_docs WHERE entity_type = 'symbol' AND path = ?`, path); err != nil {
+			return fmt.Errorf("store: delete symbol fts: %w", err)
+		}
+
+		if err := insertFTS(tx, "file", f.ID, f.Path, "", f.Path, "", ""); err != nil {
 			return err
 		}
-	}
-	symRows.Close()
-	if err := symRows.Err(); err != nil {
-		return err
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit sync file fts: %w", err)
-	}
-	return nil
+		symRows, err := tx.Query(`
+			SELECT id, name, kind FROM symbols WHERE file_id = ?
+		`, f.ID)
+		if err != nil {
+			return fmt.Errorf("store: list symbols for file fts: %w", err)
+		}
+		for symRows.Next() {
+			var id, name, kind string
+			if err := symRows.Scan(&id, &name, &kind); err != nil {
+				symRows.Close()
+				return fmt.Errorf("store: scan symbol for file fts: %w", err)
+			}
+			if err := insertFTS(tx, "symbol", id, name, "", path, name, kind); err != nil {
+				symRows.Close()
+				return err
+			}
+		}
+		symRows.Close()
+		if err := symRows.Err(); err != nil {
+			return err
+		}
+		return nil
+	})
 }

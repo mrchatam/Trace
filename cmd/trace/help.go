@@ -24,7 +24,7 @@ Commands:
   init [--with-agent-defaults]
                         Create/open .trace/trace.db (not project-root trace.db);
                         print DB path; optional bundled harness agent catalog install
-  index [paths...]      Index supported source files (file-local; no full rebuild)
+  index [paths...]      Index supported files (file-local incremental; empty argv walks tree, skips unchanged content_hash)
   index status          JSON: head, last_indexed_commit, stale, hook_installed,
                         supported_languages (see docs/INDEX_LANG_POLICY.md)
   index watch [--debounce 300ms] [paths...]
