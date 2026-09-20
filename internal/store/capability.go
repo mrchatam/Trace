@@ -27,22 +27,22 @@ const (
 
 // Capability is a catalog entry (skill/rule/MCP/tool/hook).
 type Capability struct {
-	ID        string
-	Kind      string
-	Slug      string
-	Title     string
-	Status    string
-	Body      string
-	CreatedAt string
-	UpdatedAt string
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	Slug      string `json:"slug"`
+	Title     string `json:"title"`
+	Status    string `json:"status"`
+	Body      string `json:"body,omitempty"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // TaskCapabilityRequirement links a task to a required capability.
 type TaskCapabilityRequirement struct {
-	ID           string
-	TaskID       string
-	CapabilityID string
-	CreatedAt    string
+	ID           string `json:"id"`
+	TaskID       string `json:"task_id"`
+	CapabilityID string `json:"capability_id"`
+	CreatedAt    string `json:"created_at"`
 }
 
 // CapabilityListFilter optionally filters ListCapabilities.
