@@ -152,6 +152,11 @@ func New(st *store.Store) *Service {
 	return &Service{store: st}
 }
 
+// withStore returns a shallow Service bound to st (e.g. a tx-scoped store).
+func (s *Service) withStore(st *store.Store) *Service {
+	return &Service{store: st, impactWalker: s.impactWalker}
+}
+
 // LinkMeta carries optional provenance for link operations.
 type LinkMeta struct {
 	SourceType string

@@ -29,6 +29,33 @@ func (s *Service) ImportSeedDocument(ctx context.Context, doc SeedDocument) (See
 		Created:             map[string][]string{},
 		PromotionCandidates: []PromotionCandidate{},
 	}
+	err := s.store.WithTx(func(stx *store.Store) error {
+		return s.withStore(stx).importSeedDocumentBody(ctx, doc, &summary)
+	})
+	if err != nil {
+		summary.OK = false
+		summary.Created = map[string][]string{}
+		summary.Links = 0
+		summary.Findings = 0
+		summary.Alternatives = 0
+		summary.Transitions = 0
+		summary.PromotionCandidates = []PromotionCandidate{}
+		summary.PromotionHint = ""
+		return summary, err
+	}
+	candidates, err := s.ListPromotionCandidates()
+	if err != nil {
+		summary.OK = false
+		return summary, err
+	}
+	summary.PromotionCandidates = candidates
+	if len(candidates) > 0 {
+		summary.PromotionHint = SeedImportPromotionHint
+	}
+	return summary, nil
+}
+
+func (s *Service) importSeedDocumentBody(ctx context.Context, doc SeedDocument, summary *SeedImportSummary) error {
 	addCreated := func(kind, id string, inserted bool) {
 		if inserted {
 			summary.Created[kind] = append(summary.Created[kind], id)
@@ -38,7 +65,7 @@ func (s *Service) ImportSeedDocument(ctx context.Context, doc SeedDocument) (See
 	for _, g := range doc.Goals {
 		ent, inserted, err := s.ImportSeedGoal(ctx, g)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityGoal, ent.ID, inserted)
 	}
@@ -52,163 +79,163 @@ func (s *Service) ImportSeedDocument(ctx context.Context, doc SeedDocument) (See
 			ID: t.ID, GoalID: t.GoalID, Title: t.Title, Body: t.Body,
 		}, gid)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityTask, ent.ID, inserted)
 	}
 	for _, d := range doc.Decisions {
 		ent, inserted, err := s.ImportSeedDecision(ctx, d)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityDecision, ent.ID, inserted)
 	}
 	for _, a := range doc.Assumptions {
 		ent, inserted, err := s.ImportSeedAssumption(ctx, a)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityAssumption, ent.ID, inserted)
 	}
 	for _, d := range doc.Discoveries {
 		ent, inserted, err := s.ImportSeedDiscovery(ctx, d)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityDiscovery, ent.ID, inserted)
 	}
 	for _, p := range doc.PlanChanges {
 		ent, inserted, err := s.ImportSeedPlanChange(ctx, p)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityPlanChange, ent.ID, inserted)
 	}
 	for _, c := range doc.Claims {
 		ent, inserted, err := s.ImportSeedClaim(ctx, c)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityClaim, ent.ID, inserted)
 	}
 	for _, e := range doc.Evidence {
 		ent, inserted, err := s.ImportSeedEvidence(ctx, e)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityEvidence, ent.ID, inserted)
 	}
 
 	for _, l := range doc.Links {
 		if err := s.ImportSeedLink(ctx, l); err != nil {
-			return summary, err
+			return err
 		}
 		summary.Links++
 	}
 
 	for _, f := range doc.Findings {
 		if strings.TrimSpace(f.DecisionID) == "" {
-			return summary, &ErrValidation{Msg: "finding decision_id required"}
+			return &ErrValidation{Msg: "finding decision_id required"}
 		}
 		if _, err := s.ImportSeedFinding(ctx, f.DecisionID, f); err != nil {
-			return summary, err
+			return err
 		}
 		summary.Findings++
 	}
 	for _, a := range doc.Alternatives {
 		if strings.TrimSpace(a.DecisionID) == "" {
-			return summary, &ErrValidation{Msg: "alternative decision_id required"}
+			return &ErrValidation{Msg: "alternative decision_id required"}
 		}
 		if _, err := s.ImportSeedAlternative(ctx, a.DecisionID, a); err != nil {
-			return summary, err
+			return err
 		}
 		summary.Alternatives++
 	}
 
 	for _, p := range doc.PlanPhases {
 		if _, err := s.ImportSeedPlanPhase(ctx, p); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, sc := range doc.PlanScopes {
 		if _, err := s.ImportSeedPlanScope(ctx, sc); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, d := range doc.ScopeDeepPlans {
 		if _, err := s.ImportSeedScopeDeepPlan(ctx, d); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, g := range doc.GoalPlanState {
 		if _, err := s.ImportSeedGoalPlanState(ctx, g); err != nil {
-			return summary, err
+			return err
 		}
 	}
 
 	for _, b := range doc.Baselines {
 		if _, err := s.ImportSeedBaseline(ctx, b); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, o := range doc.OutcomeResults {
 		if _, err := s.ImportSeedOutcomeResult(ctx, o); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, c := range doc.Changes {
 		if _, err := s.ImportSeedChange(ctx, c); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, e := range doc.Effects {
 		if _, err := s.ImportSeedEffect(ctx, e); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, u := range doc.Uncertainties {
 		if _, err := s.ImportSeedUncertainty(ctx, u); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, h := range doc.Hypotheses {
 		if _, err := s.ImportSeedHypothesis(ctx, h); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, r := range doc.DecisionReconsiderations {
 		if _, err := s.ImportSeedDecisionReconsideration(ctx, r); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, r := range doc.Regressions {
 		if _, err := s.ImportSeedRegression(ctx, r); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, im := range doc.Improvements {
 		if _, err := s.ImportSeedImprovement(ctx, im); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, r := range doc.Reflections {
 		if _, err := s.ImportSeedReflection(ctx, r); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, p := range doc.ChangePatterns {
 		if _, err := s.ImportSeedChangePattern(ctx, p); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, k := range doc.EngineeringKnowledge {
 		if _, err := s.ImportSeedEngineeringKnowledge(ctx, k); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, a := range doc.HarnessAgents {
 		if _, err := s.ImportSeedHarnessAgent(ctx, a); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	if doc.EvalRulesPath != "" {
@@ -217,36 +244,28 @@ func (s *Service) ImportSeedDocument(ctx context.Context, doc SeedDocument) (See
 			SourcePath: doc.EvalRulesPath,
 			BodyJSON:   "{}",
 		}); err != nil {
-			return summary, err
+			return err
 		}
 	}
 	for _, ds := range doc.DeliberationStates {
 		if _, err := s.ImportSeedDeliberationState(ctx, ds); err != nil {
-			return summary, err
+			return err
 		}
 	}
 
 	for _, tr := range doc.Transitions {
 		if strings.TrimSpace(tr.Reason) == "" {
-			return summary, &ErrValidation{Msg: "transition reason required"}
+			return &ErrValidation{Msg: "transition reason required"}
 		}
 		if err := s.ImportSeedTransition(ctx, tr); err != nil {
-			return summary, err
+			return err
 		}
 		summary.Transitions++
 	}
 
-	candidates, err := s.ListPromotionCandidates()
-	if err != nil {
-		return summary, err
-	}
-	summary.PromotionCandidates = candidates
-	if len(candidates) > 0 {
-		summary.PromotionHint = SeedImportPromotionHint
-	}
-
-	return summary, nil
+	return nil
 }
+
 
 func seedEntityExists(s *store.Store, entityType, id string) (bool, error) {
 	if id == "" {
