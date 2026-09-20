@@ -37,9 +37,9 @@ func cmdTasksList(root string, args []string) int {
 	fs := flag.NewFlagSet("tasks", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	goalID := fs.String("goal", "", "optional goal UUID filter")
-	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); ignored with --all")
+	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); with --all uses MaxTaskListLimit")
 	cursor := fs.String("cursor", "", "opaque pagination cursor from a prior next_cursor")
-	all := fs.Bool("all", false, "return all matching tasks (no limit; prefer --limit for agents)")
+	all := fs.Bool("all", false, "return up to MaxTaskListLimit (500) matching tasks; prefer --limit/--cursor")
 	var workStates multiFlag
 	fs.Var(&workStates, "work-state", "filter by work_state (repeatable); default any")
 	if err := fs.Parse(flagsFirst(args, map[string]bool{
@@ -73,7 +73,7 @@ func cmdTasksList(root string, args []string) int {
 		Cursor:     *cursor,
 	}
 	if *all {
-		filt.Limit = -1
+		filt.Limit = store.MaxTaskListLimit // hard-cap (#118)
 	} else {
 		filt.Limit = *limit
 	}
