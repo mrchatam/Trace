@@ -7,8 +7,16 @@ import (
 
 // WithTx runs fn inside a single database transaction. All store methods invoked on
 // the Store passed to fn use the same tx; Commit runs only when fn returns nil.
+// When s is already tx-scoped (nested call), fn runs against s without beginning
+// a new transaction so domain helpers compose inside an outer WithTx.
 func (s *Store) WithTx(fn func(*Store) error) error {
-	if s == nil || s.conn == nil {
+	if s == nil {
+		return fmt.Errorf("store: WithTx requires a store")
+	}
+	if _, ok := s.db.(*sql.Tx); ok {
+		return fn(s)
+	}
+	if s.conn == nil {
 		return fmt.Errorf("store: WithTx requires an open root store")
 	}
 	tx, err := s.conn.Begin()

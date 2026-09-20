@@ -133,13 +133,6 @@ func (s *Service) TransitionTask(ctx context.Context, taskID, toWorkState string
 		}
 	}
 
-	// DF-18: leaving DONE invalidates sticky PASS reviews before state change.
-	if from == store.WorkStateDone {
-		if err := s.invalidatePassReviewsOnReopen(ctx, taskID, toWorkState, opts.Actor); err != nil {
-			return err
-		}
-	}
-
 	evidenceIDs := opts.EvidenceIDs
 	if evidenceIDs == nil {
 		evidenceIDs = []string{}
@@ -165,17 +158,32 @@ func (s *Service) TransitionTask(ctx context.Context, taskID, toWorkState string
 	}
 	payload, _ := json.Marshal(payloadMap)
 
-	task.WorkState = toWorkState
-	if _, err := s.store.UpsertTask(task); err != nil {
+	// DF-18 + work_state + transition event must commit together: a failure after
+	// PASS→UNCERTAIN must not leave UNCERTAIN reviews while the task stays DONE.
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if from == store.WorkStateDone {
+			if err := tx.invalidatePassReviewsOnReopen(ctx, taskID, toWorkState, opts.Actor); err != nil {
+				return err
+			}
+			if tx.afterPassInvalidateHook != nil {
+				if err := tx.afterPassInvalidateHook(); err != nil {
+					return err
+				}
+			}
+		}
+		task.WorkState = toWorkState
+		if _, err := stx.UpsertTask(task); err != nil {
+			return err
+		}
+		_, err := stx.AppendEvent(store.Event{
+			Type:        EventTaskTransition,
+			EntityType:  EntityTask,
+			EntityID:    taskID,
+			PayloadJSON: string(payload),
+		})
 		return err
-	}
-	_, err = s.store.AppendEvent(store.Event{
-		Type:        EventTaskTransition,
-		EntityType:  EntityTask,
-		EntityID:    taskID,
-		PayloadJSON: string(payload),
 	})
-	return err
 }
 
 // invalidatePassReviewsOnReopen sets linked review_judges_task PASS → UNCERTAIN (DF-18).
