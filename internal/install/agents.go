@@ -17,15 +17,21 @@ import (
 const subagentHookSlug = "hook:harness:subagent"
 
 // InstallAgentDefaults upserts bundled harness agent profiles and capability stubs into .trace/.
+// When opts.Store is non-nil it is reused (caller owns Close); otherwise the project store is Opened.
 func InstallAgentDefaults(opts InstallOpts) error {
 	root := projectRoot(opts)
-	st, err := store.Open(root)
-	if err != nil {
-		return fmt.Errorf("install: agents: %w", err)
+	st := opts.Store
+	if st == nil {
+		var err error
+		st, err = store.Open(root)
+		if err != nil {
+			return fmt.Errorf("install: agents: %w", err)
+		}
+		defer st.Close()
 	}
-	defer st.Close()
 
 	var catalog agents.DefaultCatalog
+	var err error
 	if catalogPath := strings.TrimSpace(opts.CatalogPath); catalogPath != "" {
 		catalog, err = agents.LoadDefaultCatalog(catalogPath)
 	} else {

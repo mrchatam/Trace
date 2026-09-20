@@ -204,3 +204,33 @@ func TestSubagentHookDeclaredOnInstall(t *testing.T) {
 		t.Fatalf("with .cursor want AVAILABLE, got %q", hook2.Status)
 	}
 }
+
+// TestInstallAgentDefaultsReusesOpenStore covers #103: init holds the lock while
+// InstallAgentDefaults runs — must reuse opts.Store instead of a second Open.
+func TestInstallAgentDefaultsReusesOpenStore(t *testing.T) {
+	dir := openProjectDir(t)
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	opts := install.InstallOpts{
+		Write:       true,
+		ProjectRoot: dir,
+		Store:       st,
+		CatalogPath: bundledCatalogPath(t),
+		ErrOut:      os.Stderr,
+	}
+	if err := install.InstallAgentDefaults(opts); err != nil {
+		t.Fatalf("InstallAgentDefaults with open store: %v", err)
+	}
+	agents, err := st.ListHarnessAgents()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(agents) == 0 {
+		t.Fatal("want non-empty agents catalog after install with reused store")
+	}
+}
+
