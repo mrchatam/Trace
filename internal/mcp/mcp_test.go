@@ -1126,12 +1126,45 @@ func TestMCPAgentsList(t *testing.T) {
 		t.Fatalf("trace_agents list: %v", err)
 	}
 	text := mustText(t, res)
-	var items []map[string]any
-	if err := json.Unmarshal([]byte(text), &items); err != nil {
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
 		t.Fatalf("json: %v\n%s", err, text)
 	}
+	if env["ok"] != true {
+		t.Fatalf("want ok=true: %s", text)
+	}
+	items, _ := env["items"].([]any)
 	if len(items) != 6 {
 		t.Fatalf("want 6 agents, got %d: %s", len(items), text)
+	}
+	if _, hasHint := env["hint"]; hasHint {
+		t.Fatalf("non-empty catalog must omit hint: %s", text)
+	}
+}
+
+func TestMCPAgentsListEmptyHint(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
+	res, _, err := callAgents(srv, context.Background(), tracemcp.AgentsInput{Action: "list"})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	text := mustText(t, res)
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env["ok"] != true || env["count"] != float64(0) {
+		t.Fatalf("%s", text)
+	}
+	hint, _ := env["hint"].(string)
+	if hint == "" || !strings.Contains(hint, "trace install agents") {
+		t.Fatalf("want install hint, got %q", hint)
 	}
 }
 
