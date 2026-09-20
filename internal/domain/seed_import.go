@@ -18,8 +18,9 @@ type SeedImportSummary struct {
 	Findings            int                  `json:"findings"`
 	Alternatives        int                  `json:"alternatives"`
 	Transitions         int                  `json:"transitions"`
-	PromotionCandidates []PromotionCandidate `json:"promotion_candidates"`
-	PromotionHint       string               `json:"promotion_hint,omitempty"`
+	PromotionCandidates          []PromotionCandidate `json:"promotion_candidates"`
+	PromotionCandidatesTruncated bool                 `json:"promotion_candidates_truncated,omitempty"`
+	PromotionHint               string               `json:"promotion_hint,omitempty"`
 }
 
 // ImportSeedDocument idempotently imports seed JSON v1 (DF-81/83/84).
@@ -40,15 +41,17 @@ func (s *Service) ImportSeedDocument(ctx context.Context, doc SeedDocument) (See
 		summary.Alternatives = 0
 		summary.Transitions = 0
 		summary.PromotionCandidates = []PromotionCandidate{}
+		summary.PromotionCandidatesTruncated = false
 		summary.PromotionHint = ""
 		return summary, err
 	}
-	candidates, err := s.ListPromotionCandidates()
+	candidates, truncated, err := s.ListPromotionCandidatesLimited(DefaultPromotionCandidateLimit)
 	if err != nil {
 		summary.OK = false
 		return summary, err
 	}
 	summary.PromotionCandidates = candidates
+	summary.PromotionCandidatesTruncated = truncated
 	if len(candidates) > 0 {
 		summary.PromotionHint = SeedImportPromotionHint
 	}

@@ -128,7 +128,10 @@ func (s *Server) handleGetReview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-const defaultPlanListGoalLimit = 20
+const (
+	defaultPlanListGoalLimit = 20
+	maxPlanListGoalLimit     = 100 // plans are expensive (GetPlan per goal)
+)
 
 func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 	st, err := s.openStore()
@@ -159,6 +162,9 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		limit = n
+		if limit > maxPlanListGoalLimit {
+			limit = maxPlanListGoalLimit
+		}
 	}
 
 	// Fetch limit+1 so truncation is decided in SQL, not load-all-then-slice.

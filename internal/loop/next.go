@@ -58,7 +58,8 @@ type NextPacket struct {
 	Context                 ContextSection                 `json:"context"`
 	Related                 RelatedSection                 `json:"related"`
 	LoopHints               LoopHintsSection               `json:"loop_hints"`
-	PromotionCandidates     []PromotionCandidate           `json:"promotion_candidates"`
+	PromotionCandidates          []PromotionCandidate `json:"promotion_candidates"`
+	PromotionCandidatesTruncated bool                 `json:"promotion_candidates_truncated,omitempty"`
 	Deliberation            DeliberationSection            `json:"deliberation"`
 	OpenUncertainties       OpenUncertaintiesSection       `json:"open_uncertainties"`
 	VerificationDebt        VerificationDebtSection        `json:"verification_debt"`
@@ -228,7 +229,7 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 
 	dom := domain.New(in.Store)
 	seed := ApplySeed{TaskID: task.ID, GoalID: goalID}
-	promotionCandidates, err := buildPromotionCandidates(in.Store)
+	promotionCandidates, promoTruncated, err := buildPromotionCandidates(in.Store)
 	if err != nil {
 		return NextPacket{}, fmt.Errorf("loop next: promotion candidates: %w", err)
 	}
@@ -386,7 +387,8 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 			Snapshot:  contextPacket,
 		},
 		Related:                 related,
-		PromotionCandidates:     promotionCandidates,
+		PromotionCandidates:          promotionCandidates,
+		PromotionCandidatesTruncated: promoTruncated,
 		Deliberation:            delibSec,
 		OpenUncertainties:       openUnc,
 		VerificationDebt:        verifyDebt,
@@ -407,8 +409,8 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 	}, nil
 }
 
-func buildPromotionCandidates(st *store.Store) ([]PromotionCandidate, error) {
-	return domain.New(st).ListPromotionCandidates()
+func buildPromotionCandidates(st *store.Store) ([]PromotionCandidate, bool, error) {
+	return domain.New(st).ListPromotionCandidatesLimited(domain.DefaultPromotionCandidateLimit)
 }
 
 func buildRelatedSection(ctx context.Context, eng *retrieval.Engine, pkt compiler.Packet, upstream string, depth int) RelatedSection {
