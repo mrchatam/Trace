@@ -17,6 +17,11 @@ import (
 type IndexOptions struct {
 	// GitOID is passed through to UpsertFile when known (optional).
 	GitOID *string
+	// Force rebuilds even when stored content_hash matches (heals corrupt edges/FTS).
+	Force bool
+	// HashSkipped, when non-nil, is set true if Force is false and content_hash matched
+	// (extract/replace skipped). Callers use this to count hash_skipped separately from indexed.
+	HashSkipped *bool
 }
 
 const binaryProbeBytes = 8 * 1024
@@ -26,8 +31,8 @@ const binaryProbeBytes = 8 * 1024
 // classifies test symbols, writes outgoing code_edges (validates + contains_module +
 // exports_api + architectural_boundary) in one ReplaceFileEdges batch, and upserts incoming validates.
 //
-// When the stored content_hash already matches, extract/replace is skipped (true incremental
-// for empty-argv tree walks). All DB mutations for a changed file run in one WithTx so a
+// When the stored content_hash already matches and Force is false, extract/replace is skipped
+// (true incremental for empty-argv tree walks). Pass Force to rebuild corrupt edges/FTS. All DB mutations for a changed file run in one WithTx so a
 // crash between edge-clear and rewrite cannot leave empty outgoing edges.
 func IndexFile(ctx context.Context, st *store.Store, path string, content []byte, opts IndexOptions) error {
 	_ = ctx
@@ -46,11 +51,17 @@ func IndexFile(ctx context.Context, st *store.Store, path string, content []byte
 
 	contentHash := sha256Hex(content)
 	existing, err := st.GetFileByPath(path)
-	if err == nil && existing.ContentHash == contentHash {
+	if err == nil && existing.ContentHash == contentHash && !opts.Force {
+		if opts.HashSkipped != nil {
+			*opts.HashSkipped = true
+		}
 		return nil
 	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("analyzers: lookup file: %w", err)
+	}
+	if opts.HashSkipped != nil {
+		*opts.HashSkipped = false
 	}
 
 	symbols, imports, err := extract(lang, content)

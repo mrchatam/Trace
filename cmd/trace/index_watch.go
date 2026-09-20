@@ -111,7 +111,7 @@ func runIndexWatch(ctx context.Context, root string, args []string) int {
 		}
 		t := time.AfterFunc(*debounce, func() {
 			pending.Delete(absPath)
-			if err := indexOne(indexCtx, st, repo, abs, rel, normAbs); err != nil {
+			if _, err := indexOne(indexCtx, st, repo, abs, rel, normAbs, false); err != nil {
 				var skip *analyzers.SkipError
 				if errors.As(err, &skip) {
 					return

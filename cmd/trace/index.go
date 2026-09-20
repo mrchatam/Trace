@@ -23,6 +23,17 @@ func cmdIndex(root string, args []string, command string) int {
 	if len(args) > 0 && args[0] == "watch" {
 		return cmdIndexWatch(root, args[1:])
 	}
+	force := false
+	filtered := make([]string, 0, len(args))
+	for _, a := range args {
+		switch a {
+		case "--force", "-f":
+			force = true
+		default:
+			filtered = append(filtered, a)
+		}
+	}
+	args = filtered
 	abs, err := resolveRoot(root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "index: %v\n", err)
@@ -59,7 +70,7 @@ func cmdIndex(root string, args []string, command string) int {
 		}
 	}
 
-	var indexed, skipped, removed int
+	var indexed, hashSkipped, skipped, removed int
 	for _, p := range paths {
 		rel, absPath, err := normalizeProjectPath(abs, p)
 		if err != nil {
@@ -81,7 +92,8 @@ func cmdIndex(root string, args []string, command string) int {
 				continue
 			}
 		}
-		if err := indexOne(ctx, st, repo, abs, rel, absPath); err != nil {
+		wasHashSkip, err := indexOne(ctx, st, repo, abs, rel, absPath, force)
+		if err != nil {
 			var skip *analyzers.SkipError
 			if errors.As(err, &skip) {
 				skipped++
@@ -90,7 +102,11 @@ func cmdIndex(root string, args []string, command string) int {
 			fmt.Fprintf(os.Stderr, "index: %v\n", err)
 			return exitFail
 		}
-		indexed++
+		if wasHashSkip {
+			hashSkipped++
+		} else {
+			indexed++
+		}
 		// DF-40: after successful partial argv index, drop same-hash orphans missing on disk.
 		if !fullTree {
 			n, gerr := gcContentHashOrphans(st, abs, rel)
@@ -124,7 +140,7 @@ func cmdIndex(root string, args []string, command string) int {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "indexed %d, skipped %d, removed %d\n", indexed, skipped, removed)
+	fmt.Fprintf(os.Stderr, "indexed %d, hash_skipped %d, skipped %d, removed %d\n", indexed, hashSkipped, skipped, removed)
 	if repo != nil {
 		if err := updateGraphSyncWatermark(ctx, st, repo); err != nil {
 			fmt.Fprintf(os.Stderr, "index: graph sync watermark: %v\n", err)
@@ -163,26 +179,29 @@ func gcContentHashOrphans(st *store.Store, root, indexedRel string) (int, error)
 	return removed, nil
 }
 
-func indexOne(ctx context.Context, st *store.Store, repo vcs.Repository, root, rel, absPath string) error {
+func indexOne(ctx context.Context, st *store.Store, repo vcs.Repository, root, rel, absPath string, force bool) (hashSkipped bool, err error) {
+	var skipped bool
+	opts := analyzers.IndexOptions{Force: force, HashSkipped: &skipped}
 	if repo != nil {
-		head, err := repo.Head(ctx)
-		if err == nil {
-			err = analyzers.IndexFileAtRev(ctx, st, repo, head, rel, analyzers.IndexOptions{})
+		head, herr := repo.Head(ctx)
+		if herr == nil {
+			err = analyzers.IndexFileAtRev(ctx, st, repo, head, rel, opts)
 			if err == nil {
-				return nil
+				return skipped, nil
 			}
 			// Untracked / missing at HEAD → fall through to working-tree bytes.
 			// Other errors (SkipError, store failures, git failures) must not be masked.
 			if !errors.Is(err, vcs.ErrNotFound) {
-				return err
+				return false, err
 			}
 		}
 	}
 	content, err := os.ReadFile(absPath)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return analyzers.IndexFile(ctx, st, rel, content, analyzers.IndexOptions{})
+	err = analyzers.IndexFile(ctx, st, rel, content, opts)
+	return skipped, err
 }
 
 func normalizeProjectPath(root, p string) (rel, absPath string, err error) {
