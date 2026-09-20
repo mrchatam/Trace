@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mrchatam/Trace/internal/store"
@@ -40,6 +41,7 @@ type Server struct {
 	addr         string // host:port for Listen
 	host         string
 	allowRemote  bool
+	tokenMu      sync.RWMutex // guards token (+ requireToken reads in auth)
 	token        string
 	requireToken bool
 	staticDir    string
@@ -158,13 +160,20 @@ func (s *Server) Handler() http.Handler { return s.handler }
 func (s *Server) Addr() string { return s.addr }
 
 // Token returns the configured bearer token (may be empty on loopback-trust).
-func (s *Server) Token() string { return s.token }
+func (s *Server) Token() string {
+	s.tokenMu.RLock()
+	defer s.tokenMu.RUnlock()
+	return s.token
+}
 
 // SetToken updates the bearer token used by auth middleware (e.g. POST /v1/auth/token).
 // On loopback-trust servers (requireToken still false), minting stores the token for
 // clients that opt in with Authorization but does NOT flip requireToken — otherwise
-// a single unauthenticated POST /v1/auth/token bricks /v1/health and the GUI.
+// a single unauthenticated POST /v1/auth/token bricks /v1/health and the GUI (#72).
+// Concurrent with authMiddleware reads; guarded by tokenMu (#93).
 func (s *Server) SetToken(tok string) {
+	s.tokenMu.Lock()
+	defer s.tokenMu.Unlock()
 	s.token = tok
 }
 
