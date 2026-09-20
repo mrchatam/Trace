@@ -83,8 +83,7 @@ jobs:
           test -f internal/httpapi/embeddist/index.html
           CGO_ENABLED=1 go build -o /dev/null ./cmd/trace
 
-      - name: Assert embeddist tracked (no drift on main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Assert embeddist tracked (no drift)
         run: |
           git diff --exit-code internal/httpapi/embeddist/ || (
             echo "::error::embeddist out of date — run scripts/embed-gui.sh and commit"
