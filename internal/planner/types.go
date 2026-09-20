@@ -136,10 +136,10 @@ type SupersedeInput struct {
 
 // DeepPlanResult is the written revision plus resolved lookahead identity.
 type DeepPlanResult struct {
-	RevisionID       string
-	Document         DeepPlanDocument
-	SupersededCount  int64
-	LookaheadScopeID string
+	RevisionID       string           `json:"revision_id"`
+	Document         DeepPlanDocument `json:"document"`
+	SupersededCount  int64            `json:"superseded_count"`
+	LookaheadScopeID string           `json:"lookahead_scope_id"`
 }
 
 // PlanView is the GetPlan snapshot.
