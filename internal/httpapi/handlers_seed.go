@@ -35,7 +35,7 @@ func (s *Server) handleSeedStatus(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
+	_ = st // process-scoped; open proves store readiness
 	ready := true
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ready": ready,
@@ -69,7 +69,6 @@ func (s *Server) handleSeedExport(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	doc, err := domain.BuildSeedDocument(r.Context(), st, domain.ExportOpts{ProjectRoot: s.root})
 	if err != nil {
 		mapDomainErr(w, err)
@@ -132,7 +131,6 @@ func (s *Server) handleSeedImport(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	summary, err := domain.New(st).ImportSeedDocument(r.Context(), doc)
 	if err != nil {
 		mapDomainErr(w, err)

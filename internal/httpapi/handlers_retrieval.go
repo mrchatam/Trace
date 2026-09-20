@@ -34,7 +34,6 @@ func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	eng := retrieval.New(st)
 	if repo, rerr := gitcli.OpenWithStore(s.root, st); rerr == nil {
 		defer repo.Close()
@@ -95,7 +94,6 @@ func (s *Server) handleWhy(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	eng := retrieval.New(st)
 	if repo, rerr := gitcli.OpenWithStore(s.root, st); rerr == nil {
 		defer repo.Close()
@@ -137,7 +135,6 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	hits, err := retrieval.New(st).Search(r.Context(), q, retrieval.SearchOptions{Limit: limit})
 	if err != nil {
 		mapDomainErr(w, err)
@@ -173,7 +170,6 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	eng := retrieval.New(st)
 
 	if mode == "project" {
