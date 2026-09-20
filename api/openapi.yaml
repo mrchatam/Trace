@@ -1450,7 +1450,19 @@ components:
     WhyPacket:
       type: object
       additionalProperties: true
-      description: Bounded causal neighborhood (Law 6–7)
+      description: |
+        Bounded causal neighborhood (Law 6–7). Steps are hard-capped
+        (MaxWhySteps=32); when the graph has more, truncated=true.
+      properties:
+        truncated:
+          type: boolean
+          description: true when expand/events exceeded MaxWhySteps
+        steps:
+          type: array
+          maxItems: 32
+          items:
+            type: object
+            additionalProperties: true
 
     SearchResponse:
       type: object

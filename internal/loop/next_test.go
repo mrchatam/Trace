@@ -3,6 +3,7 @@ package loop_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/mrchatam/Trace/internal/compiler"
@@ -573,3 +574,41 @@ func TestNoRecommendationWhenCatalogEmpty(t *testing.T) {
 		t.Fatalf("items=%+v want []", sec.Items)
 	}
 }
+
+// TestLoopNextWhyTruncationHonesty covers #106: loop next must embed capped Why
+// with truncated=true when the expand neighborhood exceeds MaxWhySteps.
+func TestLoopNextWhyTruncationHonesty(t *testing.T) {
+	st, psvc, dsvc := openLoopTestStore(t)
+	ctx := context.Background()
+	_, taskID, _ := seedGoalTaskPlan(t, psvc, dsvc)
+
+	for i := 0; i < retrieval.MaxWhySteps+10; i++ {
+		d, err := dsvc.CreateDiscovery(ctx, domain.DiscoveryInput{Title: fmt.Sprintf("why-n-%02d", i)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := dsvc.LinkDiscoveryMentionsTask(ctx, d.ID, taskID, domain.LinkMeta{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	eng := retrieval.New(st)
+	pkt, err := loop.BuildNextPacket(ctx, loop.BuildNextInput{
+		TaskID:    taskID,
+		Store:     st,
+		Planner:   psvc,
+		Retrieval: eng,
+		Compiler:  compiler.New(st).WithRetrieval(eng),
+	})
+	if err != nil {
+		t.Fatalf("BuildNextPacket: %v", err)
+	}
+	steps := pkt.Why.Snapshot.Steps
+	if len(steps) > retrieval.MaxWhySteps {
+		t.Fatalf("why steps=%d want <= %d", len(steps), retrieval.MaxWhySteps)
+	}
+	if !pkt.Why.Snapshot.Truncated {
+		t.Fatal("why.snapshot.truncated must be true when expand exceeds MaxWhySteps")
+	}
+}
+

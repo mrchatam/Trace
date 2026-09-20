@@ -66,11 +66,16 @@ type SearchOptions struct {
 	Intent *IntentInput
 }
 
+// MaxWhySteps is the hard cap on Why explanation steps (seed + expand + events).
+// Aligned with other progressive list budgets (e.g. open-regressions limit 32).
+const MaxWhySteps = 32
+
 // WhyResult is the ordered causal explanation for an entity.
 type WhyResult struct {
 	SeedType  string    `json:"seed_type"`
 	SeedID    string    `json:"seed_id"`
 	Steps     []WhyStep `json:"steps"`
+	Truncated bool      `json:"truncated"`
 	Generated time.Time `json:"generated_at"`
 }
 
