@@ -45,7 +45,7 @@ func (e *Engine) Why(ctx context.Context, entityType, entityID string) (WhyResul
 		if h.EntityType == seed.EntityType && h.EntityID == seed.EntityID {
 			continue
 		}
-		res.Steps = append(res.Steps, WhyStep{
+		step := WhyStep{
 			EntityType:     h.EntityType,
 			EntityID:       h.EntityID,
 			Title:          h.Title,
@@ -53,7 +53,10 @@ func (e *Engine) Why(ctx context.Context, entityType, entityID string) (WhyResul
 			Detail:         "graph expand",
 			Distance:       h.Distance,
 			EdgeProvenance: h.EdgeProvenance,
-		})
+		}
+		if !appendWhyStep(&res, step) {
+			return res, nil
+		}
 	}
 
 	// Events on seed
@@ -67,28 +70,33 @@ func (e *Engine) Why(ctx context.Context, entityType, entityID string) (WhyResul
 		start = len(events) - 8
 	}
 	for _, ev := range events[start:] {
+		var step WhyStep
 		if ev.Type == domain.EventDeliberationTransition {
 			var payload deliberation.TransitionPayload
 			if err := json.Unmarshal([]byte(ev.PayloadJSON), &payload); err == nil {
-				res.Steps = append(res.Steps, WhyStep{
+				step = WhyStep{
 					EntityType: ev.EntityType,
 					EntityID:   ev.EntityID,
 					Title:      string(payload.ToPhase),
 					ReasonCode: ReasonDeliberationTransition,
 					Detail:     string(payload.ReasonCode),
 					Distance:   0,
-				})
-				continue
+				}
 			}
 		}
-		res.Steps = append(res.Steps, WhyStep{
-			EntityType: ev.EntityType,
-			EntityID:   ev.EntityID,
-			Title:      ev.Type,
-			ReasonCode: ReasonRecentEvent,
-			Detail:     excerpt(ev.PayloadJSON),
-			Distance:   0,
-		})
+		if step.ReasonCode == "" {
+			step = WhyStep{
+				EntityType: ev.EntityType,
+				EntityID:   ev.EntityID,
+				Title:      ev.Type,
+				ReasonCode: ReasonRecentEvent,
+				Detail:     excerpt(ev.PayloadJSON),
+				Distance:   0,
+			}
+		}
+		if !appendWhyStep(&res, step) {
+			return res, nil
+		}
 	}
 
 	// Optional VCS temporal note for file seeds / path-bearing hits
@@ -100,17 +108,38 @@ func (e *Engine) Why(ctx context.Context, entityType, entityID string) (WhyResul
 		if path != "" {
 			meta, err := e.vcs.LastChanged(ctx, path)
 			if err == nil && meta.OID != "" {
-				res.Steps = append(res.Steps, WhyStep{
+				step := WhyStep{
 					EntityType: "commit",
 					EntityID:   meta.OID,
 					Title:      meta.Subject,
 					ReasonCode: ReasonHistoricalVCS,
 					Detail:     "LastChanged ref only",
 					Distance:   0,
-				})
+				}
+				if !appendWhyStep(&res, step) {
+					return res, nil
+				}
 			}
 		}
 	}
 
 	return res, nil
+}
+
+// appendWhyStep adds step when under MaxWhySteps. On overflow sets Truncated and
+// returns false so callers stop expanding (honesty over silent drop mid-chain).
+func appendWhyStep(res *WhyResult, step WhyStep) bool {
+	if len(res.Steps) >= MaxWhySteps {
+		res.Truncated = true
+		return false
+	}
+	res.Steps = append(res.Steps, step)
+	if len(res.Steps) >= MaxWhySteps {
+		// Cap reached exactly; further appends would truncate.
+		// Leave Truncated=false unless there is known remainder — callers that
+		// stop because Expand/events may still have more should set via false return
+		// on the *next* attempted append. If this was the last candidate, Truncated
+		// stays false (honest: nothing dropped).
+	}
+	return true
 }
