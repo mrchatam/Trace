@@ -48,18 +48,31 @@ func (s *Service) ApplyDeliberationTransition(ctx context.Context, taskID, goalI
 	}
 
 	next, payload := deliberation.ApplyTransition(dState, inputs)
-	if _, err := s.store.UpsertDeliberationState(storeFromDeliberation(next)); err != nil {
-		return deliberation.State{}, store.Event{}, err
-	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return deliberation.State{}, store.Event{}, err
 	}
-	ev, err := s.store.AppendEvent(store.Event{
-		Type:        EventDeliberationTransition,
-		EntityType:  EntityTask,
-		EntityID:    taskID,
-		PayloadJSON: string(raw),
+	var ev store.Event
+	err = s.store.WithTx(func(stx *store.Store) error {
+		if _, err := stx.UpsertDeliberationState(storeFromDeliberation(next)); err != nil {
+			return err
+		}
+		if s.afterDeliberationUpsertHook != nil {
+			if err := s.afterDeliberationUpsertHook(); err != nil {
+				return err
+			}
+		}
+		e, err := stx.AppendEvent(store.Event{
+			Type:        EventDeliberationTransition,
+			EntityType:  EntityTask,
+			EntityID:    taskID,
+			PayloadJSON: string(raw),
+		})
+		if err != nil {
+			return err
+		}
+		ev = e
+		return nil
 	})
 	if err != nil {
 		return deliberation.State{}, store.Event{}, err

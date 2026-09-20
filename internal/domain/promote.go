@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 // PromotionCandidate is a BLOCKING discovery with no discovery_mentions_task link.
@@ -120,16 +122,32 @@ func (s *Service) PromoteBlockingDiscovery(ctx context.Context, discoveryID, goa
 		return "", false, &ErrValidation{Msg: "goal_id is required when discovery is not yet linked"}
 	}
 
-	task, inserted, err := s.ImportSeedTask(ctx, SeedTask{
-		ID:     disc.ID,
-		GoalID: goalID,
-		Title:  strings.TrimSpace(disc.Title),
-	}, &goalID)
+	var taskIDOut string
+	var insertedOut bool
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		task, inserted, err := tx.ImportSeedTask(ctx, SeedTask{
+			ID:     disc.ID,
+			GoalID: goalID,
+			Title:  strings.TrimSpace(disc.Title),
+		}, &goalID)
+		if err != nil {
+			return err
+		}
+		if tx.afterPromoteTaskHook != nil {
+			if err := tx.afterPromoteTaskHook(); err != nil {
+				return err
+			}
+		}
+		if err := tx.LinkDiscoveryMentionsTask(ctx, disc.ID, task.ID, LinkMeta{}); err != nil {
+			return err
+		}
+		taskIDOut = task.ID
+		insertedOut = inserted
+		return nil
+	})
 	if err != nil {
 		return "", false, err
 	}
-	if err := s.LinkDiscoveryMentionsTask(ctx, disc.ID, task.ID, LinkMeta{}); err != nil {
-		return "", false, err
-	}
-	return task.ID, inserted, nil
+	return taskIDOut, insertedOut, nil
 }
