@@ -26,14 +26,13 @@ The module is **not** published to the Go module proxy yet, so `go install …@l
 git clone https://github.com/mrchatam/Trace.git
 cd Trace
 CGO_ENABLED=1 go build -o bin/trace ./cmd/trace
-CGO_ENABLED=0 go build -o bin/trace-mcp ./cmd/trace-mcp
+CGO_ENABLED=1 go build -o bin/trace-mcp ./cmd/trace-mcp
 cp -f bin/trace bin/trace-mcp ~/.local/bin/   # or any dir on PATH
 ./bin/trace version
 ```
 
-- Full `trace` binary needs **`CGO_ENABLED=1`**.
-- `trace-mcp` builds with **`CGO_ENABLED=0`** in typical environments.
-- Library packages that do not import analyzers remain usable with `CGO_ENABLED=0`.
+- Both `trace` and `trace-mcp` need **`CGO_ENABLED=1`** on tip (tree-sitter / analyzers). `CGO_ENABLED=0` fails to link language bindings.
+- Some library packages that do not import analyzers remain usable with `CGO_ENABLED=0`.
 - No GitHub Releases yet — use the build above. See also [`docs/gui-quickstart.md`](docs/gui-quickstart.md) for PATH notes.
 
 `trace install …` configures agent/MCP/hook snippets; it does **not** put binaries on PATH.
