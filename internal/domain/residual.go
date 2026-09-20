@@ -82,7 +82,7 @@ func (s *Service) AddResidual(ctx context.Context, reviewID string, in ResidualI
 	})
 }
 
-// SetResidualStatus updates residual status. Actor+Reason required.
+// SetResidualStatus updates residual status and appends residual.status atomically. Actor+Reason required.
 func (s *Service) SetResidualStatus(ctx context.Context, residualID, status string, opts ResidualStatusOptions) error {
 	_ = ctx
 	if residualID == "" {
@@ -103,9 +103,6 @@ func (s *Service) SetResidualStatus(ctx context.Context, residualID, status stri
 	if err != nil {
 		return err
 	}
-	if err := s.store.UpdateReviewResidualStatus(residualID, st); err != nil {
-		return err
-	}
 	payload, _ := json.Marshal(map[string]string{
 		"status": st,
 		"actor":  opts.Actor,
@@ -113,13 +110,23 @@ func (s *Service) SetResidualStatus(ctx context.Context, residualID, status stri
 		"code":   r.Code,
 		"review": r.ReviewID,
 	})
-	_, err = s.store.AppendEvent(store.Event{
-		Type:        "residual.status",
-		EntityType:  EntityReview,
-		EntityID:    r.ReviewID,
-		PayloadJSON: string(payload),
+	return s.store.WithTx(func(stx *store.Store) error {
+		if err := stx.UpdateReviewResidualStatus(residualID, st); err != nil {
+			return err
+		}
+		if s.afterResidualMutateHook != nil {
+			if err := s.afterResidualMutateHook(); err != nil {
+				return err
+			}
+		}
+		_, err := stx.AppendEvent(store.Event{
+			Type:        "residual.status",
+			EntityType:  EntityReview,
+			EntityID:    r.ReviewID,
+			PayloadJSON: string(payload),
+		})
+		return err
 	})
-	return err
 }
 
 // ListResidualsByReview returns residuals for a review.

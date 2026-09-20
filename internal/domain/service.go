@@ -151,6 +151,10 @@ type Service struct {
 	afterDeliberationUpsertHook func() error
 	afterHarnessDeleteHook      func() error
 	afterMarkStaleUpsertHook    func() error
+	// Round 5 (#117): Create*/Link*/SetResidualStatus mid-path crash hooks.
+	afterCreateMutateHook   func() error
+	afterLinkMutateHook     func() error
+	afterResidualMutateHook func() error
 }
 
 // New constructs a domain Service. st must be non-nil and already opened.
@@ -172,6 +176,9 @@ func (s *Service) withStore(st *store.Store) *Service {
 		afterDeliberationUpsertHook: s.afterDeliberationUpsertHook,
 		afterHarnessDeleteHook:      s.afterHarnessDeleteHook,
 		afterMarkStaleUpsertHook:    s.afterMarkStaleUpsertHook,
+		afterCreateMutateHook:       s.afterCreateMutateHook,
+		afterLinkMutateHook:         s.afterLinkMutateHook,
+		afterResidualMutateHook:     s.afterResidualMutateHook,
 	}
 }
 

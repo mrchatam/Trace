@@ -39,12 +39,20 @@ func (s *Service) LinkGoalTask(ctx context.Context, goalID, taskID string, meta 
 	}
 	gid := goalID
 	task.GoalID = &gid
-	if _, err := s.store.UpsertTask(task); err != nil {
-		return err
-	}
 	meta = meta.withDefaults()
 	_ = meta // provenance for Goal→Task is on the task row; event records the link
-	return s.appendLinked(EntityGoal, goalID, RelGoalHasTaskEvent, EntityTask, taskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.UpsertTask(task); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityGoal, goalID, RelGoalHasTaskEvent, EntityTask, taskID, meta)
+	})
 }
 
 // LinkDecisionTask inserts entity_links rel=decision_affects_task and appends entity.linked.
@@ -60,18 +68,26 @@ func (s *Service) LinkDecisionTask(ctx context.Context, decisionID, taskID strin
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityDecision,
-		FromID:     decisionID,
-		Rel:        RelDecisionAffectsTask,
-		ToType:     EntityTask,
-		ToID:       taskID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityDecision, decisionID, RelDecisionAffectsTask, EntityTask, taskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityDecision,
+			FromID:     decisionID,
+			Rel:        RelDecisionAffectsTask,
+			ToType:     EntityTask,
+			ToID:       taskID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityDecision, decisionID, RelDecisionAffectsTask, EntityTask, taskID, meta)
+	})
 }
 
 // LinkDiscoveryMentionsTask inserts entity_links rel=discovery_mentions_task (DF-42).
@@ -88,18 +104,26 @@ func (s *Service) LinkDiscoveryMentionsTask(ctx context.Context, discoveryID, ta
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityDiscovery,
-		FromID:     discoveryID,
-		Rel:        RelDiscoveryMentionsTask,
-		ToType:     EntityTask,
-		ToID:       taskID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityDiscovery, discoveryID, RelDiscoveryMentionsTask, EntityTask, taskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityDiscovery,
+			FromID:     discoveryID,
+			Rel:        RelDiscoveryMentionsTask,
+			ToType:     EntityTask,
+			ToID:       taskID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityDiscovery, discoveryID, RelDiscoveryMentionsTask, EntityTask, taskID, meta)
+	})
 }
 
 // LinkDiscoveryPlanChange inserts entity_links rel=discovery_causes_plan_change.
@@ -115,18 +139,26 @@ func (s *Service) LinkDiscoveryPlanChange(ctx context.Context, discoveryID, plan
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityDiscovery,
-		FromID:     discoveryID,
-		Rel:        RelDiscoveryCausesPlanChange,
-		ToType:     EntityPlanChange,
-		ToID:       planChangeID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityDiscovery, discoveryID, RelDiscoveryCausesPlanChange, EntityPlanChange, planChangeID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityDiscovery,
+			FromID:     discoveryID,
+			Rel:        RelDiscoveryCausesPlanChange,
+			ToType:     EntityPlanChange,
+			ToID:       planChangeID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityDiscovery, discoveryID, RelDiscoveryCausesPlanChange, EntityPlanChange, planChangeID, meta)
+	})
 }
 
 // ListLinksFrom returns entity_links from an entity.
