@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/mrchatam/Trace/internal/buildmeta"
 )
 
 const (
 	serverName          = "trace"
-	serverVersion       = "0.0.0-dev"
 	traceAddDescription = "Create a domain entity (discovery|task|goal|decision|assumption|plan-change|claim|evidence). Prefer the task/promotion path over discovery-only edits: after a BLOCKING discovery, promote with trace_add kind=task or loop apply spawned_tasks with discovery_id before product edits — do not discovery-only then edit. Mirrors `trace add`."
 )
 
@@ -30,7 +31,7 @@ func NewServer(opts Options) *Server {
 	s := &Server{defaultRoot: opts.ProjectRoot}
 	s.mcp = sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    serverName,
-		Version: serverVersion,
+		Version: buildmeta.String(),
 	}, &sdkmcp.ServerOptions{
 		Instructions: ServerInstructions(),
 	})
