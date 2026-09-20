@@ -227,6 +227,44 @@ func (s *Store) ListFilePaths() ([]string, error) {
 	return out, rows.Err()
 }
 
+// ListFilePathsInDir returns indexed paths whose parent directory equals dir
+// (repo-relative, normalized). Empty dir means repository root (no slash in path).
+// Does not return nested paths under subdirectories of dir.
+func (s *Store) ListFilePathsInDir(dir string) ([]string, error) {
+	dir = NormalizePath(dir)
+	if dir == "." {
+		dir = ""
+	}
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if dir == "" {
+		rows, err = s.db.Query(`SELECT path FROM files WHERE instr(path, '/') = 0 ORDER BY path ASC`)
+	} else {
+		// GLOB: one path segment under dir only (no nested dirs).
+		rows, err = s.db.Query(`
+			SELECT path FROM files
+			WHERE path GLOB ? AND NOT path GLOB ?
+			ORDER BY path ASC
+		`, dir+"/*", dir+"/*/*")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("store: list file paths in dir: %w", err)
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("store: scan file path in dir: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 // ListFilePathsByContentHash returns paths with the given content_hash, ordered by path.
 func (s *Store) ListFilePathsByContentHash(hash string) ([]string, error) {
 	if hash == "" {

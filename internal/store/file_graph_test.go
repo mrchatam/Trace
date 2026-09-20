@@ -329,3 +329,44 @@ func TestReplaceFileSymbolsCollapsesIncomingWhenSymbolDropped(t *testing.T) {
 		t.Fatalf("collapsed edge: %+v", edges[0])
 	}
 }
+
+func TestListFilePathsInDir(t *testing.T) {
+	s, _ := openTempStore(t)
+	if _, err := s.UpsertFile("a.go", "h1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertFile("pkg/b.go", "h2", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertFile("pkg/c.go", "h3", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertFile("pkg/sub/d.go", "h4", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertFile("other/e.go", "h5", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	root, err := s.ListFilePathsInDir("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(root) != 1 || root[0] != "a.go" {
+		t.Fatalf("root: %v", root)
+	}
+	pkg, err := s.ListFilePathsInDir("pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkg) != 2 || pkg[0] != "pkg/b.go" || pkg[1] != "pkg/c.go" {
+		t.Fatalf("pkg: %v", pkg)
+	}
+	sub, err := s.ListFilePathsInDir("pkg/sub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sub) != 1 || sub[0] != "pkg/sub/d.go" {
+		t.Fatalf("sub: %v", sub)
+	}
+}
