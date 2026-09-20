@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/mrchatam/Trace/internal/buildmeta"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -11,12 +13,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":            true,
-		"name":          "trace",
+	writeJSON(w, http.StatusOK, buildmeta.Payload(map[string]any{
 		"api_version":   APIVersion,
-		"trace_version": TraceVersion,
-	})
+		"trace_version": buildmeta.String(),
+	}))
 }
 
 func (s *Server) handleProject(w http.ResponseWriter, r *http.Request) {

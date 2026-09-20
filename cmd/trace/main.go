@@ -3,9 +3,12 @@ package main
 
 import (
 	"os"
+
+	"github.com/mrchatam/Trace/internal/buildmeta"
 )
 
-const version = "0.0.0-dev"
+// version mirrors buildmeta for CLI `trace version` (ldflags-compatible via buildmeta.Version).
+var version = buildmeta.String()
 
 const (
 	exitOK    = 0

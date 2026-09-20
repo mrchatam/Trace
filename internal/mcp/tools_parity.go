@@ -8,6 +8,7 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/mrchatam/Trace/internal/buildmeta"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/store"
 )
@@ -309,9 +310,7 @@ func (s *Server) toolVersion(ctx context.Context, _ *sdkmcp.CallToolRequest, _ V
 	if err := assertMCPToolAllowed(ctx, st, "trace_version"); err != nil {
 		return nil, nil, err
 	}
-	b, err := json.Marshal(map[string]any{
-		"ok": true, "name": serverName, "version": serverVersion,
-	})
+	b, err := json.Marshal(buildmeta.Payload(nil))
 	if err != nil {
 		return nil, nil, err
 	}

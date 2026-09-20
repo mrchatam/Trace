@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mrchatam/Trace/internal/buildmeta"
 	"github.com/mrchatam/Trace/internal/store"
 )
 
-const (
-	APIVersion   = "1.0.0"
-	TraceVersion = "0.0.0-dev"
-)
+const APIVersion = "1.0.0"
+
+// TraceVersion reports process identity (ldflags / VCS). Prefer buildmeta.String().
+var TraceVersion = buildmeta.String()
 
 // Options configures the HTTP adapter.
 type Options struct {
