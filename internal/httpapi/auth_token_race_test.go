@@ -23,6 +23,7 @@ func TestSetTokenConcurrentWithAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	t.Cleanup(srv.CloseStore)
 	h := srv.Handler()
 
 	var wg sync.WaitGroup
@@ -68,6 +69,7 @@ func TestSetTokenDoesNotFlipRequireTokenOnLoopbackTrust(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(srv.CloseStore)
 	h := srv.Handler()
 	srv.SetToken("minted")
 	rr := httptest.NewRecorder()
