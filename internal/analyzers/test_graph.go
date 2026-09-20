@@ -117,14 +117,11 @@ func upsertIncomingValidates(st *store.Store, targetPath string) error {
 	if err != nil {
 		return err
 	}
-	paths, err := st.ListFilePaths()
+	paths, err := candidateTestPathsForIncomingValidates(st, targetPath, tf.ID)
 	if err != nil {
-		return fmt.Errorf("analyzers: list files for incoming validates: %w", err)
+		return err
 	}
 	for _, p := range paths {
-		if p == targetPath || !isTestFile(p) {
-			continue
-		}
 		edges, err := computeValidatesEdges(st, p, "")
 		if err != nil {
 			return err
@@ -143,6 +140,85 @@ func upsertIncomingValidates(st *store.Store, targetPath string) error {
 		}
 	}
 	return nil
+}
+
+// candidateTestPathsForIncomingValidates returns a bounded set of already-indexed
+// test files that may emit validates edges into targetPath: same directory,
+// sibling __tests__/ (JS/TS layout), and from-files of existing reverse validates.
+// Avoids O(|files|) scans on every IndexFile while preserving package-local correctness.
+func candidateTestPathsForIncomingValidates(st *store.Store, targetPath, targetFileID string) ([]string, error) {
+	targetPath = store.NormalizePath(targetPath)
+	seen := map[string]bool{}
+	var out []string
+	add := func(p string) {
+		p = store.NormalizePath(p)
+		if p == "" || p == targetPath || seen[p] || !isTestFile(p) {
+			return
+		}
+		if _, err := st.GetFileByPath(p); err != nil {
+			return
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+
+	dir := path.Dir(targetPath)
+	if dir == "." {
+		dir = ""
+	}
+	sameDir, err := st.ListFilePathsInDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("analyzers: list dir for incoming validates: %w", err)
+	}
+	for _, p := range sameDir {
+		add(p)
+	}
+
+	// JS/TS: tests often live under sibling __tests__/ next to the source file.
+	testsDir := path.Join(dir, "__tests__")
+	if dir == "" {
+		testsDir = "__tests__"
+	}
+	underTests, err := st.ListFilePathsInDir(testsDir)
+	if err != nil {
+		return nil, fmt.Errorf("analyzers: list __tests__ for incoming validates: %w", err)
+	}
+	for _, p := range underTests {
+		add(p)
+	}
+
+	// When the target itself is under __tests__, also consider sibling source-dir tests
+	// (unusual for validates *into* a test file, but keeps reverse refresh local).
+	if path.Base(dir) == "__tests__" {
+		parent := path.Dir(dir)
+		if parent == "." {
+			parent = ""
+		}
+		parentPaths, err := st.ListFilePathsInDir(parent)
+		if err != nil {
+			return nil, fmt.Errorf("analyzers: list parent dir for incoming validates: %w", err)
+		}
+		for _, p := range parentPaths {
+			add(p)
+		}
+	}
+
+	// Existing reverse validates: refresh even if the from-file is outside the heuristic dirs.
+	if targetFileID != "" {
+		rev, err := st.ListValidatesForFile(targetFileID)
+		if err != nil {
+			return nil, fmt.Errorf("analyzers: list reverse validates: %w", err)
+		}
+		for _, e := range rev {
+			fr, err := st.GetFileByID(e.FromFileID)
+			if err != nil {
+				continue
+			}
+			add(fr.Path)
+		}
+	}
+
+	return out, nil
 }
 
 func computeValidatesEdges(st *store.Store, testPath, goPkg string) ([]store.CodeEdge, error) {
@@ -298,15 +374,15 @@ func goPackageSiblings(st *store.Store, fromPath, imported string) []string {
 	if last == "" || last != path.Base(dir) {
 		return nil
 	}
-	paths, err := st.ListFilePaths()
+	if dir == "." {
+		dir = ""
+	}
+	paths, err := st.ListFilePathsInDir(dir)
 	if err != nil {
 		return nil
 	}
 	var out []string
 	for _, p := range paths {
-		if path.Dir(p) != dir {
-			continue
-		}
 		if strings.HasSuffix(p, "_test.go") || !strings.HasSuffix(p, ".go") {
 			continue
 		}
@@ -320,7 +396,10 @@ func goPackageSiblings(st *store.Store, fromPath, imported string) []string {
 // (strip Test / Benchmark / Example / Fuzz).
 func inferredGoNamePrefix(st *store.Store, testPath string, testFile store.FileRecord, testSyms []store.Symbol) []store.CodeEdge {
 	dir := path.Dir(testPath)
-	paths, err := st.ListFilePaths()
+	if dir == "." {
+		dir = ""
+	}
+	paths, err := st.ListFilePathsInDir(dir)
 	if err != nil {
 		return nil
 	}
@@ -330,7 +409,7 @@ func inferredGoNamePrefix(st *store.Store, testPath string, testFile store.FileR
 	}
 	var siblings []hit
 	for _, p := range paths {
-		if p == testPath || path.Dir(p) != dir {
+		if p == testPath {
 			continue
 		}
 		if strings.HasSuffix(p, "_test.go") || !strings.HasSuffix(p, ".go") {
