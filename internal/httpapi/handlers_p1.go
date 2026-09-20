@@ -369,7 +369,11 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 		if items == nil {
 			items = []agents.AgentListItem{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		out := map[string]any{"ok": true, "items": items, "count": len(items)}
+		if len(items) == 0 {
+			out["hint"] = agents.EmptyCatalogHint
+		}
+		writeJSON(w, http.StatusOK, out)
 	case "recommend":
 		taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 		phase := strings.TrimSpace(r.URL.Query().Get("phase"))

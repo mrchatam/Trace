@@ -36,6 +36,9 @@ type AgentDescribe struct {
 	UpdatedAt          string   `json:"updated_at"`
 }
 
+// EmptyCatalogHint is returned when list finds zero harness agents (opt-in seed).
+const EmptyCatalogHint = "Catalog empty — run: trace install agents (or trace init --with-agent-defaults)"
+
 // ListAgentSummaries returns catalog rows ordered by slug (empty catalog → []).
 func ListAgentSummaries(ctx context.Context, st *store.Store) ([]AgentListItem, error) {
 	_ = ctx

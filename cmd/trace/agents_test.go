@@ -116,3 +116,17 @@ func TestHelpIncludesAgents(t *testing.T) {
 		}
 	}
 }
+
+func TestCLIAgentsListEmptyHint(t *testing.T) {
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+	code, _, stderr := runCapture(t, []string{"-C", dir, "agents", "list"})
+	if code != exitOK {
+		t.Fatalf("list: %d stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stderr, "trace install agents") {
+		t.Fatalf("stderr want install hint, got %q", stderr)
+	}
+}

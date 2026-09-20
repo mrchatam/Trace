@@ -53,7 +53,14 @@ func (s *Server) agentsList(ctx context.Context, st *store.Store) (*sdkmcp.CallT
 	if err != nil {
 		return nil, nil, fmt.Errorf("trace_agents list: %w", err)
 	}
-	b, err := json.Marshal(items)
+	if items == nil {
+		items = []agents.AgentListItem{}
+	}
+	out := map[string]any{"ok": true, "items": items, "count": len(items)}
+	if len(items) == 0 {
+		out["hint"] = agents.EmptyCatalogHint
+	}
+	b, err := json.Marshal(out)
 	if err != nil {
 		return nil, nil, err
 	}
