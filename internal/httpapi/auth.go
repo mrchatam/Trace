@@ -59,12 +59,16 @@ func tokenEqual(a, b string) bool {
 // authMiddleware enforces bearer when requireToken is true.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.requireToken {
+		s.tokenMu.RLock()
+		require := s.requireToken
+		tok := s.token
+		s.tokenMu.RUnlock()
+		if !require {
 			next.ServeHTTP(w, r)
 			return
 		}
 		got := bearerToken(r)
-		if !tokenEqual(got, s.token) {
+		if !tokenEqual(got, tok) {
 			writeEnvelope(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing or invalid bearer token", nil)
 			return
 		}
