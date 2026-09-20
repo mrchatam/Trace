@@ -23,6 +23,7 @@ func TestAuthTokenMintDoesNotLockOutHealth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
+	t.Cleanup(srv.CloseStore)
 	h := srv.Handler()
 
 	rr := httptest.NewRecorder()

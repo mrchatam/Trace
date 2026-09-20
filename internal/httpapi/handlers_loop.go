@@ -38,7 +38,6 @@ func (s *Server) handleLoopStatus(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	res, err := loop.Status(r.Context(), st, planner.New(st), loop.ApplySeed{TaskID: taskID, GoalID: goalID})
 	if err != nil {
 		mapDomainErr(w, err)
@@ -58,7 +57,6 @@ func (s *Server) handleLoopNext(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	eng := retrieval.New(st)
 	if repo, rerr := gitcli.OpenWithStore(s.root, st); rerr == nil {
 		defer repo.Close()
@@ -92,7 +90,6 @@ func (s *Server) handleLoopApply(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	res, err := loop.Apply(r.Context(), st, planner.New(st), env)
 	if err != nil {
 		mapDomainErr(w, err)
@@ -121,7 +118,6 @@ func (s *Server) handleLoopGate(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	allowed, violations, err := loop.EvaluateGate(r.Context(), domain.New(st), planner.New(st), st, taskID, gf)
 	if err != nil {
 		mapDomainErr(w, err)
@@ -178,7 +174,6 @@ func (s *Server) handleLoopReset(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	next, err := domain.New(st).ResetDeliberationState(r.Context(), body.TaskID)
 	if err != nil {
 		mapDomainErr(w, err)
