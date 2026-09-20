@@ -3,11 +3,13 @@ package analyzers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
@@ -1380,4 +1382,84 @@ func edgeTargetNamesKinds(t *testing.T, st *store.Store, edges []store.CodeEdge)
 	}
 	sort.Strings(out)
 	return out
+}
+
+
+func TestIndexFileSkipsUnchangedContentHash(t *testing.T) {
+	st := openTemp(t)
+	ctx := context.Background()
+	content := []byte("package p\n\nfunc Hello() {}\n")
+	if err := IndexFile(ctx, st, "pkg/hello.go", content, IndexOptions{}); err != nil {
+		t.Fatalf("IndexFile: %v", err)
+	}
+	before, err := st.GetFileByPath("pkg/hello.go")
+	if err != nil {
+		t.Fatalf("GetFileByPath: %v", err)
+	}
+	symsBefore, err := st.ListSymbolsByPath("pkg/hello.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond) // indexed_at is second-resolution RFC3339
+	if err := IndexFile(ctx, st, "pkg/hello.go", content, IndexOptions{}); err != nil {
+		t.Fatalf("IndexFile skip path: %v", err)
+	}
+	after, err := st.GetFileByPath("pkg/hello.go")
+	if err != nil {
+		t.Fatalf("GetFileByPath after: %v", err)
+	}
+	if after.IndexedAt != before.IndexedAt {
+		t.Fatalf("indexed_at advanced on unchanged hash: before=%q after=%q", before.IndexedAt, after.IndexedAt)
+	}
+	if after.ContentHash != before.ContentHash {
+		t.Fatalf("content_hash changed: before=%q after=%q", before.ContentHash, after.ContentHash)
+	}
+	symsAfter, err := st.ListSymbolsByPath("pkg/hello.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(symsAfter) != len(symsBefore) {
+		t.Fatalf("symbols changed on skip: before %d after %d", len(symsBefore), len(symsAfter))
+	}
+}
+
+func TestIndexFileMutationsUseSingleTxn(t *testing.T) {
+	// Contract: edge-clear + rewrite share one WithTx so injected failure after
+	// clear rolls back and outgoing edges remain.
+	st := openTemp(t)
+	ctx := context.Background()
+	content := []byte("package p\n\nfunc Hello() {}\n")
+	if err := IndexFile(ctx, st, "pkg/hello.go", content, IndexOptions{}); err != nil {
+		t.Fatalf("IndexFile: %v", err)
+	}
+	before, err := st.ListEdgesByFile("pkg/hello.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) == 0 {
+		t.Fatal("expected at least one outgoing edge after index")
+	}
+	err = st.WithTx(func(stx *store.Store) error {
+		if err := stx.ReplaceFileEdges("pkg/hello.go", nil); err != nil {
+			return err
+		}
+		cleared, err := stx.ListEdgesByFile("pkg/hello.go")
+		if err != nil {
+			return err
+		}
+		if len(cleared) != 0 {
+			return fmt.Errorf("expected empty edges mid-tx, got %d", len(cleared))
+		}
+		return fmt.Errorf("injected fail after edge clear")
+	})
+	if err == nil {
+		t.Fatal("expected injected error")
+	}
+	after, err := st.ListEdgesByFile("pkg/hello.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("edges not rolled back: before %d after %d", len(before), len(after))
+	}
 }

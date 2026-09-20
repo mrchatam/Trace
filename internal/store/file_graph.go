@@ -295,23 +295,18 @@ func (s *Store) ReplaceFileSymbols(path string, symbols []Symbol) error {
 		return err
 	}
 
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("store: begin replace symbols: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Upsert first (deterministic ids). A blanket DELETE would ON DELETE SET NULL
-	// every incoming to_symbol_id; two incoming validates from the same file then
-	// collide on idx_code_edges_unique (NULL to_symbol_id collapses).
-	keep := make([]string, 0, len(symbols))
-	for _, sym := range symbols {
-		id := sym.ID
-		if id == "" {
-			id = DeterministicSymbolID(f.ID, sym.Name, sym.Kind, sym.StartLine)
-		}
-		keep = append(keep, id)
-		if _, err := tx.Exec(`
+	err = s.runInTx(func(tx *sql.Tx) error {
+		// Upsert first (deterministic ids). A blanket DELETE would ON DELETE SET NULL
+		// every incoming to_symbol_id; two incoming validates from the same file then
+		// collide on idx_code_edges_unique (NULL to_symbol_id collapses).
+		keep := make([]string, 0, len(symbols))
+		for _, sym := range symbols {
+			id := sym.ID
+			if id == "" {
+				id = DeterministicSymbolID(f.ID, sym.Name, sym.Kind, sym.StartLine)
+			}
+			keep = append(keep, id)
+			if _, err := tx.Exec(`
 			INSERT INTO symbols(id, file_id, name, kind, start_line, end_line)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
@@ -321,36 +316,37 @@ func (s *Store) ReplaceFileSymbols(path string, symbols []Symbol) error {
 				start_line = excluded.start_line,
 				end_line = excluded.end_line
 		`, id, f.ID, sym.Name, sym.Kind, sym.StartLine, sym.EndLine); err != nil {
-			return fmt.Errorf("store: insert symbol: %w", err)
+				return fmt.Errorf("store: insert symbol: %w", err)
+			}
 		}
-	}
 
-	leftover, err := leftoverSymbolIDs(tx, f.ID, keep)
+		leftover, err := leftoverSymbolIDs(tx, f.ID, keep)
+		if err != nil {
+			return err
+		}
+		if err := collapseEdgesTargetingSymbols(tx, leftover); err != nil {
+			return err
+		}
+
+		if len(keep) == 0 {
+			if _, err := tx.Exec(`DELETE FROM symbols WHERE file_id = ?`, f.ID); err != nil {
+				return fmt.Errorf("store: delete symbols for file: %w", err)
+			}
+		} else if len(leftover) > 0 {
+			args := make([]any, 0, 1+len(keep))
+			args = append(args, f.ID)
+			for _, id := range keep {
+				args = append(args, id)
+			}
+			q := `DELETE FROM symbols WHERE file_id = ? AND id NOT IN (` + sqlPlaceholders(len(keep)) + `)`
+			if _, err := tx.Exec(q, args...); err != nil {
+				return fmt.Errorf("store: delete leftover symbols: %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-	if err := collapseEdgesTargetingSymbols(tx, leftover); err != nil {
-		return err
-	}
-
-	if len(keep) == 0 {
-		if _, err := tx.Exec(`DELETE FROM symbols WHERE file_id = ?`, f.ID); err != nil {
-			return fmt.Errorf("store: delete symbols for file: %w", err)
-		}
-	} else if len(leftover) > 0 {
-		args := make([]any, 0, 1+len(keep))
-		args = append(args, f.ID)
-		for _, id := range keep {
-			args = append(args, id)
-		}
-		q := `DELETE FROM symbols WHERE file_id = ? AND id NOT IN (` + sqlPlaceholders(len(keep)) + `)`
-		if _, err := tx.Exec(q, args...); err != nil {
-			return fmt.Errorf("store: delete leftover symbols: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit replace symbols: %w", err)
 	}
 	return s.SyncFileFTS(path)
 }
@@ -482,37 +478,29 @@ func (s *Store) ReplaceFileImports(path string, imports []Import) error {
 		return err
 	}
 
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("store: begin replace imports: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.Exec(`DELETE FROM imports WHERE file_id = ?`, f.ID); err != nil {
-		return fmt.Errorf("store: delete imports for file: %w", err)
-	}
-
-	for _, imp := range imports {
-		id := imp.ID
-		if id == "" {
-			id = uuid.NewString()
+	return s.runInTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`DELETE FROM imports WHERE file_id = ?`, f.ID); err != nil {
+			return fmt.Errorf("store: delete imports for file: %w", err)
 		}
-		prov, err := validateImportProvenance(imp.Provenance)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`
+
+		for _, imp := range imports {
+			id := imp.ID
+			if id == "" {
+				id = uuid.NewString()
+			}
+			prov, err := validateImportProvenance(imp.Provenance)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`
 			INSERT INTO imports(id, file_id, imported_path, symbol, provenance)
 			VALUES (?, ?, ?, ?, ?)
 		`, id, f.ID, imp.ImportedPath, nullStr(imp.Symbol), prov); err != nil {
-			return fmt.Errorf("store: insert import: %w", err)
+				return fmt.Errorf("store: insert import: %w", err)
+			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit replace imports: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 // ListImportsByPath returns imports for a file path.
@@ -630,27 +618,19 @@ func (s *Store) ReplaceFileEdges(path string, edges []CodeEdge) error {
 		return err
 	}
 
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("store: begin replace edges: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.Exec(`DELETE FROM code_edges WHERE from_file_id = ?`, f.ID); err != nil {
-		return fmt.Errorf("store: delete edges for file: %w", err)
-	}
-
-	for _, e := range edges {
-		e.FromFileID = f.ID
-		if err := s.insertCodeEdge(tx, e); err != nil {
-			return err
+	return s.runInTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`DELETE FROM code_edges WHERE from_file_id = ?`, f.ID); err != nil {
+			return fmt.Errorf("store: delete edges for file: %w", err)
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit replace edges: %w", err)
-	}
-	return nil
+		for _, e := range edges {
+			e.FromFileID = f.ID
+			if err := s.insertCodeEdge(tx, e); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // UpsertFilePairEdges replaces edges of rel from fromPath to toPath only.
@@ -670,32 +650,24 @@ func (s *Store) UpsertFilePairEdges(fromPath, toPath, rel string, edges []CodeEd
 		return err
 	}
 
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("store: begin upsert pair edges: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.Exec(
-		`DELETE FROM code_edges WHERE from_file_id = ? AND to_file_id = ? AND rel = ?`,
-		fromFile.ID, toFile.ID, rel,
-	); err != nil {
-		return fmt.Errorf("store: delete pair edges: %w", err)
-	}
-
-	for _, e := range edges {
-		e.FromFileID = fromFile.ID
-		e.ToFileID = toFile.ID
-		e.Rel = rel
-		if err := s.insertCodeEdge(tx, e); err != nil {
-			return err
+	return s.runInTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(
+			`DELETE FROM code_edges WHERE from_file_id = ? AND to_file_id = ? AND rel = ?`,
+			fromFile.ID, toFile.ID, rel,
+		); err != nil {
+			return fmt.Errorf("store: delete pair edges: %w", err)
 		}
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("store: commit upsert pair edges: %w", err)
-	}
-	return nil
+		for _, e := range edges {
+			e.FromFileID = fromFile.ID
+			e.ToFileID = toFile.ID
+			e.Rel = rel
+			if err := s.insertCodeEdge(tx, e); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // ListEdgesByFile returns outgoing code_edges for path (from_file_id).

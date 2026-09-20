@@ -3,7 +3,9 @@ package analyzers
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,6 +25,10 @@ const binaryProbeBytes = 8 * 1024
 // It upserts the file stub, sets language, replaces symbols and imports for that path only,
 // classifies test symbols, writes outgoing code_edges (validates + contains_module +
 // exports_api + architectural_boundary) in one ReplaceFileEdges batch, and upserts incoming validates.
+//
+// When the stored content_hash already matches, extract/replace is skipped (true incremental
+// for empty-argv tree walks). All DB mutations for a changed file run in one WithTx so a
+// crash between edge-clear and rewrite cannot leave empty outgoing edges.
 func IndexFile(ctx context.Context, st *store.Store, path string, content []byte, opts IndexOptions) error {
 	_ = ctx
 	if st == nil {
@@ -39,11 +45,12 @@ func IndexFile(ctx context.Context, st *store.Store, path string, content []byte
 	}
 
 	contentHash := sha256Hex(content)
-	if _, err := st.UpsertFile(path, contentHash, opts.GitOID); err != nil {
-		return fmt.Errorf("analyzers: upsert file: %w", err)
+	existing, err := st.GetFileByPath(path)
+	if err == nil && existing.ContentHash == contentHash {
+		return nil
 	}
-	if err := st.SetFileLanguage(path, lang); err != nil {
-		return fmt.Errorf("analyzers: set language: %w", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("analyzers: lookup file: %w", err)
 	}
 
 	symbols, imports, err := extract(lang, content)
@@ -73,23 +80,36 @@ func IndexFile(ctx context.Context, st *store.Store, path string, content []byte
 		}
 	}
 
-	// Clear outgoing edges before symbol replace. Leftover-symbol DELETE would
-	// SET NULL to_symbol_id on outgoing contains_module/exports_api and collide
-	// idx_code_edges_unique. Incoming validates on stable ids are kept by
-	// ReplaceFileSymbols upsert-first; leftover incoming is collapsed there.
-	if err := st.ReplaceFileEdges(path, nil); err != nil {
-		return fmt.Errorf("analyzers: clear edges: %w", err)
+	apply := func(stx *store.Store) error {
+		if _, err := stx.UpsertFile(path, contentHash, opts.GitOID); err != nil {
+			return fmt.Errorf("analyzers: upsert file: %w", err)
+		}
+		if err := stx.SetFileLanguage(path, lang); err != nil {
+			return fmt.Errorf("analyzers: set language: %w", err)
+		}
+		// Clear outgoing edges before symbol replace. Leftover-symbol DELETE would
+		// SET NULL to_symbol_id on outgoing contains_module/exports_api and collide
+		// idx_code_edges_unique. Incoming validates on stable ids are kept by
+		// ReplaceFileSymbols upsert-first; leftover incoming is collapsed there.
+		if err := stx.ReplaceFileEdges(path, nil); err != nil {
+			return fmt.Errorf("analyzers: clear edges: %w", err)
+		}
+		if err := stx.ReplaceFileSymbols(path, symbols); err != nil {
+			return fmt.Errorf("analyzers: replace symbols: %w", err)
+		}
+		if err := stx.ReplaceFileImports(path, imports); err != nil {
+			return fmt.Errorf("analyzers: replace imports: %w", err)
+		}
+		if err := indexCodeEdges(stx, path, content, lang); err != nil {
+			return err
+		}
+		return nil
 	}
-	if err := st.ReplaceFileSymbols(path, symbols); err != nil {
-		return fmt.Errorf("analyzers: replace symbols: %w", err)
+
+	if st.Conn() != nil {
+		return st.WithTx(apply)
 	}
-	if err := st.ReplaceFileImports(path, imports); err != nil {
-		return fmt.Errorf("analyzers: replace imports: %w", err)
-	}
-	if err := indexCodeEdges(st, path, content, lang); err != nil {
-		return err
-	}
-	return nil
+	return apply(st)
 }
 
 // IndexFileAtRev loads path at rev via vcs.Repository.ShowFile, then IndexFile.
