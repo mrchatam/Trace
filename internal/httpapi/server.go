@@ -50,6 +50,11 @@ type Server struct {
 	onListening  func(addr string)
 	mux          *http.ServeMux
 	handler      http.Handler
+
+	// Process-scoped store for the serve/gui lifetime. Concurrent handlers share
+	// one Open (exclusive flock); per-request Open caused opaque 500s (#86).
+	st   *store.Store
+	stMu sync.Mutex
 }
 
 // New validates options, resolves bind policy, and builds the handler tree.
@@ -184,6 +189,13 @@ func (s *Server) Root() string { return s.root }
 // When AddrExplicit is false, EADDRINUSE triggers UA-increment hops up to
 // MaxAutoPortAttempts (same host, port+1). Explicit --addr fails on first busy.
 func (s *Server) ListenAndServe(ctx context.Context) error {
+	// Open the project store once for this process lifetime so concurrent
+	// /v1 handlers do not fight exclusive .trace/trace.lock (#86).
+	if _, err := s.openStore(); err != nil {
+		return err
+	}
+	defer s.CloseStore()
+
 	ln, err := s.listenTCP()
 	if err != nil {
 		return err
@@ -242,12 +254,32 @@ func (s *Server) listenTCP() (net.Listener, error) {
 	return nil, &AutoPortExhaustedError{Start: start, Attempts: maxAttempts}
 }
 
+// openStore returns the process-scoped store, opening it on first use. Callers
+// must not Close the returned store; use CloseStore / ListenAndServe shutdown.
 func (s *Server) openStore() (*store.Store, error) {
+	s.stMu.Lock()
+	defer s.stMu.Unlock()
+	if s.st != nil {
+		return s.st, nil
+	}
 	st, err := store.Open(s.root)
 	if err != nil {
 		return nil, err
 	}
+	s.st = st
 	return st, nil
+}
+
+// CloseStore releases the process-scoped store (idempotent). Safe after
+// ListenAndServe returns or from tests that exercise Handler() without listen.
+func (s *Server) CloseStore() {
+	s.stMu.Lock()
+	defer s.stMu.Unlock()
+	if s.st == nil {
+		return
+	}
+	_ = s.st.Close()
+	s.st = nil
 }
 
 func (s *Server) registerRoutes() {

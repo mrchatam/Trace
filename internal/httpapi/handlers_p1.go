@@ -30,7 +30,6 @@ func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 	cursor := strings.TrimSpace(r.URL.Query().Get("cursor"))
@@ -88,7 +87,6 @@ func (s *Server) handleCreateReview(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	rv, err := svc.CreateReview(r.Context(), domain.ReviewInput{Title: in.Title, Body: in.Body})
 	if err != nil {
@@ -114,7 +112,6 @@ func (s *Server) handleGetReview(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	rv, err := domain.New(st).GetReview(r.Context(), id)
 	if err != nil {
 		mapDomainErr(w, err)
@@ -139,7 +136,6 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 
 	goalID := strings.TrimSpace(r.URL.Query().Get("goal_id"))
 	ps := planner.New(st)
@@ -208,7 +204,6 @@ func (s *Server) handlePlanBootstrap(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	res, err := planner.New(st).BootstrapFromPlanChanges(r.Context(), goalID, "http")
 	if err != nil {
 		mapDomainErr(w, err)
@@ -223,7 +218,6 @@ func (s *Server) handleListCapability(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	action := strings.TrimSpace(r.URL.Query().Get("action"))
 	if action == "" {
@@ -283,7 +277,6 @@ func (s *Server) handleGetImpact(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	if decisionID != "" {
 		rep, err := svc.ImpactReport(r.Context(), decisionID)
@@ -318,7 +311,6 @@ func (s *Server) handleListChanges(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 	limit, _ := queryInt(r, "limit", 32)
 	if limit <= 0 {
@@ -344,7 +336,6 @@ func (s *Server) handleListRegressions(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 	changeID := strings.TrimSpace(r.URL.Query().Get("change_id"))
 	limit, _ := queryInt(r, "limit", 32)
@@ -368,7 +359,6 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	switch action {
 	case "list":
 		items, err := agents.ListAgentSummaries(r.Context(), st)
@@ -410,7 +400,6 @@ func (s *Server) handleIndexStatus(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	state, err := st.GetGraphSyncState()
 	if err != nil {
 		mapDomainErr(w, err)
