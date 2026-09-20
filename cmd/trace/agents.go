@@ -42,7 +42,7 @@ func printAgentsHelp(w *os.File) {
 Subcommands:
   list
         JSON array of catalog profiles (slug, title, subagent_type,
-        deliberation_phases, requirements). Empty catalog → [].
+        deliberation_phases, requirements). Empty catalog → [] (+ stderr install hint).
   describe <slug>
         Full profile + requirements + registry metadata for one agent slug.
   recommend (--task <id> | --phase <PHASE>) [--goal-keywords "kw ..."]
@@ -66,6 +66,9 @@ func cmdAgentsList(root string, args []string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "agents list: %v\n", err)
 		return exitFail
+	}
+	if len(items) == 0 {
+		fmt.Fprintf(os.Stderr, "agents list: %s\n", agents.EmptyCatalogHint)
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(items); err != nil {
 		fmt.Fprintf(os.Stderr, "agents list: %v\n", err)
