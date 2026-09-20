@@ -161,7 +161,8 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		limit = n
 	}
 
-	goals, err := st.ListGoals()
+	// Fetch limit+1 so truncation is decided in SQL, not load-all-then-slice.
+	goals, err := st.ListGoalsLimited(limit + 1)
 	if err != nil {
 		mapDomainErr(w, err)
 		return
@@ -175,7 +176,8 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 	for _, g := range goals {
 		view, err := ps.GetPlan(r.Context(), g.ID)
 		if err != nil {
-			continue
+			mapDomainErr(w, err)
+			return
 		}
 		items = append(items, view)
 	}
@@ -224,7 +226,22 @@ func (s *Server) handleListCapability(w http.ResponseWriter, r *http.Request) {
 	taskID := strings.TrimSpace(r.URL.Query().Get("task_id"))
 	switch action {
 	case "list":
-		list, err := svc.ListCapabilities(r.Context(), domain.ListCapabilitiesFilter{})
+		capLimit := store.DefaultTaskListLimit
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			n, perr := strconv.Atoi(raw)
+			if perr != nil || n < 1 {
+				writeEnvelope(w, http.StatusBadRequest, "BAD_REQUEST", "limit must be a positive integer", nil)
+				return
+			}
+			capLimit = n
+			if capLimit > store.MaxTaskListLimit {
+				capLimit = store.MaxTaskListLimit
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("all")), "true") || r.URL.Query().Get("all") == "1" {
+			capLimit = 0 // unbounded (domain: Limit 0)
+		}
+		list, err := svc.ListCapabilities(r.Context(), domain.ListCapabilitiesFilter{Limit: capLimit})
 		if err != nil {
 			mapDomainErr(w, err)
 			return

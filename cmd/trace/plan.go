@@ -298,11 +298,14 @@ func cmdPlanShow(root string, args []string) int {
 	if warn, err := svc.GoalStructureWarning(context.Background(), *goal); err == nil && warn != "" {
 		fmt.Fprintf(os.Stderr, "plan show advisory: %s\n", warn)
 	}
-	tasks, err := st.ListTasksByGoalID(*goal)
+	taskPage, err := st.ListTasksFiltered(store.TaskListFilter{
+		GoalID: *goal, Limit: store.DefaultTaskListLimit, IncludeBody: true,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "plan show: %v\n", err)
 		return exitFail
 	}
+	tasks := taskPage.Tasks
 	taskRows := make([]taskListRow, 0, len(tasks))
 	for _, t := range tasks {
 		taskRows = append(taskRows, taskListRow{

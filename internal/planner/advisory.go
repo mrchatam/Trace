@@ -39,16 +39,19 @@ func (s *Service) GoalStructureWarning(ctx context.Context, goalID string) (stri
 	if planExists {
 		return "", nil
 	}
-	tasks, err := s.store.ListTasksByGoalID(goalID)
+	taskPage, err := s.store.ListTasksFiltered(store.TaskListFilter{
+		GoalID: goalID, Limit: GoalStructureWarningThreshold + 1,
+	})
 	if err != nil {
 		return "", err
 	}
+	tasks := taskPage.Tasks
 	if len(tasks) <= GoalStructureWarningThreshold {
 		return "", nil
 	}
 	return fmt.Sprintf(
-		"goal %s has %d tasks but no progressive plan (threshold %d); run trace plan create-coarse or trace plan bootstrap --goal %s",
-		goalID, len(tasks), GoalStructureWarningThreshold, goalID,
+		"goal %s has %d+ tasks but no progressive plan (threshold %d); run trace plan create-coarse or trace plan bootstrap --goal %s",
+		goalID, GoalStructureWarningThreshold+1, GoalStructureWarningThreshold, goalID,
 	), nil
 }
 
@@ -100,10 +103,13 @@ func (s *Service) PlanExists(ctx context.Context, goalID string) (bool, error) {
 
 func goalLinkedPlanChangeIDs(st *store.Store, goalID string) map[string]struct{} {
 	out := map[string]struct{}{}
-	tasks, err := st.ListTasksByGoalID(goalID)
+	taskPage, err := st.ListTasksFiltered(store.TaskListFilter{
+		GoalID: goalID, Limit: store.DefaultTaskListLimit,
+	})
 	if err != nil {
 		return out
 	}
+	tasks := taskPage.Tasks
 	for _, task := range tasks {
 		links, err := st.ListLinksTo(domain.EntityTask, task.ID)
 		if err != nil {

@@ -1,5 +1,9 @@
 package retrieval
 
+import (
+	"github.com/mrchatam/Trace/internal/store"
+)
+
 // graphWalkNeighbor pairs a neighbor hit with the edge that reaches it (links + goal_id).
 type graphWalkNeighbor struct {
 	neighbor Hit
@@ -67,11 +71,13 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 			}
 		}
 	case "goal":
-		tasks, err := e.store.ListTasksByGoalID(h.EntityID)
+		taskPage, err := e.store.ListTasksFiltered(store.TaskListFilter{
+			GoalID: h.EntityID, Limit: store.DefaultTaskListLimit,
+		})
 		if err != nil {
 			return nil, err
 		}
-		for _, t := range tasks {
+		for _, t := range taskPage.Tasks {
 			out = append(out, graphWalkNeighbor{
 				neighbor: Hit{
 					EntityType: "task",
