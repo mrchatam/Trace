@@ -881,8 +881,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/CapabilityListResponse"
         default:
           $ref: "#/components/responses/Error"
 
@@ -1599,6 +1598,42 @@ components:
         truncated:
           type: boolean
           description: True if neighborhood or project graph exceeded budget
+
+    Capability:
+      type: object
+      required: [id, kind, slug, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        body:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      description: Capability catalog row (snake_case JSON; matches store.Capability tags)
+
+    CapabilityListResponse:
+      type: object
+      required: [ok, capabilities, count]
+      properties:
+        ok:
+          type: boolean
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Capability"
+        count:
+          type: integer
 
     ReviewSummary:
       type: object
