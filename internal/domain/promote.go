@@ -37,6 +37,7 @@ func (s *Service) ListPromotionCandidates() ([]PromotionCandidate, error) {
 // ListPromotionCandidatesLimited returns up to limit BLOCKING discoveries that
 // lack a live discovery_mentions_task target. truncated is true when more exist.
 // limit <= 0 uses DefaultPromotionCandidateLimit; values above Max are clamped.
+// Filtering and LIMIT run in SQL (#94); does not load the full discoveries table.
 func (s *Service) ListPromotionCandidatesLimited(limit int) ([]PromotionCandidate, bool, error) {
 	if limit <= 0 {
 		limit = DefaultPromotionCandidateLimit
@@ -44,38 +45,16 @@ func (s *Service) ListPromotionCandidatesLimited(limit int) ([]PromotionCandidat
 	if limit > MaxPromotionCandidateLimit {
 		limit = MaxPromotionCandidateLimit
 	}
-	discoveries, err := s.store.ListDiscoveries()
+	rows, err := s.store.ListPromotionCandidateDiscoveries(limit + 1)
 	if err != nil {
 		return nil, false, err
 	}
-	candidates := make([]PromotionCandidate, 0)
-	truncated := false
-	for _, d := range discoveries {
-		if d.Severity != SeverityBlocking {
-			continue
-		}
-		links, err := s.store.ListLinksFrom(EntityDiscovery, d.ID)
-		if err != nil {
-			return nil, false, err
-		}
-		linked := false
-		for _, l := range links {
-			if l.Rel == RelDiscoveryMentionsTask && l.ToType == EntityTask {
-				if _, err := s.store.GetTask(l.ToID); err == nil {
-					linked = true
-					break
-				} else if !errors.Is(err, sql.ErrNoRows) {
-					return nil, false, err
-				}
-			}
-		}
-		if linked {
-			continue
-		}
-		if len(candidates) >= limit {
-			truncated = true
-			break
-		}
+	truncated := len(rows) > limit
+	if truncated {
+		rows = rows[:limit]
+	}
+	candidates := make([]PromotionCandidate, 0, len(rows))
+	for _, d := range rows {
 		candidates = append(candidates, PromotionCandidate{
 			DiscoveryID: d.ID,
 			Title:       d.Title,
