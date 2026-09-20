@@ -27,7 +27,7 @@ type ReviewResultOptions struct {
 	Reason string
 }
 
-// CreateReview persists a review with empty result and appends entity.created.
+// CreateReview persists a review with empty result and appends entity.created atomically.
 func (s *Service) CreateReview(ctx context.Context, in ReviewInput) (store.Review, error) {
 	_ = ctx
 	src, status, err := applyProvenance(in.Title, in.SourceType, in.Status)
@@ -38,20 +38,31 @@ func (s *Service) CreateReview(ctx context.Context, in ReviewInput) (store.Revie
 	if id == "" {
 		id = uuid.NewString()
 	}
-	r, err := s.store.UpsertReview(store.Review{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		Result:         store.ReviewResultOpen,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var r store.Review
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		r, err = stx.UpsertReview(store.Review{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			Result:         store.ReviewResultOpen,
+			LastVerifiedAt: in.LastVerifiedAt,
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterReviewMutateHook != nil {
+			if err := tx.afterReviewMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityReview, r.ID, r.Title)
 	})
 	if err != nil {
-		return store.Review{}, err
-	}
-	if err := s.appendCreated(EntityReview, r.ID, r.Title); err != nil {
 		return store.Review{}, err
 	}
 	return r, nil
@@ -59,6 +70,7 @@ func (s *Service) CreateReview(ctx context.Context, in ReviewInput) (store.Revie
 
 // SetReviewResult sets PASS|FAIL|UNCERTAIN on a review. Actor+Reason required.
 // TransitionTask does not accept narrative PASS — only this API writes results.
+// Row update and review.result event commit together (#92).
 func (s *Service) SetReviewResult(ctx context.Context, reviewID, result string, opts ReviewResultOptions) error {
 	_ = ctx
 	if reviewID == "" {
@@ -77,21 +89,28 @@ func (s *Service) SetReviewResult(ctx context.Context, reviewID, result string, 
 		return err
 	}
 	r.Result = result
-	if _, err := s.store.UpsertReview(r); err != nil {
-		return err
-	}
 	payload, _ := json.Marshal(map[string]string{
 		"result": result,
 		"actor":  opts.Actor,
 		"reason": opts.Reason,
 	})
-	_, err = s.store.AppendEvent(store.Event{
-		Type:        EventReviewResult,
-		EntityType:  EntityReview,
-		EntityID:    reviewID,
-		PayloadJSON: string(payload),
+	return s.store.WithTx(func(stx *store.Store) error {
+		if _, err := stx.UpsertReview(r); err != nil {
+			return err
+		}
+		if s.afterReviewMutateHook != nil {
+			if err := s.afterReviewMutateHook(); err != nil {
+				return err
+			}
+		}
+		_, err := stx.AppendEvent(store.Event{
+			Type:        EventReviewResult,
+			EntityType:  EntityReview,
+			EntityID:    reviewID,
+			PayloadJSON: string(payload),
+		})
+		return err
 	})
-	return err
 }
 
 // LinkReviewTask inserts entity_links rel=review_judges_task (from=review, to=task).
