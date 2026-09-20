@@ -23,6 +23,7 @@ func TestHTTPAgentsListEmptyHint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(srv.CloseStore)
 	rr := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/agents", nil))
 	if rr.Code != 200 {
