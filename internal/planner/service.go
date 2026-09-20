@@ -115,10 +115,12 @@ func (s *Service) CreateCoarsePlan(ctx context.Context, in CoarsePlanInput) (Coa
 		"scope_count": countScopes(out),
 		"actor":       actor,
 	})
-	_, _ = s.store.AppendEvent(store.Event{
+	if _, err := s.store.AppendEvent(store.Event{
 		Type: EventCoarseCreated, EntityType: entityGoal, EntityID: goalID,
 		PayloadJSON: string(payload),
-	})
+	}); err != nil {
+		return CoarsePlan{}, fmt.Errorf("planner: append coarse.created: %w", err)
+	}
 	return out, nil
 }
 
@@ -157,10 +159,12 @@ func (s *Service) SetCurrentScope(ctx context.Context, goalID, scopeID string) e
 	payload, _ := json.Marshal(map[string]string{
 		"goal_id": goalID, "scope_id": scopeID, "actor": "planner",
 	})
-	_, _ = s.store.AppendEvent(store.Event{
+	if _, err := s.store.AppendEvent(store.Event{
 		Type: EventCurrentSet, EntityType: entityGoal, EntityID: goalID,
 		PayloadJSON: string(payload),
-	})
+	}); err != nil {
+		return fmt.Errorf("planner: append current.set: %w", err)
+	}
 	return nil
 }
 
@@ -310,10 +314,12 @@ func (s *Service) DeepPlan(ctx context.Context, in DeepPlanInput) (DeepPlanResul
 		"goal_id": goalID, "scope_id": scopeID, "revision_id": rev.ID,
 		"superseded": n, "lookahead_scope_id": lookaheadID, "actor": actor,
 	})
-	_, _ = s.store.AppendEvent(store.Event{
+	if _, err := s.store.AppendEvent(store.Event{
 		Type: evType, EntityType: entityScope, EntityID: scopeID,
 		PayloadJSON: string(payload),
-	})
+	}); err != nil {
+		return DeepPlanResult{}, fmt.Errorf("planner: append deep plan event: %w", err)
+	}
 
 	return DeepPlanResult{
 		RevisionID: rev.ID, Document: doc, SupersededCount: n,
@@ -392,10 +398,12 @@ func (s *Service) SupersedeDeepPlan(ctx context.Context, in SupersedeInput) (Dee
 	payload, _ := json.Marshal(map[string]any{
 		"scope_id": scopeID, "revision_id": rev.ID, "superseded": n, "actor": actor,
 	})
-	_, _ = s.store.AppendEvent(store.Event{
+	if _, err := s.store.AppendEvent(store.Event{
 		Type: EventDeepSuperseded, EntityType: entityScope, EntityID: scopeID,
 		PayloadJSON: string(payload),
-	})
+	}); err != nil {
+		return DeepPlanResult{}, fmt.Errorf("planner: append deep.superseded: %w", err)
+	}
 
 	return DeepPlanResult{
 		RevisionID: rev.ID, Document: doc, SupersededCount: n,

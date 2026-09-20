@@ -190,9 +190,11 @@ func (s *Service) AckReplan(ctx context.Context, scopeID string) error {
 		return err
 	}
 	payload, _ := json.Marshal(map[string]string{"scope_id": scopeID, "actor": "ack"})
-	_, _ = s.store.AppendEvent(store.Event{
+	if _, err := s.store.AppendEvent(store.Event{
 		Type: EventReplanAcked, EntityType: entityScope, EntityID: scopeID,
 		PayloadJSON: string(payload),
-	})
+	}); err != nil {
+		return fmt.Errorf("planner: append replan.acked: %w", err)
+	}
 	return nil
 }
