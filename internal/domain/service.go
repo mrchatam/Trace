@@ -145,6 +145,12 @@ type Service struct {
 	// afterPassInvalidateHook runs inside TransitionTask's reopen transaction after
 	// PASS→UNCERTAIN invalidation and before UpsertTask. Tests only; nil in production.
 	afterPassInvalidateHook func() error
+	// Test-only mid-path hooks for multi-txn atomicity regressions (#89–#92).
+	afterPromoteTaskHook        func() error
+	afterReviewMutateHook       func() error
+	afterDeliberationUpsertHook func() error
+	afterHarnessDeleteHook      func() error
+	afterMarkStaleUpsertHook    func() error
 }
 
 // New constructs a domain Service. st must be non-nil and already opened.
@@ -158,9 +164,14 @@ func New(st *store.Store) *Service {
 // withStore returns a shallow Service that uses st (e.g. a tx-scoped store).
 func (s *Service) withStore(st *store.Store) *Service {
 	return &Service{
-		store:                   st,
-		impactWalker:            s.impactWalker,
-		afterPassInvalidateHook: s.afterPassInvalidateHook,
+		store:                       st,
+		impactWalker:                s.impactWalker,
+		afterPassInvalidateHook:     s.afterPassInvalidateHook,
+		afterPromoteTaskHook:        s.afterPromoteTaskHook,
+		afterReviewMutateHook:       s.afterReviewMutateHook,
+		afterDeliberationUpsertHook: s.afterDeliberationUpsertHook,
+		afterHarnessDeleteHook:      s.afterHarnessDeleteHook,
+		afterMarkStaleUpsertHook:    s.afterMarkStaleUpsertHook,
 	}
 }
 

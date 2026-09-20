@@ -82,6 +82,7 @@ func openFixture(t *testing.T) (dir string, srv *httpapi.Server) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(srv.CloseStore)
 	return dir, srv
 }
 
@@ -167,6 +168,8 @@ func TestAuthLoopbackAndRemote(t *testing.T) {
 	if rr.Code != 200 {
 		t.Fatalf("loopback tasks: %d %s", rr.Code, rr.Body.String())
 	}
+	// Release process-scoped lock before a second Server opens the same root (#86).
+	srv.CloseStore()
 
 	// Simulated remote: RequireBearer via non-loopback options
 	remote, err := httpapi.New(httpapi.Options{
@@ -175,6 +178,7 @@ func TestAuthLoopbackAndRemote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(remote.CloseStore)
 	rr = httptest.NewRecorder()
 	remote.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/tasks", nil))
 	if rr.Code != 401 {
@@ -268,7 +272,8 @@ func TestReadsAndWrites(t *testing.T) {
 		t.Fatalf("schema: %v", status["schema_version"])
 	}
 
-	// persist check via store
+	// persist check via store (release HTTP process store first — #86 shared Open)
+	srv.CloseStore()
 	st, err := store.Open(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -707,6 +712,7 @@ func TestHTTPPlanBootstrap_CreatesPlannerRows(t *testing.T) {
 		t.Fatalf("scope_id missing: %#v", res)
 	}
 
+	srv.CloseStore()
 	st2, err := store.Open(dir)
 	if err != nil {
 		t.Fatal(err)

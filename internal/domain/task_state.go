@@ -262,7 +262,7 @@ func (s *Service) hasLinkedFailReview(taskID string) (bool, error) {
 	return false, nil
 }
 
-// MarkStale sets provenance status=STALE on a supported entity and appends an event.
+// MarkStale sets provenance status=STALE on a supported entity and appends an event atomically.
 func (s *Service) MarkStale(ctx context.Context, entityType, entityID, reason string) error {
 	_ = ctx
 	if entityType == "" || entityID == "" {
@@ -272,92 +272,98 @@ func (s *Service) MarkStale(ctx context.Context, entityType, entityID, reason st
 		return &ErrValidation{Msg: "reason is required"}
 	}
 
-	switch entityType {
-	case EntityGoal:
-		g, err := s.store.GetGoal(entityID)
-		if err != nil {
-			return err
-		}
-		g.Status = store.StatusStale
-		if _, err := s.store.UpsertGoal(g); err != nil {
-			return err
-		}
-	case EntityTask:
-		t, err := s.store.GetTask(entityID)
-		if err != nil {
-			return err
-		}
-		t.Status = store.StatusStale
-		if _, err := s.store.UpsertTask(t); err != nil {
-			return err
-		}
-	case EntityDecision:
-		d, err := s.store.GetDecision(entityID)
-		if err != nil {
-			return err
-		}
-		d.Status = store.StatusStale
-		if _, err := s.store.UpsertDecision(d); err != nil {
-			return err
-		}
-	case EntityAssumption:
-		a, err := s.store.GetAssumption(entityID)
-		if err != nil {
-			return err
-		}
-		a.Status = store.StatusStale
-		if _, err := s.store.UpsertAssumption(a); err != nil {
-			return err
-		}
-	case EntityDiscovery:
-		d, err := s.store.GetDiscovery(entityID)
-		if err != nil {
-			return err
-		}
-		d.Status = store.StatusStale
-		if _, err := s.store.UpsertDiscovery(d); err != nil {
-			return err
-		}
-	case EntityPlanChange:
-		p, err := s.store.GetPlanChange(entityID)
-		if err != nil {
-			return err
-		}
-		p.Status = store.StatusStale
-		if _, err := s.store.UpsertPlanChange(p); err != nil {
-			return err
-		}
-	case EntityClaim:
-		c, err := s.store.GetClaim(entityID)
-		if err != nil {
-			return err
-		}
-		c.Status = store.StatusStale
-		if _, err := s.store.UpsertClaim(c); err != nil {
-			return err
-		}
-	case EntityEvidence:
-		e, err := s.store.GetEvidence(entityID)
-		if err != nil {
-			return err
-		}
-		e.Status = store.StatusStale
-		if _, err := s.store.UpsertEvidence(e); err != nil {
-			return err
-		}
-	default:
-		return &ErrValidation{Msg: "unsupported entityType for MarkStale: " + entityType}
-	}
-
 	payload, _ := json.Marshal(map[string]string{
 		"reason": reason,
 		"status": store.StatusStale,
 	})
-	_, err := s.store.AppendEvent(store.Event{
-		Type:        "entity.stale",
-		EntityType:  entityType,
-		EntityID:    entityID,
-		PayloadJSON: string(payload),
+	return s.store.WithTx(func(stx *store.Store) error {
+		switch entityType {
+		case EntityGoal:
+			g, err := stx.GetGoal(entityID)
+			if err != nil {
+				return err
+			}
+			g.Status = store.StatusStale
+			if _, err := stx.UpsertGoal(g); err != nil {
+				return err
+			}
+		case EntityTask:
+			t, err := stx.GetTask(entityID)
+			if err != nil {
+				return err
+			}
+			t.Status = store.StatusStale
+			if _, err := stx.UpsertTask(t); err != nil {
+				return err
+			}
+		case EntityDecision:
+			d, err := stx.GetDecision(entityID)
+			if err != nil {
+				return err
+			}
+			d.Status = store.StatusStale
+			if _, err := stx.UpsertDecision(d); err != nil {
+				return err
+			}
+		case EntityAssumption:
+			a, err := stx.GetAssumption(entityID)
+			if err != nil {
+				return err
+			}
+			a.Status = store.StatusStale
+			if _, err := stx.UpsertAssumption(a); err != nil {
+				return err
+			}
+		case EntityDiscovery:
+			d, err := stx.GetDiscovery(entityID)
+			if err != nil {
+				return err
+			}
+			d.Status = store.StatusStale
+			if _, err := stx.UpsertDiscovery(d); err != nil {
+				return err
+			}
+		case EntityPlanChange:
+			p, err := stx.GetPlanChange(entityID)
+			if err != nil {
+				return err
+			}
+			p.Status = store.StatusStale
+			if _, err := stx.UpsertPlanChange(p); err != nil {
+				return err
+			}
+		case EntityClaim:
+			c, err := stx.GetClaim(entityID)
+			if err != nil {
+				return err
+			}
+			c.Status = store.StatusStale
+			if _, err := stx.UpsertClaim(c); err != nil {
+				return err
+			}
+		case EntityEvidence:
+			e, err := stx.GetEvidence(entityID)
+			if err != nil {
+				return err
+			}
+			e.Status = store.StatusStale
+			if _, err := stx.UpsertEvidence(e); err != nil {
+				return err
+			}
+		default:
+			return &ErrValidation{Msg: "unsupported entityType for MarkStale: " + entityType}
+		}
+		if s.afterMarkStaleUpsertHook != nil {
+			if err := s.afterMarkStaleUpsertHook(); err != nil {
+				return err
+			}
+		}
+		_, err := stx.AppendEvent(store.Event{
+			Type:        "entity.stale",
+			EntityType:  entityType,
+			EntityID:    entityID,
+			PayloadJSON: string(payload),
+		})
+		return err
 	})
-	return err
 }
