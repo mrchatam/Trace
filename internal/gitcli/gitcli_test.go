@@ -3,6 +3,7 @@ package gitcli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -341,4 +342,45 @@ func TestNoBlobColumnsInVCSIndex(t *testing.T) {
 	if strings.Contains(c.Subject, "diff --git") {
 		t.Fatalf("subject looks like a patch: %q", c.Subject)
 	}
+}
+
+func TestRefreshUnbornHead(t *testing.T) {
+	requireGit(t)
+	dir := t.TempDir()
+	git(t, dir, "init")
+	git(t, dir, "config", "user.email", "trace@test.local")
+	git(t, dir, "config", "user.name", "Trace Test")
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("Open store: %v", err)
+	}
+	defer st.Close()
+
+	repo, err := gitcli.OpenWithStore(dir, st)
+	if err != nil {
+		t.Fatalf("OpenWithStore: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	_, err = repo.Head(ctx)
+	if err == nil {
+		t.Fatal("Head: want ErrNotFound for unborn HEAD")
+	}
+	if !errorsIsNotFound(err) {
+		t.Fatalf("Head: want ErrNotFound, got %v", err)
+	}
+
+	res, err := repo.Refresh(ctx)
+	if err != nil {
+		t.Fatalf("Refresh unborn HEAD: %v", err)
+	}
+	if res.NewCommits != 0 {
+		t.Fatalf("Refresh NewCommits=%d want 0", res.NewCommits)
+	}
+}
+
+func errorsIsNotFound(err error) bool {
+	return errors.Is(err, vcs.ErrNotFound)
 }

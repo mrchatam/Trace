@@ -2,6 +2,7 @@ package gitcli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,10 @@ import (
 func (r *Repo) Refresh(ctx context.Context) (vcs.RefreshResult, error) {
 	head, err := r.Head(ctx)
 	if err != nil {
+		// Soft-handle unborn HEAD: nothing to index until the first commit.
+		if errors.Is(err, vcs.ErrNotFound) {
+			return vcs.RefreshResult{NewCommits: 0}, nil
+		}
 		return vcs.RefreshResult{}, err
 	}
 
