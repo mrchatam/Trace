@@ -1,135 +1,63 @@
-# Project Graph for AI Agents
+# Trace
 
-> A versioned, evolving knowledge graph of a software project that connects goals, decisions, assumptions, plans, tasks, code, history, discoveries, evidence, and agent capabilities.
+Local-first project knowledge graph and progressive planning for AI coding agents.
 
-The project is designed for AI-assisted software development. Its purpose is not to replace Git, an IDE, or a coding agent. It adds the layer those systems generally do not provide:
+Trace sits beside Git and your coding agent. It records **why** work exists, what the project currently believes, and how discoveries should change the next plan — then serves that back as bounded context (CLI, MCP, optional local GUI).
 
-- why code exists;
-- which goal, decision, or task caused it to exist;
-- how a change affects other work;
-- what the project currently believes to be true;
-- how implementation discoveries should change future planning;
-- what evidence supports a completion claim;
-- which skills, tools, MCP servers, hooks, and rules are needed for a task.
+## Why Trace
 
-The system treats planning as **progressive refinement**, not as exhaustive up-front prediction.
+Coding agents see files and diffs. They usually do not see:
 
-## Core model
+- which goal or decision caused a change;
+- what assumptions are still load-bearing;
+- what evidence supports a “done” claim;
+- how a discovery should replan affected work;
+- which skills/tools/MCP servers a task actually needs.
 
-```text
-Goal
-  ↓
-coarse project plan
-  ↓
-phase
-  ↓
-scope plan
-  ↓
-minimal tasks
-  ↓
-implementation
-  ↓
-discovery / review / evidence
-  ↓
-graph update
-  ↓
-replan affected future work
-  ↓
-continue
-```
+Trace is that missing layer: a versioned SQLite graph under `.trace/`, with Git remaining the source-of-truth for history and content.
 
-The graph combines five logical layers:
+## Install
 
-1. **Code graph** — files, symbols, imports, calls, dependencies.
-2. **History graph** — commits, changes, project states, provenance.
-3. **Work graph** — goals, phases, scopes, tasks, reviews.
-4. **Causal/decision graph** — decisions, assumptions, discoveries, rationale, impact.
-5. **Environment graph** — skills, rules, tools, MCP servers, hooks, agents, models.
+**Requirements:** Go matching [`go.mod`](go.mod) (currently **1.26+**), plus a C toolchain for the full CLI (`CGO_ENABLED=1` — tree-sitter analyzers).
 
-The project uses Git as the canonical version-history substrate rather than reimplementing Git.
-
-## Design principles
-
-- **Progressive planning:** detail is created when it becomes useful.
-- **Discovery is normal:** implementation gaps are expected and become planning inputs.
-- **Evidence over assertions:** an agent saying “done” is never sufficient evidence.
-- **Independent review:** implementation and review are separate contexts/identities.
-- **Context minimization:** agents receive the smallest high-value context first and can expand it on demand.
-- **Hybrid retrieval:** exact lookup, lexical (FTS) search, graph-label traversal, and temporal history work together (embedding/vector semantic retrieval is deferred — DR-NOSSEM; do not expect `semantic_match`).
-- **Provenance everywhere:** inferred facts are never silently treated as verified facts.
-- **Forward progression:** backward movement must be explicit; reversals are recorded as new states.
-- **Decision awareness:** user decisions are first-class objects with impact analysis and alternative routes.
-- **Capability-aware planning:** tasks can select the skills, rules, tools, MCPs, and hooks needed for their environment.
-- **Git delegation:** source history and content remain in Git; the project graph stores meaning and references.
-- **Incremental updates:** changing one area must not trigger a complete project re-analysis.
-- **Human authority:** the system warns and advises; it does not silently override user decisions.
-
-## Repository documentation
-
-- `docs/TODO.md` — **execution board index**; row tables in `docs/TODO/phase-NN.md`.
-- `docs/gui-quickstart.md` — **opt-in** `trace gui` + browser GUI (local-first; loopback default; `serve` for headless/scripting).
-- `docs/rules/` — agent loop protocol, project rules, skills map.
-- `docs/phases/` — runnable prompts.
-- `docs/ROADMAP.md` — implementation roadmap and milestone gates.
-- `docs/ARCHITECTURE.md` — system architecture and component boundaries.
-- `docs/PROJECT_MODEL.md` — entities, relations, provenance, and state model.
-- `docs/PLANNING.md` — progressive planning algorithm.
-- `docs/RETRIEVAL_AND_CONTEXT.md` — retrieval, context compilation, RAG/graph retrieval strategy.
-- `docs/REVIEW_AND_VERIFICATION.md` — multi-layer review, evidence, and anti-hallucination design.
-- `docs/DECISION_IMPACT.md` — user decisions, impact analysis, alternatives, and hypothetical plans.
-- `docs/AGENT_ENVIRONMENT.md` — skills, rules, MCPs, hooks, tools, agents, and capability-aware planning.
-- `docs/STORAGE_AND_PERFORMANCE.md` — storage, indexing, caching, scaling, and large-repository strategy.
-- `docs/SECURITY.md` — trust boundaries and safety model.
-- `docs/EVALUATION.md` — benchmarks and research questions.
-- `docs/init/` — initialization planning registers (decisions, P0-X bar, laws).
-- `CONTRIBUTING.md` — contribution model and development rules.
-- `LICENSE` — Apache-2.0.
-- `AGENTS.md` — agent entrypoint.
-
-## Status
-
-This repository is intentionally starting with the foundational knowledge and planning layer before attempting a large multi-agent control plane. The first validation target is not “can it orchestrate many agents?” but:
-
-> Can an agent understand an unfamiliar repository, plan a bounded task, adapt when implementation discovers something new, and make better decisions using the project graph than using raw repository contents alone?
-
-## Build
+The module is **not** published to the Go module proxy yet, so `go install …@latest` fails until a version is tagged. Build from a checkout:
 
 ```bash
-CGO_ENABLED=1 go test ./...
+git clone https://github.com/mrchatam/Trace.git
+cd Trace
 CGO_ENABLED=1 go build -o bin/trace ./cmd/trace
+CGO_ENABLED=1 go build -o bin/trace-mcp ./cmd/trace-mcp
+cp -f bin/trace bin/trace-mcp ~/.local/bin/   # or any dir on PATH
 ./bin/trace version
 ```
 
-Requires Go 1.24+ (`go.mod` / `modernc.org/sqlite`). The full `trace` binary links tree-sitter analyzers and needs **`CGO_ENABLED=1`**. Library packages that do not import `analyzers` remain usable with `CGO_ENABLED=0`.
+- Both `trace` and `trace-mcp` need **`CGO_ENABLED=1`** on tip (tree-sitter / analyzers). `CGO_ENABLED=0` fails to link language bindings.
+- Some library packages that do not import analyzers remain usable with `CGO_ENABLED=0`.
+- No GitHub Releases yet — use the build above. See also [`docs/gui-quickstart.md`](docs/gui-quickstart.md) for PATH notes.
 
-Also build the MCP stdio server when using Cursor:
+`trace install …` configures agent/MCP/hook snippets; it does **not** put binaries on PATH.
 
-```bash
-CGO_ENABLED=0 go build -o bin/trace-mcp ./cmd/trace-mcp
-```
+## 60-second quickstart
 
-## Install / Cursor MCP
-
-Print a merge-ready MCP snippet (no file write):
+From any project directory (Git optional but recommended):
 
 ```bash
-trace install cursor
+trace init
+# → creates .trace/trace.db (never project-root trace.db)
+
+trace add goal --title "Harden auth" --body "Close session gaps"
+# → {"id":"<goal-id>","ok":true,"type":"goal"}
+
+trace add task --title "Audit cookie flags" --goal-id <goal-id>
+# → {"id":"<task-id>","ok":true,"type":"task"}
+
+trace index
+trace search cookie
+trace context <task-id>
+trace loop status --task <task-id>
 ```
 
-Upsert `mcpServers.trace` into `~/.cursor/mcp.json` (creates a `*.bak.<UTC>` backup of an existing file; path on stderr):
-
-```bash
-trace install cursor --write
-# optional: --bin /abs/path/to/trace-mcp  --mcp-json /path/to/mcp.json
-```
-
-The entry uses `type=stdio`, command `trace-mcp` (or `--bin`), and `args: ["-C", "${workspaceFolder}"]`. Open the **project (or experiment run folder)** as the Cursor workspace so `${workspaceFolder}` points at the seeded tree — not the Trace monorepo root by mistake (DF-05).
-
-After a successful `trace install cursor` (print or `--write`) or after rebuilding `trace-mcp`, prefer an **absolute `--bin` path**, then **reload/restart Cursor MCP** (or reload the window) so the long-lived stdio process is not stale. The live Cursor tool catalog may lag until reload (DF-37). Use MCP `trace_version` to confirm the live process identity.
-
-## Portable graph (clone recipe)
-
-After cloning a repo that commits `trace/graph.json`:
+Clone of a repo that commits `trace/graph.json`:
 
 ```bash
 trace init
@@ -140,10 +68,100 @@ trace why goal <id>
 trace context <task-id>
 ```
 
-After `seed import`, tasks are **PENDING** (default export omits reviews, transitions, and task `work_state`; live DONE/SKIPPED stays on the exporter’s `.trace/`).
+After `seed import`, tasks are **PENDING** (default export omits reviews, transitions, and task `work_state`).
 
-`trace index` rebuilds the derived code graph locally; causal and plan data come from the git-committed JSON. See [CONTRIBUTING.md](CONTRIBUTING.md) for export-before-PR and merge conventions.
+## Surfaces
+
+| Surface | Binary / command | Role |
+|---------|------------------|------|
+| **CLI** | `trace` | Canonical operator interface (`init`, `add`, `index`, `search`, `context`, `loop`, `plan`, …) |
+| **MCP** | `trace-mcp` (stdio) | Same graph for Cursor/other MCP hosts — tools `trace_why`, `trace_context`, `trace_search`, `trace_loop`, `trace_plan`, `trace_explore`, … (17 tools; confirm with `trace_version`) |
+| **HTTP / GUI** | `trace serve` / `trace gui` | **Opt-in** loopback API + embedded Explore SPA (default `127.0.0.1:7432`; not a daemon) |
+
+Cursor MCP snippet (print only):
+
+```bash
+trace install cursor
+# merge into ~/.cursor/mcp.json:
+trace install cursor --write
+# prefer --bin /abs/path/to/trace-mcp, then reload Cursor MCP
+```
+
+GUI (consumer repo needs only `.trace/`):
+
+```bash
+cd your-project && trace gui
+# headless twin: trace serve
+```
+
+Details: [`docs/gui-quickstart.md`](docs/gui-quickstart.md).
+
+## What it is / isn’t
+
+**Is**
+
+- Local-first knowledge + planning substrate for one project root (`-C` / cwd; no parent walk-up).
+- Hybrid retrieval: exact lookup, lexical **FTS**, graph-label traversal, temporal/history — **not** embedding/vector semantic search (deferred — **DR-NOSSEM**; do not expect `semantic_match`).
+- Progressive planning: coarse → deep near execution → replan from discoveries.
+- Evidence and independent review before DONE; provenance on inferred vs verified facts.
+- Portable causal graph via committed `trace/graph.json` (`.trace/` stays local/gitignored).
+
+**Isn’t**
+
+- A Git replacement, IDE, or coding-agent runtime.
+- Cloud SaaS, multi-tenant hosting, or always-on network daemon (HTTP/GUI is opt-in loopback).
+- Embedding/RAG semantic search (not shipped).
+- A claim that Jev or other external integrations are productized here.
+
+## Design principles (condensed)
+
+- Progressive planning; discovery is normal and feeds the plan.
+- Evidence over assertions; implementation ≠ review identity.
+- Context minimization — smallest high-value packet first, expand on demand.
+- Hybrid FTS/graph/temporal retrieval (no embeddings yet — DR-NOSSEM).
+- Provenance everywhere; forward progression; human authority.
+- Capability-aware tasks; Git for history; incremental index updates.
+
+## Feature map (shipped vs deeper docs)
+
+| Area | Shipped surface (examples) |
+|------|----------------------------|
+| Graph CRUD | `trace add`, `link`, `transition`, `review`, `tasks` |
+| Retrieval | `search`, `why`, `context`, `explore` / MCP `trace_explore` |
+| Loop / gates | `loop next\|apply\|status\|gate`, optional `--enforce` |
+| Planning | `plan create-coarse\|deep\|show\|bootstrap\|…` |
+| Index | `index` / `index status` / `index watch` (file-local incremental) |
+| Portable graph | `seed import\|export` → `trace/graph.json` |
+| Impact / caps | `impact`, `capability`, `agents recommend` |
+| Install adapters | `install cursor\|claude\|cursor-hook\|git-hook\|agents` |
+| Local HTTP/GUI | `serve`, `gui` (embedded SPA) |
+
+For command truth, prefer `trace --help` and MCP `Instructions` / `trace_version` over older blog-style docs.
+
+## Documentation map
+
+| Doc | What |
+|-----|------|
+| [`docs/TODO.md`](docs/TODO.md) | Execution board index (phase tables under `docs/TODO/`) |
+| [`docs/gui-quickstart.md`](docs/gui-quickstart.md) | Opt-in GUI / serve |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Component boundaries |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Trust boundaries |
+| [`docs/PROJECT_MODEL.md`](docs/PROJECT_MODEL.md) | Entities, relations, provenance |
+| [`docs/RETRIEVAL_AND_CONTEXT.md`](docs/RETRIEVAL_AND_CONTEXT.md) | Retrieval strategy (incl. DR-NOSSEM) |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Roadmap / milestone gates |
+| [`PROJECT_DOCS_INDEX.md`](PROJECT_DOCS_INDEX.md) | Full doc index |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Dev rules, portable-graph export, dual-stack notes |
+| [`AGENTS.md`](AGENTS.md) | Agent entrypoint / phase focus |
+| [`LICENSE`](LICENSE) | Apache-2.0 |
+
+## Status
+
+Active research/engineering codebase: foundational graph, CLI, MCP, and opt-in local GUI are in use and under rapid iteration (multi-phase boards; see `AGENTS.md`). The validation bar is not “orchestrate many agents,” but:
+
+> Can an agent understand an unfamiliar repo, plan a bounded task, adapt when implementation discovers something new, and decide better with the project graph than with raw files alone?
+
+Expect sharp edges, evolving commands, and honest gaps. Read `trace --help` and the active phase board before assuming a feature exists.
 
 ## License
 
-The core project is intended to be released under Apache-2.0. The project may later offer hosted, enterprise, support, or other commercial services without restricting the open-source core.
+Apache-2.0. Hosted/enterprise offerings may appear later without restricting the open-source core.
