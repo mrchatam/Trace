@@ -214,7 +214,7 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 		return NextPacket{}, fmt.Errorf("loop next: plan for goal %q: %w", goalID, err)
 	}
 	if planView.CurrentScopeID == nil || *planView.CurrentScopeID == "" || planView.CurrentDeepPlan == nil {
-		return NextPacket{}, fmt.Errorf("loop next: missing goal plan context for goal %q", goalID)
+		return NextPacket{}, &domain.ErrValidation{Msg: fmt.Sprintf("loop next: missing goal plan context for goal %q", goalID)}
 	}
 	lookaheadSummary := planView.LookaheadSummary
 	planSnapshot := PlanSnapshot{

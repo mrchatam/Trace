@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/store"
 )
 
@@ -313,7 +314,7 @@ func (e *Engine) lookupEntity(entityType, id, reason string, distance int, score
 		}
 		return Hit{EntityType: "outcome_result", EntityID: o.ID, Title: title, Excerpt: excerpt(o.Summary), ReasonCode: reason, Score: score, Distance: distance}, nil
 	default:
-		return Hit{}, fmt.Errorf("retrieval: unknown entity type %q", entityType)
+		return Hit{}, &domain.ErrValidation{Msg: fmt.Sprintf("retrieval: unknown entity type %q", entityType)}
 	}
 }
 
