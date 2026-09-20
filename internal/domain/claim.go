@@ -41,19 +41,31 @@ func (s *Service) CreateClaim(ctx context.Context, in ClaimInput) (store.Claim, 
 	if id == "" {
 		id = uuid.NewString()
 	}
-	c, err := s.store.UpsertClaim(store.Claim{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var c store.Claim
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		c, err = stx.UpsertClaim(store.Claim{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityClaim, c.ID, c.Title)
 	})
 	if err != nil {
-		return store.Claim{}, err
-	}
-	if err := s.appendCreated(EntityClaim, c.ID, c.Title); err != nil {
 		return store.Claim{}, err
 	}
 	return c, nil
@@ -70,19 +82,31 @@ func (s *Service) CreateEvidence(ctx context.Context, in EvidenceInput) (store.E
 	if id == "" {
 		id = uuid.NewString()
 	}
-	e, err := s.store.UpsertEvidence(store.Evidence{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var e store.Evidence
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		e, err = stx.UpsertEvidence(store.Evidence{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityEvidence, e.ID, e.Title)
 	})
 	if err != nil {
-		return store.Evidence{}, err
-	}
-	if err := s.appendCreated(EntityEvidence, e.ID, e.Title); err != nil {
 		return store.Evidence{}, err
 	}
 	return e, nil
@@ -101,18 +125,26 @@ func (s *Service) LinkClaimEvidence(ctx context.Context, claimID, evidenceID str
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityClaim,
-		FromID:     claimID,
-		Rel:        RelClaimHasEvidence,
-		ToType:     EntityEvidence,
-		ToID:       evidenceID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityClaim, claimID, RelClaimHasEvidence, EntityEvidence, evidenceID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityClaim,
+			FromID:     claimID,
+			Rel:        RelClaimHasEvidence,
+			ToType:     EntityEvidence,
+			ToID:       evidenceID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityClaim, claimID, RelClaimHasEvidence, EntityEvidence, evidenceID, meta)
+	})
 }
 
 // GetClaim / GetEvidence thin wrappers.

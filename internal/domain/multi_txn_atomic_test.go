@@ -250,3 +250,103 @@ func TestMarkStaleAtomicOnMidpathFailure(t *testing.T) {
 		}
 	}
 }
+
+// Round 5 (#117): Create*/Link*/SetResidualStatus must share one WithTx.
+func TestCreateGoalAtomicOnMidpathFailure(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	svc := New(st)
+	ctx := context.Background()
+
+	id := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	injected := errors.New("injected fail after create goal upsert")
+	svc.afterCreateMutateHook = func() error { return injected }
+
+	_, err = svc.CreateGoal(ctx, GoalInput{ID: id, Title: "g"})
+	if !errors.Is(err, injected) {
+		t.Fatalf("want injected, got %v", err)
+	}
+	if _, err := st.GetGoal(id); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("goal must roll back, err=%v", err)
+	}
+}
+
+func TestLinkGoalTaskAtomicOnMidpathFailure(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	svc := New(st)
+	ctx := context.Background()
+	goal, err := svc.CreateGoal(ctx, GoalInput{Title: "g"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := svc.CreateTask(ctx, TaskInput{Title: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	injected := errors.New("injected fail after link upsert")
+	svc.afterLinkMutateHook = func() error { return injected }
+
+	err = svc.LinkGoalTask(ctx, goal.ID, task.ID, LinkMeta{})
+	if !errors.Is(err, injected) {
+		t.Fatalf("want injected, got %v", err)
+	}
+	got, err := st.GetTask(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GoalID != nil {
+		t.Fatalf("goal_id must roll back, got %v", got.GoalID)
+	}
+	evs, err := st.ListEventsByEntity(EntityGoal, goal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range evs {
+		if e.Type == EventEntityLinked {
+			t.Fatalf("unexpected entity.linked: %+v", e)
+		}
+	}
+}
+
+func TestSetResidualStatusAtomicOnMidpathFailure(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	svc := New(st)
+	ctx := context.Background()
+	rev, err := svc.CreateReview(ctx, ReviewInput{Title: "r"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := svc.AddResidual(ctx, rev.ID, ResidualInput{Code: "C1", Body: "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	injected := errors.New("injected fail after residual update")
+	svc.afterResidualMutateHook = func() error { return injected }
+
+	err = svc.SetResidualStatus(ctx, res.ID, ResidualStatusAcked, ResidualStatusOptions{
+		Actor: "a", Reason: "ack",
+	})
+	if !errors.Is(err, injected) {
+		t.Fatalf("want injected, got %v", err)
+	}
+	got, err := st.GetReviewResidual(res.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != ResidualStatusOpen {
+		t.Fatalf("status=%q want OPEN (rollback)", got.Status)
+	}
+}

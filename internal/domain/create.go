@@ -115,19 +115,31 @@ func (s *Service) CreateGoal(ctx context.Context, in GoalInput) (store.Goal, err
 	if id == "" {
 		id = uuid.NewString()
 	}
-	g, err := s.store.UpsertGoal(store.Goal{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var g store.Goal
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		g, err = stx.UpsertGoal(store.Goal{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityGoal, g.ID, g.Title)
 	})
 	if err != nil {
-		return store.Goal{}, err
-	}
-	if err := s.appendCreated(EntityGoal, g.ID, g.Title); err != nil {
 		return store.Goal{}, err
 	}
 	return g, nil
@@ -144,19 +156,31 @@ func (s *Service) CreateDecision(ctx context.Context, in DecisionInput) (store.D
 	if id == "" {
 		id = uuid.NewString()
 	}
-	d, err := s.store.UpsertDecision(store.Decision{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var d store.Decision
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		d, err = stx.UpsertDecision(store.Decision{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityDecision, d.ID, d.Title)
 	})
 	if err != nil {
-		return store.Decision{}, err
-	}
-	if err := s.appendCreated(EntityDecision, d.ID, d.Title); err != nil {
 		return store.Decision{}, err
 	}
 	return d, nil
@@ -191,29 +215,40 @@ func (s *Service) CreateAssumption(ctx context.Context, in AssumptionInput) (sto
 			return store.Assumption{}, err
 		}
 	}
-	a, err := s.store.UpsertAssumption(store.Assumption{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var a store.Assumption
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		a, err = stx.UpsertAssumption(store.Assumption{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+		})
+		if err != nil {
+			return err
+		}
+		for _, did := range in.DecisionIDs {
+			if err := tx.insertTypedLink(EntityAssumption, a.ID, RelAssumptionSupportsDecision, EntityDecision, strings.TrimSpace(did)); err != nil {
+				return err
+			}
+		}
+		for _, tid := range in.TaskIDs {
+			if err := tx.insertTypedLink(EntityAssumption, a.ID, RelAssumptionAffectsTask, EntityTask, strings.TrimSpace(tid)); err != nil {
+				return err
+			}
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityAssumption, a.ID, a.Title)
 	})
 	if err != nil {
-		return store.Assumption{}, err
-	}
-	for _, did := range in.DecisionIDs {
-		if err := s.insertTypedLink(EntityAssumption, a.ID, RelAssumptionSupportsDecision, EntityDecision, strings.TrimSpace(did)); err != nil {
-			return store.Assumption{}, err
-		}
-	}
-	for _, tid := range in.TaskIDs {
-		if err := s.insertTypedLink(EntityAssumption, a.ID, RelAssumptionAffectsTask, EntityTask, strings.TrimSpace(tid)); err != nil {
-			return store.Assumption{}, err
-		}
-	}
-	if err := s.appendCreated(EntityAssumption, a.ID, a.Title); err != nil {
 		return store.Assumption{}, err
 	}
 	return a, nil
@@ -234,21 +269,33 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (store.Task, err
 	if id == "" {
 		id = uuid.NewString()
 	}
-	t, err := s.store.UpsertTask(store.Task{
-		ID:             id,
-		GoalID:         in.GoalID,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		WorkState:      ws,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var t store.Task
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		t, err = stx.UpsertTask(store.Task{
+			ID:             id,
+			GoalID:         in.GoalID,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			WorkState:      ws,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityTask, t.ID, t.Title)
 	})
 	if err != nil {
-		return store.Task{}, err
-	}
-	if err := s.appendCreated(EntityTask, t.ID, t.Title); err != nil {
 		return store.Task{}, err
 	}
 	return t, nil
@@ -269,20 +316,32 @@ func (s *Service) CreateDiscovery(ctx context.Context, in DiscoveryInput) (store
 	if id == "" {
 		id = uuid.NewString()
 	}
-	d, err := s.store.UpsertDiscovery(store.Discovery{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		Severity:       sev,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var d store.Discovery
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		d, err = stx.UpsertDiscovery(store.Discovery{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			Severity:       sev,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityDiscovery, d.ID, d.Title)
 	})
 	if err != nil {
-		return store.Discovery{}, err
-	}
-	if err := s.appendCreated(EntityDiscovery, d.ID, d.Title); err != nil {
 		return store.Discovery{}, err
 	}
 	return d, nil
@@ -318,19 +377,31 @@ func (s *Service) CreatePlanChange(ctx context.Context, in PlanChangeInput) (sto
 	if id == "" {
 		id = uuid.NewString()
 	}
-	p, err := s.store.UpsertPlanChange(store.PlanChange{
-		ID:             id,
-		Title:          strings.TrimSpace(in.Title),
-		Body:           in.Body,
-		SourceType:     src,
-		Confidence:     in.Confidence,
-		Status:         status,
-		LastVerifiedAt: in.LastVerifiedAt,
+	var p store.PlanChange
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		var err error
+		p, err = stx.UpsertPlanChange(store.PlanChange{
+			ID:             id,
+			Title:          strings.TrimSpace(in.Title),
+			Body:           in.Body,
+			SourceType:     src,
+			Confidence:     in.Confidence,
+			Status:         status,
+			LastVerifiedAt: in.LastVerifiedAt,
+	
+		})
+		if err != nil {
+			return err
+		}
+		if tx.afterCreateMutateHook != nil {
+			if err := tx.afterCreateMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendCreated(EntityPlanChange, p.ID, p.Title)
 	})
 	if err != nil {
-		return store.PlanChange{}, err
-	}
-	if err := s.appendCreated(EntityPlanChange, p.ID, p.Title); err != nil {
 		return store.PlanChange{}, err
 	}
 	return p, nil
