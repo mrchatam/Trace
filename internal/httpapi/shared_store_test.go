@@ -171,3 +171,66 @@ func TestLoopStatusValidationErrors(t *testing.T) {
 	}
 }
 
+
+// TestLoopNextWhyValidationErrors covers #114: missing plan / unknown why type
+// must surface as 400 VALIDATION_ERROR with the real message, not opaque 500.
+func TestLoopNextWhyValidationErrors(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	goal, err := svc.CreateGoal(ctx, domain.GoalInput{Title: "g"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "t", GoalID: &goal.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	srv, err := New(Options{Root: dir, Addr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(srv.CloseStore)
+	h := srv.Handler()
+
+	cases := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"loop_next_missing_plan", "/v1/loop/next?task_id=" + task.ID, "missing goal plan context"},
+		{"why_unknown_type", "/v1/why?entity_type=nope&id=" + task.ID, "unknown entity type"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+			}
+			var env map[string]any
+			if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil {
+				t.Fatal(err)
+			}
+			errObj, _ := env["error"].(map[string]any)
+			if errObj["code"] != "VALIDATION_ERROR" {
+				t.Fatalf("code: %#v body=%s", errObj, rr.Body.String())
+			}
+			msg, _ := errObj["message"].(string)
+			if !strings.Contains(msg, tc.want) {
+				t.Fatalf("message %q want substring %q", msg, tc.want)
+			}
+			if strings.Contains(msg, "internal error") {
+				t.Fatalf("must not hide message: %q", msg)
+			}
+		})
+	}
+}
