@@ -161,11 +161,11 @@ func (s *Server) Addr() string { return s.addr }
 func (s *Server) Token() string { return s.token }
 
 // SetToken updates the bearer token used by auth middleware (e.g. POST /v1/auth/token).
+// On loopback-trust servers (requireToken still false), minting stores the token for
+// clients that opt in with Authorization but does NOT flip requireToken — otherwise
+// a single unauthenticated POST /v1/auth/token bricks /v1/health and the GUI.
 func (s *Server) SetToken(tok string) {
 	s.token = tok
-	if tok != "" {
-		s.requireToken = true
-	}
 }
 
 // Root returns the absolute project root.

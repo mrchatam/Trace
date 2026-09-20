@@ -142,6 +142,9 @@ func NormalizeSeverity(severity string) (string, error) {
 type Service struct {
 	store        *store.Store
 	impactWalker ImpactWalker
+	// afterPassInvalidateHook runs inside TransitionTask's reopen transaction after
+	// PASS→UNCERTAIN invalidation and before UpsertTask. Tests only; nil in production.
+	afterPassInvalidateHook func() error
 }
 
 // New constructs a domain Service. st must be non-nil and already opened.
@@ -150,6 +153,15 @@ func New(st *store.Store) *Service {
 		panic("domain: New: store is nil")
 	}
 	return &Service{store: st}
+}
+
+// withStore returns a shallow Service that uses st (e.g. a tx-scoped store).
+func (s *Service) withStore(st *store.Store) *Service {
+	return &Service{
+		store:                   st,
+		impactWalker:            s.impactWalker,
+		afterPassInvalidateHook: s.afterPassInvalidateHook,
+	}
 }
 
 // LinkMeta carries optional provenance for link operations.
