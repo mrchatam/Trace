@@ -11,7 +11,7 @@
 
 ## Core design
 
-- README.md
+- [README.md](README.md) — GitHub landing (install, quickstart, surfaces)
 - docs/ROADMAP.md
 - docs/ARCHITECTURE.md
 - docs/PROJECT_MODEL.md
