@@ -619,13 +619,13 @@ func Status(ctx context.Context, st *store.Store, plan *planner.Service, seed Ap
 		return StatusResult{}, fmt.Errorf("loop status: load seed task: %w", err)
 	}
 	if task.GoalID == nil || *task.GoalID == "" {
-		return StatusResult{}, fmt.Errorf("loop status: task %q has no goal_id", seed.TaskID)
+		return StatusResult{}, &domain.ErrValidation{Msg: fmt.Sprintf("loop status: task %q has no goal_id", seed.TaskID)}
 	}
 	if strings.TrimSpace(seed.GoalID) == "" {
 		seed.GoalID = *task.GoalID
 	}
 	if *task.GoalID != seed.GoalID {
-		return StatusResult{}, fmt.Errorf("loop status: seed goal mismatch for task %q", seed.TaskID)
+		return StatusResult{}, &domain.ErrValidation{Msg: fmt.Sprintf("loop status: seed goal mismatch for task %q", seed.TaskID)}
 	}
 
 	step, ok := latestLoopStep(st, seed)
