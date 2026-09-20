@@ -37,42 +37,55 @@ func ValidateHarnessAgentSlug(slug string) error {
 	return nil
 }
 
-// UpsertHarnessAgent persists an agent and replaces its requirements.
+// UpsertHarnessAgent persists an agent and replaces its requirements atomically.
 func (s *Service) UpsertHarnessAgent(ctx context.Context, in HarnessAgentInput) (store.HarnessAgent, error) {
 	_ = ctx
 	if err := ValidateHarnessAgentSlug(in.Slug); err != nil {
 		return store.HarnessAgent{}, err
 	}
-	row, err := s.store.UpsertHarnessAgent(store.HarnessAgent{
-		ID:                 in.ID,
-		Slug:               strings.TrimSpace(in.Slug),
-		Title:              in.Title,
-		Description:        in.Description,
-		SubagentType:       in.SubagentType,
-		DeliberationPhases: in.DeliberationPhases,
-		TaskKeywords:       in.TaskKeywords,
-		RecommendSubagent:  in.RecommendSubagent,
-		RegistrySource:     in.RegistrySource,
-		RegistryVersion:    in.RegistryVersion,
-		ExternalURL:        in.ExternalURL,
+	var row store.HarnessAgent
+	err := s.store.WithTx(func(stx *store.Store) error {
+		var err error
+		row, err = stx.UpsertHarnessAgent(store.HarnessAgent{
+			ID:                 in.ID,
+			Slug:               strings.TrimSpace(in.Slug),
+			Title:              in.Title,
+			Description:        in.Description,
+			SubagentType:       in.SubagentType,
+			DeliberationPhases: in.DeliberationPhases,
+			TaskKeywords:       in.TaskKeywords,
+			RecommendSubagent:  in.RecommendSubagent,
+			RegistrySource:     in.RegistrySource,
+			RegistryVersion:    in.RegistryVersion,
+			ExternalURL:        in.ExternalURL,
+		})
+		if err != nil {
+			return err
+		}
+		if err := stx.DeleteHarnessAgentRequirementsForAgent(row.ID); err != nil {
+			return err
+		}
+		if s.afterHarnessDeleteHook != nil {
+			if err := s.afterHarnessDeleteHook(); err != nil {
+				return err
+			}
+		}
+		for _, slug := range in.Requirements {
+			slug = strings.TrimSpace(slug)
+			if slug == "" {
+				continue
+			}
+			if _, err := stx.InsertHarnessAgentRequirement(store.HarnessAgentRequirement{
+				AgentID:                row.ID,
+				RequiredCapabilitySlug: slug,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return store.HarnessAgent{}, err
-	}
-	if err := s.store.DeleteHarnessAgentRequirementsForAgent(row.ID); err != nil {
-		return store.HarnessAgent{}, err
-	}
-	for _, slug := range in.Requirements {
-		slug = strings.TrimSpace(slug)
-		if slug == "" {
-			continue
-		}
-		if _, err := s.store.InsertHarnessAgentRequirement(store.HarnessAgentRequirement{
-			AgentID:                row.ID,
-			RequiredCapabilitySlug: slug,
-		}); err != nil {
-			return store.HarnessAgent{}, err
-		}
 	}
 	return row, nil
 }
