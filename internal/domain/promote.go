@@ -19,21 +19,42 @@ type PromotionCandidate struct {
 // Import never auto-spawns (human gate / FR-P28-D1).
 const SeedImportPromotionHint = "BLOCKING discoveries listed in promotion_candidates need an explicit promote: trace add task --from-discovery <discovery_id> or loop apply spawned_tasks[].discovery_id (or decline). Do not invent task UUIDs."
 
+const (
+	DefaultPromotionCandidateLimit = 32
+	MaxPromotionCandidateLimit     = 64
+)
+
 // ListPromotionCandidates returns BLOCKING discoveries that lack a live
-// discovery_mentions_task target. Empty slice (not nil) when none.
+// discovery_mentions_task target, capped at DefaultPromotionCandidateLimit.
+// Prefer ListPromotionCandidatesLimited when callers need truncation honesty.
 func (s *Service) ListPromotionCandidates() ([]PromotionCandidate, error) {
+	items, _, err := s.ListPromotionCandidatesLimited(DefaultPromotionCandidateLimit)
+	return items, err
+}
+
+// ListPromotionCandidatesLimited returns up to limit BLOCKING discoveries that
+// lack a live discovery_mentions_task target. truncated is true when more exist.
+// limit <= 0 uses DefaultPromotionCandidateLimit; values above Max are clamped.
+func (s *Service) ListPromotionCandidatesLimited(limit int) ([]PromotionCandidate, bool, error) {
+	if limit <= 0 {
+		limit = DefaultPromotionCandidateLimit
+	}
+	if limit > MaxPromotionCandidateLimit {
+		limit = MaxPromotionCandidateLimit
+	}
 	discoveries, err := s.store.ListDiscoveries()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	candidates := make([]PromotionCandidate, 0)
+	truncated := false
 	for _, d := range discoveries {
 		if d.Severity != SeverityBlocking {
 			continue
 		}
 		links, err := s.store.ListLinksFrom(EntityDiscovery, d.ID)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		linked := false
 		for _, l := range links {
@@ -42,12 +63,16 @@ func (s *Service) ListPromotionCandidates() ([]PromotionCandidate, error) {
 					linked = true
 					break
 				} else if !errors.Is(err, sql.ErrNoRows) {
-					return nil, err
+					return nil, false, err
 				}
 			}
 		}
 		if linked {
 			continue
+		}
+		if len(candidates) >= limit {
+			truncated = true
+			break
 		}
 		candidates = append(candidates, PromotionCandidate{
 			DiscoveryID: d.ID,
@@ -55,7 +80,7 @@ func (s *Service) ListPromotionCandidates() ([]PromotionCandidate, error) {
 			Severity:    d.Severity,
 		})
 	}
-	return candidates, nil
+	return candidates, truncated, nil
 }
 
 // PromoteBlockingDiscovery promotes a BLOCKING discovery into a task and links
