@@ -55,7 +55,7 @@ The project uses Git as the canonical version-history substrate rather than reim
 - **Evidence over assertions:** an agent saying “done” is never sufficient evidence.
 - **Independent review:** implementation and review are separate contexts/identities.
 - **Context minimization:** agents receive the smallest high-value context first and can expand it on demand.
-- **Hybrid retrieval:** exact lookup, lexical search, semantic search, graph traversal, and temporal history work together.
+- **Hybrid retrieval:** exact lookup, lexical (FTS) search, graph-label traversal, and temporal history work together (embedding/vector semantic retrieval is deferred — DR-NOSSEM; do not expect `semantic_match`).
 - **Provenance everywhere:** inferred facts are never silently treated as verified facts.
 - **Forward progression:** backward movement must be explicit; reversals are recorded as new states.
 - **Decision awareness:** user decisions are first-class objects with impact analysis and alternative routes.

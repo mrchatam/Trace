@@ -56,7 +56,7 @@ Commands:
                         predict --change <id> [--depth 1|2]; compare --change <id>)
   capability …          Capability catalog (declare|list|require|unrequire|missing|
                         decide|decisions)
-  plan …                Progressive coarse planner (create-coarse|set-current|deep|show)
+  plan …                Progressive coarse planner (create-coarse|set-current|deep|show|bootstrap|apply-discovery|ack-replan)
   seed import <file>    Import seed JSON v1 through domain APIs. Relative <file> resolves
                         under -C project root; absolute paths unchanged. Stdout JSON may
                         include promotion_candidates (orphan BLOCKING discoveries) plus
@@ -75,8 +75,9 @@ Commands:
                         no write on violation. --strict alone warns on stderr, exit 0.
                         Without --strict, thin graphs (discoveries=0 decisions=0) still
                         emit a stderr warn (write-before-export nudge); exit stays 0.
-  tasks [--goal <id>]   List tasks as JSON array (id, title, work_state, goal_id);
-                        empty → []; optional --goal filters by goal_id
+  tasks [--goal <id>] [--limit N] [--cursor C] [--all] [--work-state S]
+                        List tasks as JSON page {items,count,truncated,next_cursor?};
+                        default limit 50 (max 500); --all unbounded; optional --goal / --work-state
   tasks conflicts [--task <id>]
                         Advisory overlaps between active tasks (JSON ok + conflicts[])
   why <type> <id>       Causal explanation (JSON WhyResult on stdout)
