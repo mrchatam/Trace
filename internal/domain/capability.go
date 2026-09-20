@@ -48,7 +48,7 @@ type CapabilitySpec struct {
 type ListCapabilitiesFilter struct {
 	Kind   string
 	Status string
-	Limit  int // 0 = unbounded; >0 applies SQL LIMIT
+	Limit  int // 0 = unbounded (internal); agent/HTTP all=true uses MaxTaskListLimit
 }
 
 // NormalizeCapabilityKind returns a valid kind. Empty and unknown fail closed.

@@ -101,8 +101,8 @@ func cmdCapabilityList(root string, args []string) int {
 	fs.SetOutput(os.Stderr)
 	kind := fs.String("kind", "", "optional SKILL|RULE|MCP|TOOL|HOOK")
 	status := fs.String("status", "", "optional AVAILABLE|UNAVAILABLE|UNKNOWN")
-	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); ignored with --all")
-	all := fs.Bool("all", false, "return all matching capabilities (no limit)")
+	limit := fs.Int("limit", store.DefaultTaskListLimit, "max rows (default 50, max 500); with --all uses MaxTaskListLimit")
+	all := fs.Bool("all", false, "return up to MaxTaskListLimit (500) capabilities")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage
 	}
@@ -114,13 +114,18 @@ func cmdCapabilityList(root string, args []string) int {
 	defer st.Close()
 
 	capLimit := *limit
+	fetchLimit := capLimit
 	if *all {
-		capLimit = 0
+		capLimit = store.MaxTaskListLimit // hard-cap (#118)
+		fetchLimit = capLimit + 1
 	} else if capLimit > store.MaxTaskListLimit {
 		capLimit = store.MaxTaskListLimit
+		fetchLimit = capLimit
+	} else {
+		fetchLimit = capLimit
 	}
 	list, err := svc.ListCapabilities(context.Background(), domain.ListCapabilitiesFilter{
-		Kind: *kind, Status: *status, Limit: capLimit,
+		Kind: *kind, Status: *status, Limit: fetchLimit,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "capability: %v\n", err)
@@ -129,9 +134,14 @@ func cmdCapabilityList(root string, args []string) int {
 	if list == nil {
 		list = []store.Capability{}
 	}
+	truncated := false
+	if len(list) > capLimit {
+		truncated = true
+		list = list[:capLimit]
+	}
 	rows := capabilityListRows(list)
 	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
-		"ok": true, "capabilities": rows, "count": len(rows),
+		"ok": true, "capabilities": rows, "count": len(rows), "truncated": truncated,
 	})
 	return exitOK
 }

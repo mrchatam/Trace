@@ -17,11 +17,11 @@ import (
 type TasksInput struct {
 	Project    string   `json:"project,omitempty" jsonschema:"optional project root override"`
 	GoalID     string   `json:"goal_id,omitempty" jsonschema:"optional goal UUID filter (mirrors --goal)"`
-	Limit      float64  `json:"limit,omitempty" jsonschema:"optional max rows (default 50, cap 500); ignored when all=true"`
+	Limit      float64  `json:"limit,omitempty" jsonschema:"optional max rows (default 50, cap 500); when all=true, limit is MaxTaskListLimit (500)"`
 	Cursor     string   `json:"cursor,omitempty" jsonschema:"opaque pagination cursor from next_cursor"`
 	WorkState  string   `json:"work_state,omitempty" jsonschema:"optional single work_state filter"`
 	WorkStates []string `json:"work_states,omitempty" jsonschema:"optional work_state filters (OR)"`
-	All        bool     `json:"all,omitempty" jsonschema:"when true, return all matching tasks (no limit; agents should avoid)"`
+	All        bool     `json:"all,omitempty" jsonschema:"when true, return up to MaxTaskListLimit (500) matching tasks; prefer cursor pagination"`
 }
 
 // CapabilityInput mirrors `trace capability declare|list|require|unrequire|missing`.
@@ -38,7 +38,7 @@ type CapabilityInput struct {
 	TaskIDAlt  string  `json:"task_id,omitempty" jsonschema:"alias for task"`
 	Capability string  `json:"capability,omitempty" jsonschema:"capability id or slug (require|unrequire)"`
 	Limit      float64 `json:"limit,omitempty" jsonschema:"list: optional max rows (default 50, cap 500)"`
-	All        bool    `json:"all,omitempty" jsonschema:"list: when true, return all matching capabilities"`
+	All        bool    `json:"all,omitempty" jsonschema:"list: when true, return up to MaxTaskListLimit (500) capabilities"`
 }
 
 func (in CapabilityInput) resolvedTaskID() string {
@@ -98,7 +98,7 @@ func (s *Server) toolTasks(ctx context.Context, _ *sdkmcp.CallToolRequest, in Ta
 		Cursor:     in.Cursor,
 	}
 	if in.All {
-		filt.Limit = -1
+		filt.Limit = store.MaxTaskListLimit // hard-cap (#118); Truncated reports overflow
 	} else if in.Limit > 0 {
 		filt.Limit = int(in.Limit)
 	} else {
@@ -191,16 +191,21 @@ func (s *Server) capabilityList(ctx context.Context, in CapabilityInput) (*sdkmc
 	defer st.Close()
 	svc := domain.New(st)
 	capLimit := store.DefaultTaskListLimit
+	fetchLimit := capLimit
 	if in.All {
-		capLimit = 0
+		capLimit = store.MaxTaskListLimit // hard-cap (#118)
+		fetchLimit = capLimit + 1 // detect overflow for truncated
 	} else if in.Limit > 0 {
 		capLimit = int(in.Limit)
 		if capLimit > store.MaxTaskListLimit {
 			capLimit = store.MaxTaskListLimit
 		}
+		fetchLimit = capLimit
+	} else {
+		fetchLimit = capLimit
 	}
 	list, err := svc.ListCapabilities(ctx, domain.ListCapabilitiesFilter{
-		Kind: in.Kind, Status: in.Status, Limit: capLimit,
+		Kind: in.Kind, Status: in.Status, Limit: fetchLimit,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("trace_capability: %w", err)
@@ -208,9 +213,14 @@ func (s *Server) capabilityList(ctx context.Context, in CapabilityInput) (*sdkmc
 	if list == nil {
 		list = []store.Capability{}
 	}
+	truncated := false
+	if len(list) > capLimit {
+		truncated = true
+		list = list[:capLimit]
+	}
 	rows := capabilityListRows(list)
 	b, err := json.Marshal(map[string]any{
-		"ok": true, "capabilities": rows, "count": len(rows),
+		"ok": true, "capabilities": rows, "count": len(rows), "truncated": truncated,
 	})
 	if err != nil {
 		return nil, nil, err

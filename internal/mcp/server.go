@@ -123,7 +123,7 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_tasks",
-		Description: "List tasks (bounded). Returns {items,count,truncated,next_cursor?}. Optional goal_id, work_state/work_states, limit (default 50, cap 500), cursor. Avoid all=true on large projects. Mirrors `trace tasks`.",
+		Description: "List tasks (bounded). Returns {items,count,truncated,next_cursor?}. Optional goal_id, work_state/work_states, limit (default 50, cap 500), cursor. all=true is hard-capped at 500 (prefer cursor). Mirrors `trace tasks`.",
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Tasks",
 			ReadOnlyHint:  true,

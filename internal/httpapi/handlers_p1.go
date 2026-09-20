@@ -238,10 +238,12 @@ func (s *Server) handleListCapability(w http.ResponseWriter, r *http.Request) {
 				capLimit = store.MaxTaskListLimit
 			}
 		}
+		fetchLimit := capLimit
 		if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("all")), "true") || r.URL.Query().Get("all") == "1" {
-			capLimit = 0 // unbounded (domain: Limit 0)
+			capLimit = store.MaxTaskListLimit // hard-cap (#118)
+			fetchLimit = capLimit + 1
 		}
-		list, err := svc.ListCapabilities(r.Context(), domain.ListCapabilitiesFilter{Limit: capLimit})
+		list, err := svc.ListCapabilities(r.Context(), domain.ListCapabilitiesFilter{Limit: fetchLimit})
 		if err != nil {
 			mapDomainErr(w, err)
 			return
@@ -249,7 +251,12 @@ func (s *Server) handleListCapability(w http.ResponseWriter, r *http.Request) {
 		if list == nil {
 			list = []store.Capability{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "capabilities": list, "count": len(list)})
+		truncated := false
+		if len(list) > capLimit {
+			truncated = true
+			list = list[:capLimit]
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "capabilities": list, "count": len(list), "truncated": truncated})
 	case "missing":
 		if taskID == "" {
 			writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "task_id is required for action=missing", nil)
