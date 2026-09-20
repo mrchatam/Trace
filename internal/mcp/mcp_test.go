@@ -1540,8 +1540,19 @@ func TestTraceVersion(t *testing.T) {
 	if err := json.Unmarshal([]byte(mustText(t, res)), &m); err != nil {
 		t.Fatal(err)
 	}
-	if m["ok"] != true || m["name"] != "trace" || m["version"] != "0.0.0-dev" {
+	if m["ok"] != true || m["name"] != "trace" {
 		t.Fatalf("version payload: %v", m)
+	}
+	ver, _ := m["version"].(string)
+	if ver == "" || (ver != "0.0.0-dev" && !strings.HasPrefix(ver, "0.0.0-dev+")) {
+		// ldflags override or default[+sha]
+		if !strings.Contains(ver, ".") {
+			t.Fatalf("version payload: %v", m)
+		}
+	}
+	// With VCS info, must not stay bare 0.0.0-dev (#87).
+	if commit, ok := m["commit"].(string); ok && commit != "" && ver == "0.0.0-dev" {
+		t.Fatalf("commit %q present but version still bare 0.0.0-dev: %v", commit, m)
 	}
 }
 

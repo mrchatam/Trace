@@ -20,7 +20,7 @@ Global:
 
 Commands:
   help | -h | --help    Show this help (exit 0)
-  version | --version   Print 0.0.0-dev (exit 0)
+  version | --version   Print build identity (version[+commit]; exit 0)
   init [--with-agent-defaults]
                         Create/open .trace/trace.db (not project-root trace.db);
                         print DB path; optional bundled harness agent catalog install
