@@ -1,6 +1,10 @@
 package install
 
-import "io"
+import (
+	"io"
+
+	"github.com/mrchatam/Trace/internal/store"
+)
 
 // Tier vocabulary (exact Trace strings).
 const (
@@ -45,6 +49,10 @@ type InstallOpts struct {
 	HomeDir string
 	// CatalogPath overrides bundled trace/agents/default.json (tests).
 	CatalogPath string
+	// Store, when non-nil, is reused instead of store.Open(ProjectRoot).
+	// Caller retains ownership; InstallAgentDefaults will not Close it.
+	// Prefer this when the caller already holds the project lock (e.g. init --with-agent-defaults).
+	Store *store.Store
 	// Out receives print-only JSON (default os.Stdout when nil at CLI).
 	Out io.Writer
 	// ErrOut receives tips / backup lines (default os.Stderr when nil at CLI).

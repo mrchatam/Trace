@@ -53,6 +53,7 @@ func cmdInit(root string, args []string) int {
 		if err := install.InstallAgentDefaults(install.InstallOpts{
 			Write:       true,
 			ProjectRoot: abs,
+			Store:       st,
 			ErrOut:      os.Stderr,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "init: %v\n", err)

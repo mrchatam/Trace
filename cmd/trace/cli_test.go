@@ -186,6 +186,25 @@ func TestInitCreatesDB(t *testing.T) {
 	}
 }
 
+// TestInitWithAgentDefaults covers #103: one-shot init must not self-deadlock
+// on the exclusive store lock when seeding the harness catalog.
+func TestInitWithAgentDefaults(t *testing.T) {
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init", "--with-agent-defaults"}); code != exitOK {
+		t.Fatalf("init --with-agent-defaults exit %d want %d", code, exitOK)
+	}
+	listOut := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "agents", "list"})
+	})
+	var items []any
+	if err := json.Unmarshal([]byte(listOut), &items); err != nil {
+		t.Fatalf("agents list json: %v\n%s", err, listOut)
+	}
+	if len(items) == 0 {
+		t.Fatalf("agents catalog empty after init --with-agent-defaults: %s", listOut)
+	}
+}
+
 func TestInitSucceedsOnUnbornGitHead(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
