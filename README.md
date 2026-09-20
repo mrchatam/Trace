@@ -75,26 +75,58 @@ After `seed import`, tasks are **PENDING** (default export omits reviews, transi
 | Surface | Binary / command | Role |
 |---------|------------------|------|
 | **CLI** | `trace` | Canonical operator interface (`init`, `add`, `index`, `search`, `context`, `loop`, `plan`, …) |
-| **MCP** | `trace-mcp` (stdio) | Same graph for Cursor/other MCP hosts — tools `trace_why`, `trace_context`, `trace_search`, `trace_loop`, `trace_plan`, `trace_explore`, … (17 tools; confirm with `trace_version`) |
+| **MCP** | `trace-mcp` (stdio) | Same graph for **any MCP-capable coding agent** — tools `trace_why`, `trace_context`, `trace_search`, `trace_loop`, `trace_plan`, `trace_explore`, … (17 tools; confirm with `trace_version`) |
 | **HTTP / GUI** | `trace serve` / `trace gui` | **Opt-in** loopback API + embedded Explore SPA (default `127.0.0.1:7432`; not a daemon) |
 
-Cursor MCP snippet (print only):
+### Wire Trace into your coding agent (MCP)
 
-```bash
-trace install cursor
-# merge into ~/.cursor/mcp.json:
-trace install cursor --write
-# prefer --bin /abs/path/to/trace-mcp, then reload Cursor MCP
+Trace’s agent integration is **stdio MCP**, not a Cursor-only plugin. Any host that can launch an MCP server with a command + args can use `trace-mcp` the same way (Cursor, Claude Code, and other MCP clients).
+
+Universal config shape (print adapters emit this):
+
+```json
+{
+  "mcpServers": {
+    "trace": {
+      "type": "stdio",
+      "command": "/abs/path/to/trace-mcp",
+      "args": ["-C", "${workspaceFolder}"]
+    }
+  }
+}
 ```
 
-GUI (consumer repo needs only `.trace/`):
+Prefer an **absolute** path to `trace-mcp`. After install or rebuild, **restart/reload the MCP connection** in your agent so you are not talking to a stale stdio process. Then call `trace_version` and confirm the identity matches your build.
+
+Shipped install adapters (helpers — same MCP server underneath):
+
+```bash
+# Detect what Trace can configure in this environment / project
+trace install detect
+
+# Cursor — prints snippet; --write merges into ~/.cursor/mcp.json (or --mcp-json)
+trace install cursor
+trace install cursor --write --bin /abs/path/to/trace-mcp
+
+# Claude Code — requires project marker (.claude/ or CLAUDE.md); --write → .claude/trace-mcp.json
+trace install claude
+trace install claude --write --bin /abs/path/to/trace-mcp
+
+# Optional: git post-commit / Cursor hook helpers
+trace install git-hook
+trace install cursor-hook
+```
+
+Other MCP hosts: paste the JSON above into that product’s MCP settings (or generate it with `trace install cursor` / `claude` and adapt the path). The protocol and tool names do not change.
+
+GUI (any project with `.trace/` — agent-agnostic):
 
 ```bash
 cd your-project && trace gui
 # headless twin: trace serve
 ```
 
-Details: [`docs/gui-quickstart.md`](docs/gui-quickstart.md).
+Details: [`docs/gui-quickstart.md`](docs/gui-quickstart.md). See also `trace install --help` and `trace install detect`.
 
 ## What it is / isn’t
 
@@ -133,7 +165,7 @@ Details: [`docs/gui-quickstart.md`](docs/gui-quickstart.md).
 | Index | `index` / `index status` / `index watch` (file-local incremental) |
 | Portable graph | `seed import\|export` → `trace/graph.json` |
 | Impact / caps | `impact`, `capability`, `agents recommend` |
-| Install adapters | `install cursor\|claude\|cursor-hook\|git-hook\|agents` |
+| Install adapters | `install detect\|cursor\|claude\|cursor-hook\|git-hook\|agents` (MCP helpers for multiple agents) |
 | Local HTTP/GUI | `serve`, `gui` (embedded SPA) |
 
 For command truth, prefer `trace --help` and MCP `Instructions` / `trace_version` over older blog-style docs.
