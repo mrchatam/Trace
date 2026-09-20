@@ -46,7 +46,6 @@ func (s *Server) handleCreateEntity(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	ctx := r.Context()
 
@@ -152,7 +151,6 @@ func (s *Server) handleGetEntity(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	out, err := lookupEntitySummary(st, id)
 	if err != nil {
 		mapDomainErr(w, err)
@@ -268,7 +266,6 @@ func (s *Server) handleCreateLink(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 	meta := domain.LinkMeta{SourceType: in.SourceType}
 	ctx := r.Context()
@@ -325,7 +322,6 @@ func (s *Server) handleCreateTransition(w http.ResponseWriter, r *http.Request) 
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	svc := domain.New(st)
 
 	load := config.LoadEnforceModeDetail(s.Root())

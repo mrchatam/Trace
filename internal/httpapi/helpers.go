@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 func decodeJSON(r *http.Request, dst any) error {
@@ -63,6 +64,10 @@ func mapDomainErr(w http.ResponseWriter, err error) bool {
 	}
 	if isNotFoundErr(err) {
 		writeEnvelope(w, http.StatusNotFound, "NOT_FOUND", msg, nil)
+		return true
+	}
+	if errors.Is(err, store.ErrLocked) {
+		writeEnvelope(w, http.StatusServiceUnavailable, "LOCKED", store.ErrLocked.Error(), nil)
 		return true
 	}
 	writeEnvelope(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error", nil)

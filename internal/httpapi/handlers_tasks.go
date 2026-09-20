@@ -22,7 +22,6 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 
 	goalID := strings.TrimSpace(r.URL.Query().Get("goal_id"))
 	workState := strings.TrimSpace(r.URL.Query().Get("work_state"))
@@ -70,7 +69,6 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		mapDomainErr(w, err)
 		return
 	}
-	defer st.Close()
 	t, err := st.GetTask(id)
 	if err != nil {
 		mapDomainErr(w, err)
