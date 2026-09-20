@@ -875,6 +875,20 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Max rows for action=list (default 50, max 500)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: all
+          in: query
+          required: false
+          description: When true, return up to 500 capabilities (hard-capped; truncated may be true)
+          schema:
+            type: boolean
       responses:
         "200":
           description: Capability payload
@@ -1646,6 +1660,9 @@ components:
             $ref: "#/components/schemas/Capability"
         count:
           type: integer
+        truncated:
+          type: boolean
+          description: True when all=true (or limit) hit the hard cap and more rows exist
 
     ReviewSummary:
       type: object
