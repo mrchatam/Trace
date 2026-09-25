@@ -239,7 +239,7 @@ type causalEntityRow struct {
 func (s *Store) CountInTable(table string) (int, error) {
 	switch table {
 	case "goals", "tasks", "decisions", "assumptions", "discoveries", "plan_changes",
-		"claims", "evidence", "reviews", "capabilities", "changes", "regressions":
+		"claims", "evidence", "reviews", "capabilities", "changes", "regressions", "scopes":
 	default:
 		return 0, fmt.Errorf("store: count: table %q not allowlisted", table)
 	}
