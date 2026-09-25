@@ -10,6 +10,19 @@ type graphWalkNeighbor struct {
 	edge     GraphEdge
 }
 
+// provenanceFromSourceType maps entity_links.source_type → wire provenance.
+// Empty when unset / unknown (S02 may leave provenance empty).
+func provenanceFromSourceType(sourceType string) string {
+	switch sourceType {
+	case "USER_ASSERTED", "IMPORTED", "AGENT_PROPOSED":
+		return "explicit"
+	case "INFERRED":
+		return "inferred"
+	default:
+		return ""
+	}
+}
+
 // graphWalkNeighbors returns causal neighbors for graph walking: entity_links plus
 // goal↔task via tasks.goal_id (aligned with Expand; goal_id is not stored in entity_links).
 func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
@@ -29,7 +42,10 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 		}
 		out = append(out, graphWalkNeighbor{
 			neighbor: nh,
-			edge:     GraphEdge{Rel: l.Rel, From: l.FromID, To: l.ToID},
+			edge: GraphEdge{
+				Rel: l.Rel, From: l.FromID, To: l.ToID,
+				Provenance: provenanceFromSourceType(l.SourceType),
+			},
 		})
 	}
 
@@ -47,7 +63,10 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 		}
 		out = append(out, graphWalkNeighbor{
 			neighbor: nh,
-			edge:     GraphEdge{Rel: l.Rel, From: l.FromID, To: l.ToID},
+			edge: GraphEdge{
+				Rel: l.Rel, From: l.FromID, To: l.ToID,
+				Provenance: provenanceFromSourceType(l.SourceType),
+			},
 		})
 	}
 
@@ -66,7 +85,7 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 			} else {
 				out = append(out, graphWalkNeighbor{
 					neighbor: gh,
-					edge:     GraphEdge{Rel: ReasonGoalHasTask, From: *t.GoalID, To: h.EntityID},
+					edge:     GraphEdge{Rel: ReasonGoalHasTask, From: *t.GoalID, To: h.EntityID, Provenance: "explicit"},
 				})
 			}
 		}
@@ -86,7 +105,7 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 					ReasonCode: ReasonGoalHasTask,
 					Score:      0.9,
 				},
-				edge: GraphEdge{Rel: ReasonGoalHasTask, From: h.EntityID, To: t.ID},
+				edge: GraphEdge{Rel: ReasonGoalHasTask, From: h.EntityID, To: t.ID, Provenance: "explicit"},
 			})
 		}
 	}

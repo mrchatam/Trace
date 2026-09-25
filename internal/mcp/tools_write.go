@@ -31,7 +31,7 @@ type AddInput struct {
 // LinkInput mirrors `trace link <rel> --from --to`.
 type LinkInput struct {
 	Project    string `json:"project,omitempty" jsonschema:"optional project root override"`
-	Rel        string `json:"rel" jsonschema:"goal-task|decision-task|discovery-plan-change|discovery-mentions-task|claim-evidence"`
+	Rel        string `json:"rel" jsonschema:"goal-task|decision-task|discovery-plan-change|discovery-mentions-task|claim-evidence|scope-member|scope_member|api-contract|api_contract|implements|blocks"`
 	From       string `json:"from" jsonschema:"from entity UUID"`
 	To         string `json:"to" jsonschema:"to entity UUID"`
 	SourceType string `json:"source_type,omitempty" jsonschema:"optional source_type"`
@@ -196,6 +196,14 @@ func (s *Server) toolLink(ctx context.Context, _ *sdkmcp.CallToolRequest, in Lin
 		err = svc.LinkDiscoveryMentionsTask(ctx, in.From, in.To, meta)
 	case "claim-evidence":
 		err = svc.LinkClaimEvidence(ctx, in.From, in.To, meta)
+	case "scope-member", "scope_member":
+		err = svc.LinkScopeMember(ctx, in.From, in.To, meta)
+	case "api-contract", "api_contract":
+		err = svc.LinkAPIContract(ctx, in.From, in.To, meta)
+	case "implements":
+		err = svc.LinkImplements(ctx, in.From, in.To, meta)
+	case "blocks":
+		err = svc.LinkBlocks(ctx, in.From, in.To, meta)
 	default:
 		return nil, nil, fmt.Errorf("trace_link: unknown rel %q", in.Rel)
 	}

@@ -59,6 +59,14 @@ func cmdLink(root string, args []string) int {
 		err = svc.LinkDiscoveryMentionsTask(ctx, *from, *to, meta)
 	case "claim-evidence":
 		err = svc.LinkClaimEvidence(ctx, *from, *to, meta)
+	case "scope-member", "scope_member":
+		err = svc.LinkScopeMember(ctx, *from, *to, meta)
+	case "api-contract", "api_contract":
+		err = svc.LinkAPIContract(ctx, *from, *to, meta)
+	case "implements":
+		err = svc.LinkImplements(ctx, *from, *to, meta)
+	case "blocks":
+		err = svc.LinkBlocks(ctx, *from, *to, meta)
 	default:
 		fmt.Fprintf(os.Stderr, "link: unknown rel %q\n", rel)
 		return exitUsage

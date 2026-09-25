@@ -90,7 +90,7 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_link",
-		Description: "Link two entities (goal-task|decision-task|discovery-plan-change|discovery-mentions-task|claim-evidence). Mirrors `trace link`.",
+		Description: "Link two entities (goal-task|decision-task|discovery-plan-change|discovery-mentions-task|claim-evidence|scope-member|api-contract|implements|blocks). Mirrors `trace link`.",
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Link",
 			ReadOnlyHint:    false,

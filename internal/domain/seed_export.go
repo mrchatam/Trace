@@ -25,6 +25,7 @@ type SeedDocument struct {
 	Alternatives             []SeedAlternative             `json:"alternatives"`
 	PlanPhases               []SeedPlanPhase               `json:"plan_phases"`
 	PlanScopes               []SeedPlanScope               `json:"plan_scopes"`
+	Scopes                   []SeedScope                   `json:"scopes,omitempty"`
 	ScopeDeepPlans           []SeedScopeDeepPlan           `json:"scope_deep_plans"`
 	GoalPlanState            []SeedGoalPlanState           `json:"goal_plan_state"`
 	DeliberationStates       []SeedDeliberationState       `json:"deliberation_states,omitempty"`
@@ -62,11 +63,13 @@ type SeedTask struct {
 }
 
 type SeedLink struct {
-	Rel    string `json:"rel"`
-	From   string `json:"from"`
-	To     string `json:"to"`
-	FromID string `json:"from_id,omitempty"`
-	ToID   string `json:"to_id,omitempty"`
+	Rel        string  `json:"rel"`
+	From       string  `json:"from"`
+	To         string  `json:"to"`
+	FromID     string  `json:"from_id,omitempty"`
+	ToID       string  `json:"to_id,omitempty"`
+	SourceType string  `json:"source_type,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
 }
 
 type SeedFinding struct {
@@ -105,6 +108,14 @@ type SeedPlanScope struct {
 	Ord             int    `json:"ord"`
 	Status          string `json:"status"`
 	AutoReplanCount int    `json:"auto_replan_count"`
+}
+
+// SeedScope is a thin graph cartography scope (Phase 44; ≠ plan_scopes).
+type SeedScope struct {
+	ID    string `json:"id"`
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	Kind  string `json:"kind"`
 }
 
 type SeedScopeDeepPlan struct {
@@ -343,6 +354,10 @@ var seedExportLinkRels = []string{
 	RelDiscoveryCausesPlanChange,
 	RelClaimHasEvidence,
 	RelDiscoveryMentionsTask,
+	RelScopeMember,
+	RelAPIContract,
+	RelImplements,
+	RelBlocks,
 }
 
 // BuildSeedDocument assembles seed JSON v1 from the store (causal entities, links, plan tree, impact).
@@ -452,7 +467,13 @@ func BuildSeedDocument(ctx context.Context, st *store.Store, opts ExportOpts) (S
 			return SeedDocument{}, err
 		}
 		for _, l := range links {
-			doc.Links = append(doc.Links, SeedLink{Rel: l.Rel, From: l.FromID, To: l.ToID})
+			doc.Links = append(doc.Links, SeedLink{
+				Rel:        l.Rel,
+				From:       l.FromID,
+				To:         l.ToID,
+				SourceType: l.SourceType,
+				Confidence: l.Confidence,
+			})
 		}
 	}
 
@@ -497,6 +518,16 @@ func BuildSeedDocument(ctx context.Context, st *store.Store, opts ExportOpts) (S
 		doc.PlanScopes = append(doc.PlanScopes, SeedPlanScope{
 			ID: sc.ID, PhaseID: sc.PhaseID, Title: sc.Title, Body: sc.Body,
 			Ord: sc.Ord, Status: sc.Status, AutoReplanCount: sc.AutoReplanCount,
+		})
+	}
+
+	graphScopes, err := st.ListScopes()
+	if err != nil {
+		return SeedDocument{}, err
+	}
+	for _, sc := range graphScopes {
+		doc.Scopes = append(doc.Scopes, SeedScope{
+			ID: sc.ID, Slug: sc.Slug, Title: sc.Title, Kind: sc.Kind,
 		})
 	}
 

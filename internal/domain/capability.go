@@ -107,7 +107,7 @@ func BuiltinMCPCapabilitySpecs() []CapabilitySpec {
 func BuiltinCLICapabilitySpecs() []CapabilitySpec {
 	titles := []string{
 		"add", "link", "transition", "review", "why", "context",
-		"tasks", "seed", "impact", "plan", "index", "loop", "agents", "changes", "patterns", "knowledge", "search", "explore", "test", "tests", "verify", "eval", "outcomes", "regressions",
+		"tasks", "seed", "impact", "plan", "index", "loop", "agents", "changes", "patterns", "knowledge", "search", "explore", "test", "tests", "verify", "eval", "outcomes", "regressions", "graph",
 	}
 	out := make([]CapabilitySpec, 0, len(titles))
 	for _, t := range titles {

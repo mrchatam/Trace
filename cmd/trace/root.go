@@ -39,6 +39,8 @@ func run(args []string) int {
 		return cmdAdd(root, cmdArgs)
 	case "link":
 		return cmdLink(root, cmdArgs)
+	case "graph":
+		return cmdGraph(root, cmdArgs)
 	case "transition":
 		return cmdTransition(root, cmdArgs)
 	case "review":

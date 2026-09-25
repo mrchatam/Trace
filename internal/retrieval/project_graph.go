@@ -3,6 +3,8 @@ package retrieval
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/mrchatam/Trace/internal/store"
 )
@@ -10,16 +12,22 @@ import (
 // ProjectGraphOpts controls ProjectGraph (mode=project on GET /v1/graph).
 type ProjectGraphOpts struct {
 	MaxNodes int
+	// Scope filters to one thin scope (slug or id) plus bounded N-hop neighbors.
+	// Empty = full project (subject to max_nodes).
+	Scope string
+	// Depth for scope-filtered expansion (default 1; allow 2; hard-capped by MaxNodes).
+	Depth int
 }
 
-var projectGraphCountTables = []string{
-	"goals", "tasks", "decisions", "assumptions", "discoveries", "plan_changes",
-	"claims", "evidence", "reviews", "capabilities", "changes", "regressions",
+var projectGraphKindOrder = map[string]int{
+	"goal": 0, "task": 1, "decision": 2, "assumption": 3, "discovery": 4,
+	"plan_change": 5, "claim": 6, "evidence": 7, "review": 8, "capability": 9,
+	"change": 10, "regression": 11, "scope": 12,
 }
 
 // ProjectGraph returns a bounded view of project entities and edges between them.
 // max_nodes is required (1..5000). Truncated=true when total entities exceed the budget.
-// Nodes are collected in kind order and stop once MaxNodes is filled; each kind uses SQL LIMIT.
+// When Scope is set, returns scope members + N-hop neighbors only (still bounded by max_nodes).
 func (e *Engine) ProjectGraph(ctx context.Context, opts ProjectGraphOpts) (*BoundedGraph, error) {
 	_ = ctx
 	if opts.MaxNodes < 1 {
@@ -29,6 +37,10 @@ func (e *Engine) ProjectGraph(ctx context.Context, opts ProjectGraphOpts) (*Boun
 		return nil, &ErrBudgetExceeded{
 			Message: fmt.Sprintf("retrieval: ProjectGraph: max_nodes %d exceeds hard cap %d", opts.MaxNodes, MaxNeighborhoodNodes),
 		}
+	}
+
+	if strings.TrimSpace(opts.Scope) != "" {
+		return e.projectGraphScoped(opts)
 	}
 
 	all, total, err := e.collectProjectNodes(opts.MaxNodes)
@@ -69,9 +81,183 @@ func (e *Engine) ProjectGraph(ctx context.Context, opts ProjectGraphOpts) (*Boun
 	}, nil
 }
 
+func (e *Engine) projectGraphScoped(opts ProjectGraphOpts) (*BoundedGraph, error) {
+	sc, err := e.resolveScope(opts.Scope)
+	if err != nil {
+		return nil, err
+	}
+	depth := opts.Depth
+	if depth <= 0 {
+		depth = 1
+	}
+	if depth > 2 {
+		depth = 2
+	}
+
+	memberLinks, err := e.store.ListLinksTo("scope", sc.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Seed: scope node + members.
+	type frontierItem struct {
+		h Hit
+	}
+	seen := map[string]Hit{}
+	seedHit := Hit{EntityType: "scope", EntityID: sc.ID, Title: sc.Title, Distance: 0}
+	if seedHit.Title == "" {
+		seedHit.Title = sc.Slug
+	}
+	seen[hitKey("scope", sc.ID)] = seedHit
+	frontier := []frontierItem{{h: seedHit}}
+
+	for _, l := range memberLinks {
+		if l.Rel != "scope_member" {
+			continue
+		}
+		nh, lerr := e.lookupEntity(l.FromType, l.FromID, "scope_member", 0, 1.0)
+		if lerr != nil {
+			if isNotFound(lerr) {
+				continue
+			}
+			return nil, lerr
+		}
+		nh.Distance = 0
+		k := hitKey(nh.EntityType, nh.EntityID)
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		if len(seen) >= opts.MaxNodes {
+			break
+		}
+		seen[k] = nh
+		frontier = append(frontier, frontierItem{h: nh})
+	}
+
+	truncated := len(seen) >= opts.MaxNodes
+	edgeSeen := map[string]struct{}{}
+	var edges []GraphEdge
+	addEdge := func(ed GraphEdge) {
+		k := ed.Rel + "\x00" + ed.From + "\x00" + ed.To
+		if _, ok := edgeSeen[k]; ok {
+			return
+		}
+		edgeSeen[k] = struct{}{}
+		edges = append(edges, ed)
+	}
+
+	for d := 1; d <= depth && !truncated; d++ {
+		var next []frontierItem
+		for _, fi := range frontier {
+			neighbors, err := e.graphWalkNeighbors(fi.h)
+			if err != nil {
+				return nil, err
+			}
+			for _, nb := range neighbors {
+				addEdge(nb.edge)
+				nh := nb.neighbor
+				nh.Distance = d
+				k := hitKey(nh.EntityType, nh.EntityID)
+				if _, ok := seen[k]; ok {
+					continue
+				}
+				if len(seen) >= opts.MaxNodes {
+					truncated = true
+					break
+				}
+				seen[k] = nh
+				next = append(next, frontierItem{h: nh})
+			}
+			if truncated {
+				break
+			}
+		}
+		frontier = next
+	}
+
+	// Also collect edges among included nodes that may not have been walked yet.
+	scopeIDs := make(map[string]string) // entityID → scope_id from membership
+	for _, l := range memberLinks {
+		if l.Rel == "scope_member" {
+			scopeIDs[l.FromID] = sc.ID
+		}
+	}
+
+	nodes := make([]GraphNode, 0, len(seen))
+	included := make(map[string]struct{}, len(seen))
+	for _, h := range seen {
+		included[h.EntityID] = struct{}{}
+		gn := GraphNode{ID: h.EntityID, Kind: h.EntityType, Title: h.Title}
+		if h.EntityType == "task" {
+			t, err := e.store.GetTask(h.EntityID)
+			if err == nil && t.GoalID != nil && *t.GoalID != "" {
+				gn.GoalID = *t.GoalID
+			}
+		}
+		if sid, ok := scopeIDs[h.EntityID]; ok {
+			gn.ScopeID = sid
+		}
+		nodes = append(nodes, gn)
+	}
+	sort.SliceStable(nodes, func(i, j int) bool {
+		oi, oki := projectGraphKindOrder[nodes[i].Kind]
+		oj, okj := projectGraphKindOrder[nodes[j].Kind]
+		if oki && okj && oi != oj {
+			return oi < oj
+		}
+		if oki != okj {
+			return oki
+		}
+		return nodes[i].ID < nodes[j].ID
+	})
+
+	// Re-collect edges among included set for completeness (both endpoints in set).
+	more, err := e.collectEdgesForNodes(nodes, included)
+	if err != nil {
+		return nil, err
+	}
+	for _, ed := range more {
+		addEdge(ed)
+	}
+
+	center := sc.ID
+	return &BoundedGraph{
+		Mode:          "project",
+		Center:        center,
+		MaxNodes:      opts.MaxNodes,
+		TotalEntities: len(nodes),
+		Nodes:         nodes,
+		Edges:         edges,
+		Truncated:     truncated,
+	}, nil
+}
+
+func (e *Engine) resolveScope(slugOrID string) (store.Scope, error) {
+	slugOrID = strings.TrimSpace(slugOrID)
+	if slugOrID == "" {
+		return store.Scope{}, fmt.Errorf("retrieval: ProjectGraph: scope is required")
+	}
+	if sc, err := e.store.GetScope(slugOrID); err == nil {
+		return sc, nil
+	} else if !isNotFound(err) {
+		return store.Scope{}, err
+	}
+	sc, err := e.store.GetScopeBySlug(slugOrID)
+	if err != nil {
+		if isNotFound(err) {
+			return store.Scope{}, fmt.Errorf("retrieval: ProjectGraph: scope %q not found", slugOrID)
+		}
+		return store.Scope{}, err
+	}
+	return sc, nil
+}
+
 func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 	total := 0
-	for _, table := range projectGraphCountTables {
+	for _, table := range []string{
+		"goals", "tasks", "decisions", "assumptions", "discoveries", "plan_changes",
+		"claims", "evidence", "reviews", "capabilities", "changes", "regressions", "scopes",
+	} {
 		n, err := e.store.CountInTable(table)
 		if err != nil {
 			return nil, 0, err
@@ -271,40 +457,93 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				return nodes, total, nil
 			}
 		}
+	} else {
+		return nodes, total, nil
 	}
 
+	if rem := remaining(); rem > 0 {
+		scopes, err := e.store.ListScopesLimited(rem)
+		if err != nil {
+			return nil, 0, err
+		}
+		for _, sc := range scopes {
+			title := sc.Title
+			if title == "" {
+				title = sc.Slug
+			}
+			if !appendNode(GraphNode{ID: sc.ID, Kind: "scope", Title: title}) {
+				return nodes, total, nil
+			}
+		}
+	} else {
+		return nodes, total, nil
+	}
+
+	// Populate scope_id on members when a single membership is cheap to map.
+	memberOf, err := e.memberScopeIndex()
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range nodes {
+		if sid, ok := memberOf[nodes[i].ID]; ok {
+			nodes[i].ScopeID = sid
+		}
+	}
+
+	sort.SliceStable(nodes, func(i, j int) bool {
+		oi, oki := projectGraphKindOrder[nodes[i].Kind]
+		oj, okj := projectGraphKindOrder[nodes[j].Kind]
+		if oki && okj && oi != oj {
+			return oi < oj
+		}
+		if oki != okj {
+			return oki
+		}
+		return nodes[i].ID < nodes[j].ID
+	})
+
 	return nodes, total, nil
+}
+
+// memberScopeIndex maps entity id → scope id for scope_member links.
+// If an entity belongs to multiple scopes, the first (stable by link order) wins.
+func (e *Engine) memberScopeIndex() (map[string]string, error) {
+	links, err := e.store.ListLinksByRel("scope_member")
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(links))
+	for _, l := range links {
+		if l.ToType != "scope" {
+			continue
+		}
+		if _, ok := out[l.FromID]; ok {
+			continue
+		}
+		out[l.FromID] = l.ToID
+	}
+	return out, nil
 }
 
 func (e *Engine) collectEdgesForNodes(nodes []GraphNode, included map[string]struct{}) ([]GraphEdge, error) {
 	edgeSeen := map[string]struct{}{}
 	var edges []GraphEdge
-
-	addEdge := func(rel, from, to string) {
-		if _, ok := included[from]; !ok {
-			return
-		}
-		if _, ok := included[to]; !ok {
-			return
-		}
-		k := rel + "\x00" + from + "\x00" + to
-		if _, ok := edgeSeen[k]; ok {
-			return
-		}
-		edgeSeen[k] = struct{}{}
-		edges = append(edges, GraphEdge{Rel: rel, From: from, To: to})
-	}
-
 	for _, n := range nodes {
-		h := Hit{EntityType: n.Kind, EntityID: n.ID, Title: n.Title}
-		neighbors, err := e.graphWalkNeighbors(h)
+		links, err := e.store.ListLinksFrom(n.ID)
 		if err != nil {
 			return nil, err
 		}
-		for _, nb := range neighbors {
-			addEdge(nb.edge.Rel, nb.edge.From, nb.edge.To)
+		for _, l := range links {
+			if _, ok := included[l.ToID]; !ok {
+				continue
+			}
+			k := l.Rel + "\x00" + l.FromID + "\x00" + l.ToID
+			if _, ok := edgeSeen[k]; ok {
+				continue
+			}
+			edgeSeen[k] = struct{}{}
+			edges = append(edges, GraphEdge{From: l.FromID, To: l.ToID, Rel: l.Rel})
 		}
 	}
-
 	return edges, nil
 }

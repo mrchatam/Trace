@@ -36,7 +36,13 @@ Commands:
                         Promotion path: after a BLOCKING discovery, run
                         add task --from-discovery <id> [--goal-id <id>]
   link <rel> …          Link via domain (goal-task|decision-task|
-                        discovery-plan-change|discovery-mentions-task|claim-evidence)
+                        discovery-plan-change|discovery-mentions-task|claim-evidence|
+                        scope-member|scope_member|api-contract|api_contract|
+                        implements|blocks)
+  graph infer [--dry-run]
+                        Opt-in scope-membership inference (R-PATH/R-TITLE/R-PLAN).
+                        Writes scope_member with source_type=INFERRED (confidence 0.4).
+                        Does not run on trace index / watch; no daemon.
   transition …          Transition task work_state via domain.TransitionTask
                         (DONE needs Review PASS + --as-operator, or --allow-done hatch;
                         linked FAIL blocks DONE even with sibling PASS; --evidence alone

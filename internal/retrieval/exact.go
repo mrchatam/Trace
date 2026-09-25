@@ -185,6 +185,16 @@ func (e *Engine) lookupEntity(entityType, id, reason string, distance int, score
 			ex = excerpt(c.Body)
 		}
 		return Hit{EntityType: "capability", EntityID: c.ID, Title: title, Excerpt: ex, ReasonCode: reason, Score: score, Distance: distance}, nil
+	case "scope":
+		sc, err := e.store.GetScope(id)
+		if err != nil {
+			return Hit{}, err
+		}
+		title := sc.Title
+		if title == "" {
+			title = sc.Slug
+		}
+		return Hit{EntityType: "scope", EntityID: sc.ID, Title: title, Excerpt: sc.Kind, ReasonCode: reason, Score: score, Distance: distance}, nil
 	case "file":
 		f, err := e.store.GetFileByID(id)
 		if err != nil {

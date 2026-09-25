@@ -129,6 +129,14 @@ func (s *Service) importSeedDocumentBody(ctx context.Context, doc SeedDocument, 
 		addCreated(EntityEvidence, ent.ID, inserted)
 	}
 
+	for _, sc := range doc.Scopes {
+		ent, inserted, err := s.ImportSeedScope(ctx, sc)
+		if err != nil {
+			return summary, err
+		}
+		addCreated(EntityScope, ent.ID, inserted)
+	}
+
 	for _, l := range doc.Links {
 		if err := s.ImportSeedLink(ctx, l); err != nil {
 			return err
@@ -550,6 +558,12 @@ func (s *Service) ImportSeedLink(ctx context.Context, l SeedLink) error {
 		return &ErrValidation{Msg: "link endpoints required (from/to or from_id/to_id)"}
 	}
 	meta := LinkMeta{}
+	if st := strings.TrimSpace(l.SourceType); st != "" {
+		meta.SourceType = st
+	}
+	if l.Confidence != 0 {
+		meta.Confidence = l.Confidence
+	}
 	switch l.Rel {
 	case RelGoalHasTaskEvent, "goal-task":
 		return s.importSeedGoalTaskLink(ctx, from, to, meta)
@@ -563,6 +577,14 @@ func (s *Service) ImportSeedLink(ctx context.Context, l SeedLink) error {
 		return s.importSeedEntityLink(ctx, EntityDiscovery, from, RelDiscoveryMentionsTask, EntityTask, to, meta)
 	case RelRegressionAssociatedChange, "regression-associated-change":
 		return s.importSeedRegressionChangeLink(ctx, from, to, meta)
+	case RelScopeMember, "scope-member":
+		return s.importSeedScopeMemberLink(ctx, from, to, meta)
+	case RelAPIContract, "api-contract":
+		return s.importSeedEntityLink(ctx, EntityTask, from, RelAPIContract, EntityTask, to, meta)
+	case RelImplements:
+		return s.importSeedImplementsLink(ctx, from, to, meta)
+	case RelBlocks:
+		return s.importSeedEntityLink(ctx, EntityTask, from, RelBlocks, EntityTask, to, meta)
 	default:
 		return &ErrValidation{Msg: "unknown link rel " + l.Rel}
 	}
@@ -630,47 +652,99 @@ func (s *Service) importSeedEntityLink(ctx context.Context, fromType, fromID, re
 }
 
 func (s *Service) validateLinkEndpoints(fromType, fromID, toType, toID string) error {
-	switch fromType {
+	if err := s.validateEntityExists(fromType, fromID); err != nil {
+		return err
+	}
+	return s.validateEntityExists(toType, toID)
+}
+
+func (s *Service) validateEntityExists(entityType, id string) error {
+	switch entityType {
 	case EntityDecision:
-		if _, err := s.store.GetDecision(fromID); err != nil {
-			return err
-		}
+		_, err := s.store.GetDecision(id)
+		return err
 	case EntityDiscovery:
-		if _, err := s.store.GetDiscovery(fromID); err != nil {
-			return err
-		}
+		_, err := s.store.GetDiscovery(id)
+		return err
 	case EntityClaim:
-		if _, err := s.store.GetClaim(fromID); err != nil {
-			return err
-		}
+		_, err := s.store.GetClaim(id)
+		return err
 	case EntityRegression:
-		if _, err := s.store.GetRegression(fromID); err != nil {
-			return err
-		}
-	default:
-		return &ErrValidation{Msg: "unsupported link from type " + fromType}
-	}
-	switch toType {
+		_, err := s.store.GetRegression(id)
+		return err
 	case EntityTask:
-		if _, err := s.store.GetTask(toID); err != nil {
-			return err
-		}
+		_, err := s.store.GetTask(id)
+		return err
 	case EntityPlanChange:
-		if _, err := s.store.GetPlanChange(toID); err != nil {
-			return err
-		}
+		_, err := s.store.GetPlanChange(id)
+		return err
 	case EntityEvidence:
-		if _, err := s.store.GetEvidence(toID); err != nil {
-			return err
-		}
+		_, err := s.store.GetEvidence(id)
+		return err
 	case EntityChange:
-		if _, err := s.store.GetChange(toID); err != nil {
-			return err
-		}
+		_, err := s.store.GetChange(id)
+		return err
+	case EntityGoal:
+		_, err := s.store.GetGoal(id)
+		return err
+	case EntityAssumption:
+		_, err := s.store.GetAssumption(id)
+		return err
+	case EntityReview:
+		_, err := s.store.GetReview(id)
+		return err
+	case EntityScope:
+		_, err := s.store.GetScope(id)
+		return err
 	default:
-		return &ErrValidation{Msg: "unsupported link to type " + toType}
+		return &ErrValidation{Msg: "unsupported link entity type " + entityType}
 	}
-	return nil
+}
+
+// ImportSeedScope upserts a thin graph scope; entity.created only on first insert.
+func (s *Service) ImportSeedScope(ctx context.Context, in SeedScope) (store.Scope, bool, error) {
+	_ = ctx
+	slug := strings.TrimSpace(in.Slug)
+	title := strings.TrimSpace(in.Title)
+	kind := strings.TrimSpace(in.Kind)
+	if slug == "" || title == "" {
+		return store.Scope{}, false, &ErrValidation{Msg: "scope slug and title required"}
+	}
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		id = uuid.NewString()
+	}
+	existed, err := scopeExists(s.store, id)
+	if err != nil {
+		return store.Scope{}, false, err
+	}
+	sc, err := s.store.UpsertScope(store.Scope{
+		ID: id, Slug: slug, Title: title, Kind: kind,
+	})
+	if err != nil {
+		return store.Scope{}, false, err
+	}
+	if err := s.upsertEntityCreated(EntityScope, sc.ID, sc.Title, existed); err != nil {
+		return store.Scope{}, false, err
+	}
+	return sc, !existed, nil
+}
+
+func (s *Service) importSeedScopeMemberLink(ctx context.Context, fromID, scopeID string, meta LinkMeta) error {
+	_ = ctx
+	fromType, err := s.resolveLinkableEntityType(fromID)
+	if err != nil {
+		return err
+	}
+	return s.importSeedEntityLink(ctx, fromType, fromID, RelScopeMember, EntityScope, scopeID, meta)
+}
+
+func (s *Service) importSeedImplementsLink(ctx context.Context, fromID, toTaskID string, meta LinkMeta) error {
+	fromType, err := s.resolveTaskOrDecision(fromID)
+	if err != nil {
+		return err
+	}
+	return s.importSeedEntityLink(ctx, fromType, fromID, RelImplements, EntityTask, toTaskID, meta)
 }
 
 // ImportSeedFinding upserts an impact finding by id.

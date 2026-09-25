@@ -99,6 +99,7 @@ func TestOpenCreatesDBAndMigratesIdempotent(t *testing.T) {
 		"entity_links",
 		"fts_docs",
 		"plan_phases", "plan_scopes", "scope_deep_plans", "goal_plan_state",
+		"scopes",
 		"review_residuals",
 		"decision_impact_findings", "decision_alternatives",
 		"capabilities", "task_capability_requirements",

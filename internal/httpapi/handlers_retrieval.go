@@ -173,7 +173,13 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	eng := retrieval.New(st)
 
 	if mode == "project" {
-		g, err := eng.ProjectGraph(r.Context(), retrieval.ProjectGraphOpts{MaxNodes: maxNodes})
+		scope := strings.TrimSpace(r.URL.Query().Get("scope"))
+		depth, _ := queryInt(r, "depth", 1)
+		g, err := eng.ProjectGraph(r.Context(), retrieval.ProjectGraphOpts{
+			MaxNodes: maxNodes,
+			Scope:    scope,
+			Depth:    depth,
+		})
 		if err != nil {
 			var bud *retrieval.ErrBudgetExceeded
 			if errors.As(err, &bud) {
@@ -182,6 +188,10 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 			}
 			if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "max_nodes") {
 				writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+				return
+			}
+			if strings.Contains(err.Error(), "not found") {
+				writeEnvelope(w, http.StatusNotFound, "NOT_FOUND", err.Error(), nil)
 				return
 			}
 			mapDomainErr(w, err)

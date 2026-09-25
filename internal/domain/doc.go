@@ -21,6 +21,13 @@
 // discovery_mentions_task (DF-42; discovery→task attribution for multi-goal DPC).
 // Goal→Task is persisted via tasks.goal_id only (event payload may say goal_has_task).
 //
+// Phase 44 scope cartography (MVP, exact D2 strings — never alias to causal names):
+//   - scope_member (entity → scope; distinct from plan_scope)
+//   - api_contract (task → task)
+//   - implements (task/decision → task; ≠ change_implements_decision)
+//   - blocks (task → task; ≠ uncertainty_blocks_task)
+//
+// Thin scope records live in scopes (not plan_scopes).//
 // Events (DR-EVT): entity.created, entity.linked, task.transition, review.result,
 // deliberation.transition (Phase 20 S01; payload on seed task).
 // Residuals are structured tracking hooks on reviews (not VerifiedFact).

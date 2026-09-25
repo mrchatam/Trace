@@ -37,6 +37,7 @@ var seedImportAllowedKeys = map[string]bool{
 	"findings": true, "alternatives": true,
 	"plan_phases": true, "plan_scopes": true, "scope_deep_plans": true,
 	"goal_plan_state": true, "exported_at_commit": true,
+	"scopes": true,
 	// P20 cognition (S01 portable seed)
 	"deliberation_states": true, "uncertainties": true, "hypotheses": true,
 	"decision_reconsiderations": true, "changes": true, "effects": true,

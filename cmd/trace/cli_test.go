@@ -861,7 +861,7 @@ func TestMigrateBackupAuthCLI(t *testing.T) {
 	out := captureStdout(t, func() int {
 		return run([]string{"-C", dir, "migrate", "status"})
 	})
-	if !strings.Contains(out, "embed_expected=28") || !strings.Contains(out, "max_applied=28") {
+	if !strings.Contains(out, "embed_expected=29") || !strings.Contains(out, "max_applied=29") {
 		t.Fatalf("migrate status: %q", out)
 	}
 

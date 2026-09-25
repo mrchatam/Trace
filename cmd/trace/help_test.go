@@ -22,6 +22,8 @@ func TestHelpIncludesSearchTestVerify(t *testing.T) {
 		"loop gate --task",
 		"agents list",
 		"agents recommend",
+		"graph infer",
+		"Does not run on trace index",
 	}
 	for _, want := range checks {
 		if !strings.Contains(out, want) {

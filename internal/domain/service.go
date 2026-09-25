@@ -28,6 +28,7 @@ const (
 	EntityRegression    = "regression"
 	EntityReflection    = "reflection"
 	EntityImprovement   = "improvement"
+	EntityScope         = "scope" // graph cartography — ≠ EntityPlanScope / "plan_scope"
 )
 
 // Link relation values.
@@ -61,6 +62,13 @@ const (
 	RelObservedRelationship            = "observed_relationship"
 	RelCausedBy                        = "caused_by"
 	RelRelationshipSupportedBy         = "relationship_supported_by"
+
+	// Phase 44 scope cartography (MVP). Exact D2 strings — distinct from
+	// RelChangeImplementsDecision / RelUncertaintyBlocksTask (never alias).
+	RelScopeMember = "scope_member"
+	RelAPIContract = "api_contract"
+	RelImplements  = "implements"
+	RelBlocks      = "blocks"
 )
 
 // Residual severity vocabulary (canonical; matches store.ResidualSeverity*).

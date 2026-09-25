@@ -20,17 +20,19 @@ type BoundedGraph struct {
 
 // GraphNode is one node in a bounded graph response.
 type GraphNode struct {
-	ID     string `json:"id"`
-	Kind   string `json:"kind"`
-	Title  string `json:"title"`
-	GoalID string `json:"goal_id,omitempty"`
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Title   string `json:"title"`
+	GoalID  string `json:"goal_id,omitempty"`
+	ScopeID string `json:"scope_id,omitempty"` // optional; from scope_member when present
 }
 
 // GraphEdge is one edge in a bounded graph response.
 type GraphEdge struct {
-	Rel  string `json:"rel"`
-	From string `json:"from"`
-	To   string `json:"to"`
+	Rel        string `json:"rel"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Provenance string `json:"provenance,omitempty"` // explicit | inferred (from link source_type)
 }
 
 // NeighborhoodOpts controls Neighborhood.
@@ -88,13 +90,13 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 	edges := make([]GraphEdge, 0)
 	edgeSeen := map[string]struct{}{}
 
-	addEdge := func(rel, from, to string) {
-		k := rel + "\x00" + from + "\x00" + to
+	addEdge := func(ed GraphEdge) {
+		k := ed.Rel + "\x00" + ed.From + "\x00" + ed.To
 		if _, ok := edgeSeen[k]; ok {
 			return
 		}
 		edgeSeen[k] = struct{}{}
-		edges = append(edges, GraphEdge{Rel: rel, From: from, To: to})
+		edges = append(edges, ed)
 	}
 
 	seedHit.Distance = 0
@@ -110,7 +112,7 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 				return nil, err
 			}
 			for _, nb := range neighbors {
-				addEdge(nb.edge.Rel, nb.edge.From, nb.edge.To)
+				addEdge(nb.edge)
 				nh := nb.neighbor
 				nh.Distance = d
 				k := hitKey(nh.EntityType, nh.EntityID)
@@ -131,6 +133,8 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 		frontier = next
 	}
 
+	memberOf, _ := e.memberScopeIndex()
+
 	nodes := make([]GraphNode, 0, len(seen))
 	for _, h := range seen {
 		gn := GraphNode{
@@ -143,6 +147,9 @@ func (e *Engine) Neighborhood(ctx context.Context, opts NeighborhoodOpts) (*Boun
 			if err == nil && t.GoalID != nil && *t.GoalID != "" {
 				gn.GoalID = *t.GoalID
 			}
+		}
+		if sid, ok := memberOf[h.EntityID]; ok {
+			gn.ScopeID = sid
 		}
 		nodes = append(nodes, gn)
 	}
