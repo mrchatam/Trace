@@ -11,15 +11,15 @@ Legend: `pending` | `in_progress` | `done` | `failed` | `blocked` | `skipped`
 Orchestrator paste:
 
 ```text
-Phase 00–43 complete — do not re-run closed rows.
+Phase 00–44 complete — do not re-run closed rows.
 @docs/TODO.md
 
-- Active phase: **44** — Scoped graph linking & scope semantics
-- Next runnable: **P44-00** (phase planner)
+- Active phase: **none** (idle — await human promotion)
+- Next runnable: **none**
 - Follow docs/rules/agent-loop-protocol.md
 ```
 
-(Phase 00–43 complete. **P43-S01-02 done** 2026-08-22 — GitHub triage + eval/CI fixes. **Phase 44 promoted** 2026-08-23 — scoped graph linking intake; board [`TODO/phase-44.md`](TODO/phase-44.md).)
+(Phase 00–44 complete. **P44-S05-02 done** 2026-08-23 — DR-HANDOFF CLOSED; scoped graph linking shipped (thin scopes, MVP rels, CLI infer, GUI clustering @ 500). Successor: **no successor**. Board [`TODO/phase-44.md`](TODO/phase-44.md).)
 ---
 
 ## Phase boards
@@ -70,9 +70,9 @@ Phase 00–43 complete — do not re-run closed rows.
 | 41+ | Layers & intent | done | — | [TODO/phase-41.md](TODO/phase-41.md) |
 | 42+ | Concept & index | done | — | [TODO/phase-42.md](TODO/phase-42.md) |
 | 43 | GitHub hygiene (issues + Actions) | done | — | [TODO/phase-43.md](TODO/phase-43.md) |
-| 44 | Scoped graph linking & scope semantics | active | P44-00 | [TODO/phase-44.md](TODO/phase-44.md) |
+| 44 | Scoped graph linking & scope semantics | done | — | [TODO/phase-44.md](TODO/phase-44.md) |
 
-(P43 complete 2026-08-22 — GitHub triage + eval/CI remediation; DR-HANDOFF CLOSED. **P44 scaffold** 2026-08-23 — plan-only; first runnable **P44-00**.)
+(P44 closed 2026-08-23 at P44-S05-02 — scoped graph linking shipped; DR-HANDOFF CLOSED; successor **no successor**.)
 
 ---
 

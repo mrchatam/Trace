@@ -1,26 +1,24 @@
 # Phase 44 — DR-HANDOFF
 
-**Status:** OPEN (scaffold 2026-08-23)
+**Status:** **CLOSED**
 
-## Predecessor
+| Field | Value |
+|-------|-------|
+| Opened | 2026-08-23 |
+| Closed | 2026-08-23 |
+| Predecessor | Phase 43 CLOSED |
+| Theme | Scoped graph linking & scope semantics (D1–D5) |
+| Outcome | Thin `scopes` + MVP rels in `entity_links`; CLI `trace graph infer`; GUI scope clustering @ 500/150; seed export honesty |
+| Successor decision | **no successor** |
+| Residuals (non-blocking) | plan_scopes mapping quality; scope pagination; Codegraph complement |
+| Close owner | P44-S05-02 |
+| Verify | VERIFY-NOTES + `experiments/runs/2026-08-23-p44-s05-01-verify/evidence/`; §10 V1–V7 ticked |
 
-Phase 43 complete — GitHub hygiene; successor was `no successor` until human promoted Phase 44.
+## Handoff checklist
 
-## Successor default
-
-`no successor` until VERIFY closes with explicit next phase or idle.
-
-## Handoff checklist (VERIFY row owns)
-
-- [ ] S00 research artifact committed
-- [ ] S01 design locks APPROVE
-- [ ] S02–S04 implement reviews APPROVE
-- [ ] Laws 6–7 / M-001 / Law 19 VERIFY blocks PASS
-- [ ] `trace/graph.json` exported if entity schema changes
-- [ ] `docs/TODO.md` + `AGENTS.md` orchestrator updated on close
-
-## Residuals queue (non-blocking)
-
-- Scope filter pagination/tiles if 500 cap insufficient after scope clustering
-- `plan_scopes` ↔ graph scope slug auto-mapping quality
-- Codegraph complement edges (explicitly out of scope — dual-stack doc only)
+- [x] S00 research artifact committed
+- [x] S01 design locks APPROVE
+- [x] S02–S04 implement reviews APPROVE
+- [x] Laws 6–7 / M-001 / Law 19 VERIFY blocks PASS
+- [x] `trace/graph.json` exported (schema changed S02/S03)
+- [x] `docs/TODO.md` + `AGENTS.md` orchestrator updated on close
