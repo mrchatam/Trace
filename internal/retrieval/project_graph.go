@@ -462,9 +462,13 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 	}
 
 	if rem := remaining(); rem > 0 {
-		scopes, err := e.store.ListScopesLimited(rem)
+		allScopes, err := e.store.ListScopes()
 		if err != nil {
 			return nil, 0, err
+		}
+		scopes := allScopes
+		if len(scopes) > rem {
+			scopes = scopes[:rem]
 		}
 		for _, sc := range scopes {
 			title := sc.Title
@@ -529,7 +533,7 @@ func (e *Engine) collectEdgesForNodes(nodes []GraphNode, included map[string]str
 	edgeSeen := map[string]struct{}{}
 	var edges []GraphEdge
 	for _, n := range nodes {
-		links, err := e.store.ListLinksFrom(n.ID)
+		links, err := e.store.ListLinksFrom("entity", n.ID)
 		if err != nil {
 			return nil, err
 		}
