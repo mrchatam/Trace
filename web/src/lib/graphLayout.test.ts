@@ -11,16 +11,21 @@ import {
   EDGE_OVERVIEW_MAX,
   EDGE_SAMPLE_MIN_COUNT,
   EDGE_SAMPLE_RATIO,
+  EDGE_TIER_A_RELS,
   FULL_CARD_MIN_ZOOM,
   FULL_NODE_MIN_ZOOM,
   GOAL_BAND_TINT_COUNT,
   LOD_MINIMAL_MAX_ZOOM,
   PROJECT_FIT_PADDING,
+  UNGROUPED_SCOPE,
+  capEdgesByPriority,
   computeForceLayout,
   computeOverviewPositions,
+  computeScopeCentroids,
   computeSemanticLayout,
   countNodesByKind,
   edgeHoverStyle,
+  edgePriorityTier,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
   filterEdgesForLod,
@@ -28,9 +33,12 @@ import {
   filterNodesByKinds,
   getNodeLod,
   goalBandTintIndex,
+  hasScopedNodes,
+  hasTierAScopeEdges,
   inferGoalBands,
   isEdgeHighlighted,
   kindCssKey,
+  resolveScopeClusterId,
   SEMANTIC_LANE_WIDTH,
   SEMANTIC_MIN_NODE_DISTANCE,
   shouldRenderEdges,
@@ -81,6 +89,31 @@ describe('computeForceLayout', () => {
     const pos = computeForceLayout(nodes, edges, { iterations: 60 })
     assert.equal(pos.size, 3)
     assert.ok(pos.get('g1')!.x <= pos.get('t1')!.x + 120)
+  })
+
+  it('clusters scoped nodes toward distinct centroids', () => {
+    const nodes = [
+      { id: 'a1', kind: 'task', scope_id: 'scope-a' },
+      { id: 'a2', kind: 'task', scope_id: 'scope-a' },
+      { id: 'b1', kind: 'task', scope_id: 'scope-b' },
+      { id: 'b2', kind: 'task', scope_id: 'scope-b' },
+    ]
+    const edges = [
+      { from: 'a1', to: 'a2' },
+      { from: 'b1', to: 'b2' },
+      { from: 'a1', to: 'b1', rel: 'api_contract' },
+    ]
+    const pos = computeForceLayout(nodes, edges, { width: 900, height: 700, iterations: 120 })
+    const aCenter = {
+      x: (pos.get('a1')!.x + pos.get('a2')!.x) / 2,
+      y: (pos.get('a1')!.y + pos.get('a2')!.y) / 2,
+    }
+    const bCenter = {
+      x: (pos.get('b1')!.x + pos.get('b2')!.x) / 2,
+      y: (pos.get('b1')!.y + pos.get('b2')!.y) / 2,
+    }
+    const clusterDist = Math.hypot(aCenter.x - bCenter.x, aCenter.y - bCenter.y)
+    assert.ok(clusterDist > 120, `scope clusters too close: ${clusterDist.toFixed(1)}px`)
   })
 })
 
@@ -223,6 +256,70 @@ describe('filterEdgesForLod', () => {
       to: `b${i}`,
     }))
     assert.equal(filterEdgesForLod(edges, 0.8, new Set()).length, edges.length)
+  })
+})
+
+describe('scope clustering helpers', () => {
+  it('resolveScopeClusterId maps missing to __ungrouped__', () => {
+    assert.equal(resolveScopeClusterId(undefined), UNGROUPED_SCOPE)
+    assert.equal(resolveScopeClusterId(null), UNGROUPED_SCOPE)
+    assert.equal(resolveScopeClusterId(''), UNGROUPED_SCOPE)
+    assert.equal(resolveScopeClusterId('uuid-1'), 'uuid-1')
+  })
+
+  it('computeScopeCentroids returns empty when no scoped nodes', () => {
+    const centroids = computeScopeCentroids(
+      [{ id: 'n1', kind: 'task' }],
+      900,
+      700,
+    )
+    assert.equal(centroids.size, 0)
+    assert.equal(hasScopedNodes([{ scope_id: undefined }]), false)
+  })
+
+  it('places distinct scopes on a ring', () => {
+    const centroids = computeScopeCentroids(
+      [
+        { scope_id: 'scope-a' },
+        { scope_id: 'scope-b' },
+        { scope_id: undefined },
+      ],
+      900,
+      700,
+    )
+    assert.equal(centroids.size, 3)
+    const a = centroids.get('scope-a')!
+    const b = centroids.get('scope-b')!
+    const u = centroids.get(UNGROUPED_SCOPE)!
+    assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 100)
+    assert.ok(Math.hypot(u.x - 450, u.y - 350) < 2)
+  })
+})
+
+describe('tiered edge priority', () => {
+  it('demotes goal_has_task when Tier A scope edges exist', () => {
+    assert.equal(edgePriorityTier('goal_has_task', true), 'C')
+    assert.equal(edgePriorityTier('goal_has_task', false), 'B')
+    assert.equal(edgePriorityTier('api_contract', true), 'A')
+  })
+
+  it('capEdgesByPriority retains api_contract over goal_has_task flood', () => {
+    const filler = Array.from({ length: EDGE_OVERVIEW_MAX + 20 }, (_, i) => ({
+      from: `g${i}`,
+      to: `t${i}`,
+      rel: 'goal_has_task',
+    }))
+    const scopeEdge = { from: 'fe', to: 'be', rel: 'api_contract' }
+    const capped = capEdgesByPriority([...filler, scopeEdge], EDGE_OVERVIEW_MAX)
+    assert.ok(capped.some((e) => e.rel === 'api_contract'))
+    const goalCount = capped.filter((e) => e.rel === 'goal_has_task').length
+    assert.ok(goalCount < EDGE_OVERVIEW_MAX, 'goal_has_task should not fill entire cap')
+  })
+
+  it('hasTierAScopeEdges detects MVP scope rels', () => {
+    assert.equal(hasTierAScopeEdges([{ rel: 'mentions' }]), false)
+    assert.equal(hasTierAScopeEdges([{ rel: 'api_contract' }]), true)
+    assert.ok(EDGE_TIER_A_RELS.has('scope_member'))
   })
 })
 

@@ -126,11 +126,16 @@ export async function getGraph(center: string, maxNodes: number, depth?: number,
   return normalizeBoundedGraph(raw)
 }
 
+type ProjectGraphOpt = TokenOpt & { scope?: string }
+
 /** getProjectGraph — mode=project; bounded full-project graph (Explore default). */
-export async function getProjectGraph(maxNodes: number, opt: TokenOpt = {}) {
+export async function getProjectGraph(maxNodes: number, opt: ProjectGraphOpt = {}) {
+  const { scope, ...rest } = opt
+  const query: Record<string, string | number> = { mode: 'project', max_nodes: maxNodes }
+  if (scope) query.scope = scope
   const raw = await apiFetch<BoundedGraph>('/v1/graph', {
-    ...opt,
-    query: { mode: 'project', max_nodes: maxNodes },
+    ...rest,
+    query,
   })
   return normalizeBoundedGraph(raw)
 }

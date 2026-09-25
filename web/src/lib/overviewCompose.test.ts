@@ -6,6 +6,8 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { BoundedGraph, TaskRow } from '../api/ops'
 import {
+  API_MAX_NODES,
+  PROJECT_MAX_NODES,
   SEED_CAP,
   SEED_TARGET,
   UI_CAP,
@@ -61,6 +63,13 @@ describe('composeSeedsFromParts', () => {
     assert.ok(seeds.length <= SEED_CAP)
     assert.ok(seeds.length >= Math.min(SEED_TARGET, 2 + 10))
     assert.equal(seeds.filter((s) => s.source === 'task').length, 2)
+  })
+})
+
+describe('overview caps', () => {
+  it('UI_CAP matches API hard max', () => {
+    assert.equal(UI_CAP, API_MAX_NODES)
+    assert.ok(PROJECT_MAX_NODES < UI_CAP)
   })
 })
 

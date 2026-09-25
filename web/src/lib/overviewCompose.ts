@@ -5,11 +5,15 @@
 
 import type { BoundedGraph, SearchItem, TaskRow } from '../api/ops'
 
+/** GUI/API hard ceiling (OpenAPI + MaxNeighborhoodNodes). */
+export const API_MAX_NODES = 5000
+/** Explore project-mode default — conservative for browser layout perf (Phase 44 D5). */
 export const PROJECT_MAX_NODES = 500
 export const SEED_TARGET = 6
 export const SEED_CAP = 8
 export const SEED_MAX_NODES = 40
-export const UI_CAP = PROJECT_MAX_NODES
+/** Max budget the browser may request (explicit user choice; default stays PROJECT_MAX_NODES). */
+export const UI_CAP = API_MAX_NODES
 export const EXPAND_MAX_NODES = 50
 export const DEPTH = 2
 
@@ -36,6 +40,7 @@ export type GraphNodeMeta = {
   title: string
   work_state?: string
   goal_id?: string
+  scope_id?: string
 }
 
 export type MergedOverview = {
@@ -177,7 +182,14 @@ export function mergeOverviewGraphs(
     const graphEdges = coerceGraphEdges(g.edges)
     for (const n of nodes) {
       if (!nodeMap.has(n.id)) {
-        nodeMap.set(n.id, { id: n.id, kind: n.kind, title: n.title })
+        nodeMap.set(n.id, {
+          id: n.id,
+          kind: n.kind,
+          title: n.title,
+          scope_id: n.scope_id,
+        })
+      } else if (n.scope_id && !nodeMap.get(n.id)!.scope_id) {
+        nodeMap.get(n.id)!.scope_id = n.scope_id
       }
     }
     for (const e of graphEdges) {

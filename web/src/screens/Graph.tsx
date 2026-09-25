@@ -41,6 +41,7 @@ import {
   computeForceLayout,
   computeOverviewPositions,
   countNodesByKind,
+  EDGE_TIER_A_RELS,
   edgeHoverStyle,
   edgeStrokeOpacity,
   filterEdgesByNodeIds,
@@ -54,6 +55,7 @@ import {
   kindCssKey,
   LOD_MINIMAL_MAX_ZOOM,
   PROJECT_FIT_PADDING,
+  resolveScopeClusterId,
   shouldShowEdgeLabels,
   shouldShowNodeLabel,
   shouldUseCompactNodes,
@@ -80,6 +82,7 @@ type GraphNodeData = {
   kind: string
   work_state?: string
   goal_id?: string
+  scopeCluster?: string
   goalBand: number
   isSeed?: boolean
   lod: NodeLod
@@ -94,6 +97,8 @@ const GraphNodeView = memo(function GraphNodeView({
   const aria = `${data.kind}: ${data.label}`
   const stateKey = statusCssKey(data.work_state)
   const goalBandAttr = data.goalBand >= 0 ? String(data.goalBand) : undefined
+  const scopeCluster =
+    data.scopeCluster && data.scopeCluster !== '__ungrouped__' ? data.scopeCluster : undefined
 
   if (data.lod === 'full') {
     return (
@@ -104,6 +109,7 @@ const GraphNodeView = memo(function GraphNodeView({
         data-state={data.work_state || undefined}
         data-status={stateKey}
         data-goal-band={goalBandAttr}
+        data-scope-cluster={scopeCluster}
         tabIndex={selected ? 0 : -1}
         role="button"
         aria-pressed={selected}
@@ -136,6 +142,7 @@ const GraphNodeView = memo(function GraphNodeView({
       data-state={data.work_state || undefined}
       data-status={stateKey}
       data-goal-band={goalBandAttr}
+      data-scope-cluster={scopeCluster}
       tabIndex={selected ? 0 : -1}
       role="button"
       aria-pressed={selected}
@@ -215,6 +222,7 @@ function buildFlowGraph(
     const showLabel = shouldShowNodeLabel(lod, zoom)
     const goalId = node.goal_id ?? goalBands.get(node.id)
     const goalBand = goalBandTintIndex(goalId)
+    const scopeCluster = resolveScopeClusterId(node.scope_id)
     const classes = ['graph-node']
     if (node.id === centerId) classes.push('graph-node--center')
     if (selectedId && node.id === selectedId) classes.push('graph-node--selected')
@@ -222,6 +230,7 @@ function buildFlowGraph(
     if (lod !== 'full') classes.push('graph-node--compact')
     if (lod === 'minimal') classes.push('graph-node--minimal')
     if (lod === 'full') classes.push('graph-node--detail')
+    if (scopeCluster !== '__ungrouped__') classes.push('graph-node--scoped')
     const zIndex =
       lod === 'full'
         ? node.id === selectedId
@@ -240,6 +249,7 @@ function buildFlowGraph(
         kind: node.kind,
         work_state: node.work_state,
         goal_id: goalId,
+        scopeCluster,
         goalBand,
         isSeed: seedIds.has(node.id),
         lod,
@@ -263,17 +273,23 @@ function buildFlowGraph(
     let id = stableEdgeId(e)
     if (seenIds.has(id)) id = `${id}#${seenIds.size}`
     seenIds.add(id)
+    const inferred = e.provenance === 'inferred'
+    const scopeRel = e.rel != null && EDGE_TIER_A_RELS.has(e.rel)
+    const edgeClasses = ['graph-edge']
+    if (inferred) edgeClasses.push('graph-edge--inferred')
+    if (scopeRel) edgeClasses.push('graph-edge--scope')
     return {
       id,
       source: e.from,
       target: e.to,
       label: showLabels ? e.rel : undefined,
       animated: false,
-      className: 'graph-edge',
+      className: edgeClasses.join(' '),
       style: {
         stroke: 'var(--graph-edge-stroke)',
-        strokeWidth: 1,
-        opacity: edgeOpacity,
+        strokeWidth: scopeRel ? 1.25 : 1,
+        opacity: inferred ? Math.min(edgeOpacity, 0.55) : edgeOpacity,
+        strokeDasharray: inferred ? '6 4' : undefined,
       },
       labelStyle: showLabels
         ? { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }
@@ -302,15 +318,19 @@ function applyHoverStyles(
       const baseClass = (e.className ?? 'graph-edge').replace(/\s*graph-edge--hot\b/g, '').trim()
       const nextClass = highlighted ? `${baseClass} graph-edge--hot`.trim() : baseClass
       const baseOpacity = typeof e.style?.opacity === 'number' ? e.style.opacity : 0.42
+      const dash = e.style?.strokeDasharray
       // Structural edges always carry the un-highlighted opacity from buildFlowGraph.
-      const nextStyle = edgeHoverStyle(
-        {
-          stroke: 'var(--graph-edge-stroke)',
-          strokeWidth: 1,
-          opacity: baseOpacity,
-        },
-        highlighted,
-      )
+      const nextStyle = {
+        ...edgeHoverStyle(
+          {
+            stroke: 'var(--graph-edge-stroke)',
+            strokeWidth: typeof e.style?.strokeWidth === 'number' ? e.style.strokeWidth : 1,
+            opacity: baseOpacity,
+          },
+          highlighted,
+        ),
+        ...(dash ? { strokeDasharray: dash } : {}),
+      }
       if (
         e.className === nextClass &&
         e.style?.stroke === nextStyle.stroke &&
@@ -612,61 +632,71 @@ export function Graph() {
     [setSearchParams],
   )
 
-  const clearGraphUrl = useCallback(() => {
-    setSearchParams({}, { replace: true })
-  }, [setSearchParams])
+  const syncProjectUrl = useCallback(
+    (budget: number) => {
+      const params = new URLSearchParams()
+      if (budget !== PROJECT_MAX_NODES) params.set('max_nodes', String(budget))
+      setSearchParams(params, { replace: true })
+    },
+    [setSearchParams],
+  )
 
-  const loadProjectGraphView = useCallback(async () => {
-    setOverviewLoading(true)
-    setError(null)
-    setEmptyProject(false)
-    setLayoutMode('project')
-    setNodesMeta([])
-    setEdgesMeta([])
-    setTotalEntities(null)
-    setOmitted(0)
-    clearGraphUrl()
-    try {
-      const [taskRes, graphRes] = await Promise.all([
-        listTasks({ limit: 100 }, { token }),
-        getProjectGraph(PROJECT_MAX_NODES, { token }),
-      ])
-      const taskItems = taskRes.items ?? []
-      setTasks(taskItems)
-
-      if ((graphRes.nodes ?? []).length === 0) {
-        setEmptyProject(true)
-        setOverviewLoading(false)
-        return
-      }
-
-      const nodes = applyTaskWorkState(
-        (graphRes.nodes ?? []).map((n) => ({
-          id: n.id,
-          kind: n.kind,
-          title: n.title,
-          goal_id: n.goal_id ?? (n.kind === 'goal' ? n.id : undefined),
-        })),
-        taskItems,
-      )
-      setNodesMeta(nodes)
-      setEdgesMeta(graphRes.edges ?? [])
-      setEnabledKinds(allKindsFromNodes(nodes))
-      setGraphTruncated(graphRes.truncated)
-      const total = (graphRes as BoundedGraph & { total_entities?: number }).total_entities
-      setTotalEntities(typeof total === 'number' ? total : nodes.length)
-      setOmitted(typeof total === 'number' && total > nodes.length ? total - nodes.length : 0)
-      setCenter(graphRes.center || nodes[0]?.id || '')
-      setMaxNodes(Math.min(UI_CAP, graphRes.max_nodes || PROJECT_MAX_NODES))
-      setSelectedId(null)
-    } catch (err) {
-      setError(err)
+  const loadProjectGraphView = useCallback(
+    async (budget = PROJECT_MAX_NODES) => {
+      const capped = Math.min(UI_CAP, Math.max(1, budget))
+      setMaxNodes(capped)
+      setOverviewLoading(true)
+      setError(null)
+      setEmptyProject(false)
+      setLayoutMode('project')
       setNodesMeta([])
       setEdgesMeta([])
-    } finally {
-      setOverviewLoading(false)
-    }
-  }, [token, applyTaskWorkState, clearGraphUrl])
+      setTotalEntities(null)
+      setOmitted(0)
+      syncProjectUrl(capped)
+      try {
+        const [taskRes, graphRes] = await Promise.all([
+          listTasks({ limit: 100 }, { token }),
+          getProjectGraph(capped, { token }),
+        ])
+        const taskItems = taskRes.items ?? []
+        setTasks(taskItems)
+
+        if ((graphRes.nodes ?? []).length === 0) {
+          setEmptyProject(true)
+          setOverviewLoading(false)
+          return
+        }
+
+        const nodes = applyTaskWorkState(
+          (graphRes.nodes ?? []).map((n) => ({
+            id: n.id,
+            kind: n.kind,
+            title: n.title,
+            scope_id: n.scope_id,
+            goal_id: n.goal_id ?? (n.kind === 'goal' ? n.id : undefined),
+          })),
+          taskItems,
+        )
+        setNodesMeta(nodes)
+        setEdgesMeta(graphRes.edges ?? [])
+        setEnabledKinds(allKindsFromNodes(nodes))
+        setGraphTruncated(graphRes.truncated)
+        const total = (graphRes as BoundedGraph & { total_entities?: number }).total_entities
+        setTotalEntities(typeof total === 'number' ? total : nodes.length)
+        setOmitted(typeof total === 'number' && total > nodes.length ? total - nodes.length : 0)
+        setCenter(graphRes.center || nodes[0]?.id || '')
+        setSelectedId(null)
+      } catch (err) {
+        setError(err)
+        setNodesMeta([])
+        setEdgesMeta([])
+      } finally {
+        setOverviewLoading(false)
+      }
+    },
+    [token, applyTaskWorkState, syncProjectUrl],
+  )
 
   const loadGraph = useCallback(
     async (centerId: string, budget = EXPAND_MAX_NODES) => {
@@ -691,6 +721,7 @@ export function Graph() {
             id: n.id,
             kind: n.kind,
             title: n.title,
+            scope_id: n.scope_id,
             goal_id: n.goal_id ?? (n.kind === 'goal' ? n.id : undefined),
           })),
           taskItems,
@@ -718,7 +749,7 @@ export function Graph() {
       void loadGraph(urlCenter, budgetFromParams(searchParams, EXPAND_MAX_NODES))
       return
     }
-    void loadProjectGraphView()
+    void loadProjectGraphView(budgetFromParams(searchParams, PROJECT_MAX_NODES))
   }, [loadGraph, loadProjectGraphView, searchParams])
 
   function onSelect(id: string) {
@@ -770,6 +801,38 @@ export function Graph() {
             >
               {showAllEdges ? 'All edges' : 'Focus edges'}
             </button>
+            <label className="field field--inline graph-page__budget-field" htmlFor="graph-project-max-nodes">
+              <span className="graph-page__budget-label">max_nodes</span>
+              <input
+                id="graph-project-max-nodes"
+                data-testid="graph-project-max-nodes"
+                type="number"
+                min={1}
+                max={UI_CAP}
+                value={maxNodes}
+                disabled={overviewLoading}
+                onChange={(e) =>
+                  setMaxNodes(
+                    Math.min(UI_CAP, Math.max(1, Number(e.target.value) || PROJECT_MAX_NODES)),
+                  )
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void loadProjectGraphView(maxNodes)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn--ghost"
+                data-testid="graph-apply-project-budget"
+                disabled={overviewLoading}
+                onClick={() => void loadProjectGraphView(maxNodes)}
+              >
+                Apply
+              </button>
+            </label>
           </>
         ) : null}
         <span className="mono graph-page__meta" data-testid="graph-budget-line">
@@ -787,7 +850,7 @@ export function Graph() {
             className="btn btn--ghost"
             data-testid="graph-reload-project"
             disabled={overviewLoading}
-            onClick={() => void loadProjectGraphView()}
+            onClick={() => void loadProjectGraphView(maxNodes)}
           >
             Reload project graph
           </button>
@@ -797,7 +860,7 @@ export function Graph() {
       {error ? (
         <div className="graph-page__banner">
           <ErrorBanner error={error} />
-          <button type="button" className="btn" onClick={() => void loadProjectGraphView()}>
+          <button type="button" className="btn" onClick={() => void loadProjectGraphView(maxNodes)}>
             Retry
           </button>
         </div>
@@ -847,7 +910,7 @@ export function Graph() {
                 : 'Truncated: neighborhood exceeded budget'}
               {omitted > 0 ? ` (+${omitted} omitted)` : ''} (max_nodes≤{maxNodes}).
               {layoutMode === 'project' ? (
-                <> Use Orient to drill down.</>
+                <> Increase max_nodes above or filter by scope (API) to show more.</>
               ) : (
                 <> Reload project graph for full view.</>
               )}

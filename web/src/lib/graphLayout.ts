@@ -35,17 +35,32 @@ export const EDGE_SAMPLE_MIN_COUNT = 80
 export const EDGE_SAMPLE_RATIO = 4
 /** Max edges rendered in project overview when no focus node (hairball cap). */
 export const EDGE_OVERVIEW_MAX = 150
-/** Rel values preferred when capping overview edges. */
-export const EDGE_PRIORITY_RELS = new Set([
-  'goal_has_task',
-  'decision_affects_task',
+/** Tier A — MVP scope rels (always priority when present). */
+export const EDGE_TIER_A_RELS = new Set([
+  'scope_member',
+  'api_contract',
+  'implements',
   'blocks',
+])
+/** Tier B — causal / planning rels (fill after Tier A). */
+export const EDGE_TIER_B_RELS = new Set([
+  'decision_affects_task',
   'depends_on',
   'relates_to',
   'mentions',
   'supports',
   'contradicts',
 ])
+/** Tier C — demoted when any Tier A edge exists in payload. */
+export const EDGE_TIER_C_RELS = new Set(['goal_has_task'])
+/** @deprecated Use tiered EDGE_TIER_* sets; kept for imports during transition. */
+export const EDGE_PRIORITY_RELS = new Set([
+  'goal_has_task',
+  ...EDGE_TIER_B_RELS,
+  'blocks',
+])
+/** Cluster id when node.scope_id is absent (Law 19 — API only, no edge walk). */
+export const UNGROUPED_SCOPE = '__ungrouped__'
 /** fitView padding so content fills the viewport (not a tiny centered blob). */
 export const PROJECT_FIT_PADDING = 0.15
 /**
@@ -287,9 +302,70 @@ export function computeSemanticLayout(
   return positions
 }
 
-type SimNode = SimulationNodeDatum & { id: string; kind?: string }
+type SimNode = SimulationNodeDatum & { id: string; kind?: string; scope_id?: string | null }
 
-export type ForceLayoutNode = { id: string; kind?: string }
+function scopeAttractorForce(
+  centroids: Map<string, { x: number; y: number }>,
+  strength: number,
+) {
+  let nodes: SimNode[] = []
+  function force(alpha: number) {
+    for (const node of nodes) {
+      const c = centroids.get(resolveScopeClusterId(node.scope_id))
+      if (!c) continue
+      const sid = resolveScopeClusterId(node.scope_id)
+      const s = sid === UNGROUPED_SCOPE ? strength * 0.35 : strength
+      node.vx = (node.vx ?? 0) + (c.x - (node.x ?? 0)) * s * alpha
+      node.vy = (node.vy ?? 0) + (c.y - (node.y ?? 0)) * s * alpha
+    }
+  }
+  force.initialize = (n: SimNode[]) => {
+    nodes = n
+  }
+  return force
+}
+
+export type ForceLayoutNode = { id: string; kind?: string; scope_id?: string | null }
+
+export function resolveScopeClusterId(scopeId: string | null | undefined): string {
+  if (scopeId && scopeId.trim()) return scopeId
+  return UNGROUPED_SCOPE
+}
+
+/** True when any node carries a server scope_id (enables scope clustering). */
+export function hasScopedNodes(nodes: readonly { scope_id?: string | null }[]): boolean {
+  return nodes.some((n) => n.scope_id && n.scope_id.trim())
+}
+
+/** Deterministic scope centroids on a ring; ungrouped at canvas center. */
+export function computeScopeCentroids(
+  nodes: readonly { scope_id?: string | null }[],
+  width: number,
+  height: number,
+): Map<string, { x: number; y: number }> {
+  if (!hasScopedNodes(nodes)) return new Map()
+
+  const scopeIds = new Set<string>()
+  for (const n of nodes) {
+    scopeIds.add(resolveScopeClusterId(n.scope_id))
+  }
+
+  const scoped = [...scopeIds].filter((s) => s !== UNGROUPED_SCOPE).sort()
+  const cx = width / 2
+  const cy = height / 2
+  const radius = Math.min(width, height) * 0.32
+  const centroids = new Map<string, { x: number; y: number }>()
+  centroids.set(UNGROUPED_SCOPE, { x: cx, y: cy })
+
+  scoped.forEach((scopeId, i) => {
+    const angle = (2 * Math.PI * i) / Math.max(scoped.length, 1) - Math.PI / 2
+    centroids.set(scopeId, {
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+    })
+  })
+  return centroids
+}
 
 function normalizeForceNodes(
   nodes: readonly string[] | readonly ForceLayoutNode[],
@@ -297,7 +373,7 @@ function normalizeForceNodes(
   return nodes.map((n) => (typeof n === 'string' ? { id: n } : n))
 }
 
-/** Synchronous d3-force layout for project overview graphs (organic clusters, soft kind bias). */
+/** Synchronous d3-force layout for project overview (scope centroids + soft kind bias). */
 export function computeForceLayout(
   nodes: readonly string[] | readonly ForceLayoutNode[],
   edges: readonly LayoutEdge[],
@@ -308,16 +384,24 @@ export function computeForceLayout(
   const iterations = opts.iterations ?? 320
   const nodeList = normalizeForceNodes(nodes)
   const idSet = new Set(nodeList.map((n) => n.id))
+  const scopeCentroids = computeScopeCentroids(nodeList, width, height)
+  const useScopeCluster = scopeCentroids.size > 0
 
   const simNodes: SimNode[] = nodeList.map((n, i) => {
     const angle = (2 * Math.PI * i) / Math.max(nodeList.length, 1)
+    const cluster = scopeCentroids.get(resolveScopeClusterId(n.scope_id))
+    const seedX = cluster?.x ?? width / 2 + Math.cos(angle) * 64
+    const seedY = cluster?.y ?? height / 2 + Math.sin(angle) * 64
     return {
       id: n.id,
       kind: n.kind,
-      x: width / 2 + Math.cos(angle) * 64,
-      y: height / 2 + Math.sin(angle) * 64,
+      scope_id: n.scope_id,
+      x: seedX + Math.cos(angle) * 12,
+      y: seedY + Math.sin(angle) * 12,
     }
   })
+
+  const scopeById = new Map(nodeList.map((n) => [n.id, resolveScopeClusterId(n.scope_id)]))
 
   const links = edges
     .filter((e) => idSet.has(e.from) && idSet.has(e.to))
@@ -328,18 +412,28 @@ export function computeForceLayout(
     return SEMANTIC_PADDING + lane * SEMANTIC_LANE_WIDTH * 0.55
   }
 
+  const linkForce = forceLink(links)
+    .id((d) => (d as SimNode).id)
+    .distance((link) => {
+      const srcId =
+        typeof link.source === 'string' ? link.source : (link.source as SimNode).id
+      const tgtId =
+        typeof link.target === 'string' ? link.target : (link.target as SimNode).id
+      const sameScope = scopeById.get(srcId) === scopeById.get(tgtId)
+      return sameScope ? 96 : 168
+    })
+    .strength(useScopeCluster ? 0.28 : 0.32)
+
   const simulation = forceSimulation(simNodes)
-    .force(
-      'link',
-      forceLink(links)
-        .id((d) => (d as SimNode).id)
-        .distance(128)
-        .strength(0.32),
-    )
-    .force('charge', forceManyBody().strength(-240).distanceMax(560))
-    .force('center', forceCenter(width / 2, height / 2).strength(0.06))
-    .force('collide', forceCollide(42))
-    .force('x', forceX<SimNode>(kindX).strength(0.07))
+    .force('link', linkForce)
+    .force('charge', forceManyBody().strength(useScopeCluster ? -220 : -240).distanceMax(560))
+    .force('center', forceCenter(width / 2, height / 2).strength(useScopeCluster ? 0.03 : 0.06))
+    .force('collide', forceCollide(useScopeCluster ? 38 : 42))
+    .force('x', forceX<SimNode>(kindX).strength(useScopeCluster ? 0.04 : 0.07))
+
+  if (useScopeCluster) {
+    simulation.force('scope', scopeAttractorForce(scopeCentroids, 0.22))
+  }
 
   simulation.stop()
   for (let i = 0; i < iterations; i++) simulation.tick()
@@ -472,23 +566,55 @@ export function filterEdgesForLod<T extends { from: string; to: string }>(
   )
 }
 
-function isPriorityEdge<T extends { rel?: string }>(edge: T): boolean {
-  if (!edge.rel) return false
-  return EDGE_PRIORITY_RELS.has(edge.rel)
+export function hasTierAScopeEdges(edges: readonly { rel?: string }[]): boolean {
+  return edges.some((e) => e.rel != null && EDGE_TIER_A_RELS.has(e.rel))
 }
 
-function capEdgesByPriority<T extends { from: string; to: string; rel?: string }>(
+export function edgePriorityTier(
+  rel: string | undefined,
+  hasTierA: boolean,
+): 'A' | 'B' | 'C' | 'other' {
+  if (!rel) return 'other'
+  if (EDGE_TIER_A_RELS.has(rel)) return 'A'
+  if (rel === 'goal_has_task') return hasTierA ? 'C' : 'B'
+  if (EDGE_TIER_B_RELS.has(rel) || EDGE_PRIORITY_RELS.has(rel)) return 'B'
+  return 'other'
+}
+
+/** Tiered cap: Tier A → Tier B → Tier C (last when scope signal) → rest. */
+export function capEdgesByPriority<T extends { from: string; to: string; rel?: string }>(
   edges: readonly T[],
   max: number,
 ): T[] {
   if (edges.length <= max) return [...edges]
-  const priority = edges.filter(isPriorityEdge)
-  if (priority.length >= max) return priority.slice(0, max)
-  const priorityKeys = new Set(priority.map((e) => `${e.from}\x00${e.to}\x00${e.rel ?? ''}`))
-  const rest = edges.filter(
-    (e) => !priorityKeys.has(`${e.from}\x00${e.to}\x00${e.rel ?? ''}`),
-  )
-  return [...priority, ...rest.slice(0, max - priority.length)]
+  const hasTierA = hasTierAScopeEdges(edges)
+  const tierA: T[] = []
+  const tierB: T[] = []
+  const tierC: T[] = []
+  const other: T[] = []
+  for (const e of edges) {
+    switch (edgePriorityTier(e.rel, hasTierA)) {
+      case 'A':
+        tierA.push(e)
+        break
+      case 'B':
+        tierB.push(e)
+        break
+      case 'C':
+        tierC.push(e)
+        break
+      default:
+        other.push(e)
+    }
+  }
+  const out: T[] = []
+  for (const bucket of [tierA, tierB, tierC, other]) {
+    for (const e of bucket) {
+      if (out.length >= max) return out
+      out.push(e)
+    }
+  }
+  return out
 }
 
 /**

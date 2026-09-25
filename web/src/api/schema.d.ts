@@ -897,6 +897,8 @@ export interface components {
             title: string;
             /** Format: uuid */
             goal_id?: string;
+            /** Format: uuid */
+            scope_id?: string;
         };
         GraphEdge: {
             rel: string;
@@ -904,6 +906,8 @@ export interface components {
             from: string;
             /** Format: uuid */
             to: string;
+            /** @enum {string} */
+            provenance?: "explicit" | "inferred";
         };
         BoundedGraph: {
             /** @enum {string} */
