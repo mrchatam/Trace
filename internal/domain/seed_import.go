@@ -132,7 +132,7 @@ func (s *Service) importSeedDocumentBody(ctx context.Context, doc SeedDocument, 
 	for _, sc := range doc.Scopes {
 		ent, inserted, err := s.ImportSeedScope(ctx, sc)
 		if err != nil {
-			return summary, err
+			return err
 		}
 		addCreated(EntityScope, ent.ID, inserted)
 	}
