@@ -462,162 +462,194 @@
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a3",
-      "to": "rl010000-0000-4000-8000-000000000010"
+      "to": "rl010000-0000-4000-8000-000000000010",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a1",
-      "to": "rl010000-0000-4000-8000-000000000020"
+      "to": "rl010000-0000-4000-8000-000000000020",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a2",
-      "to": "rl010000-0000-4000-8000-000000000010"
+      "to": "rl010000-0000-4000-8000-000000000010",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a1",
-      "to": "rl010000-0000-4000-8000-000000000010"
+      "to": "rl010000-0000-4000-8000-000000000010",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a1",
-      "to": "rl010000-0000-4000-8000-000000000030"
+      "to": "rl010000-0000-4000-8000-000000000030",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a2",
-      "to": "rl010000-0000-4000-8000-000000000030"
+      "to": "rl010000-0000-4000-8000-000000000030",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a3",
-      "to": "rl010000-0000-4000-8000-000000000030"
+      "to": "rl010000-0000-4000-8000-000000000030",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a3",
-      "to": "rl010000-0000-4000-8000-000000000020"
+      "to": "rl010000-0000-4000-8000-000000000020",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "decision_affects_task",
       "from": "rl010000-0000-4000-8000-0000000000a2",
-      "to": "rl010000-0000-4000-8000-000000000020"
+      "to": "rl010000-0000-4000-8000-000000000020",
+      "source_type": "USER_ASSERTED"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "5ac9bd0d-a42e-430a-9add-6feb0204783e",
-      "to": "6eb156e9-a3ca-4975-b6da-f2742b68812b"
+      "to": "6eb156e9-a3ca-4975-b6da-f2742b68812b",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "d262e6bf-eaa0-4b28-ac96-b10a2a8de7af",
-      "to": "cdd8acbf-6144-4789-b0b1-abd6a24dadb5"
+      "to": "cdd8acbf-6144-4789-b0b1-abd6a24dadb5",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "7394a265-f107-4eff-8789-27803b3fbaf8",
-      "to": "ff9862bc-2f0c-4eef-b7ce-3138e61dd466"
+      "to": "ff9862bc-2f0c-4eef-b7ce-3138e61dd466",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "06c001f7-a48b-448f-87a3-ab4253f01a1d",
-      "to": "33dc89f3-e0bd-45c4-b640-e7f7efbbe85f"
+      "to": "33dc89f3-e0bd-45c4-b640-e7f7efbbe85f",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "91945f23-ba61-482d-b28f-b73b54305aaf",
-      "to": "224d5bc9-bf0c-4dda-ae26-0eb0a6ee3d24"
+      "to": "224d5bc9-bf0c-4dda-ae26-0eb0a6ee3d24",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "b19f74cb-81ab-476f-aa4b-f9295102edb4",
-      "to": "e146553e-4a38-4e3e-97c1-28a8b2aa3e99"
+      "to": "e146553e-4a38-4e3e-97c1-28a8b2aa3e99",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "0e7e71f6-fbf6-4398-ad29-9696d677cb59",
-      "to": "bb3ecf1d-1ccf-49a3-ac7f-7a59d8efd23a"
+      "to": "bb3ecf1d-1ccf-49a3-ac7f-7a59d8efd23a",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "dab8911f-8a23-4cf9-b619-cc4044c8d10f",
-      "to": "5edbd66d-3288-4152-a3a3-efca8c05d76a"
+      "to": "5edbd66d-3288-4152-a3a3-efca8c05d76a",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "09851263-e855-4e5f-8929-05f7c8140d9a",
-      "to": "baea6103-8118-41a0-80a8-60fbf680a927"
+      "to": "baea6103-8118-41a0-80a8-60fbf680a927",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "01b3de00-e667-4ab2-be15-b0ecc2dc93d4",
-      "to": "4d48bbce-e04a-4efd-a283-7c90189c1eaa"
+      "to": "4d48bbce-e04a-4efd-a283-7c90189c1eaa",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "0a7ecd89-9766-4376-af16-ef4f365455a8",
-      "to": "5153660e-af81-4c74-8f18-408983daecb8"
+      "to": "5153660e-af81-4c74-8f18-408983daecb8",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "71aa8f99-2d5d-4171-9d38-045242c98cf9",
-      "to": "9f45097a-6d1e-44d4-8694-ef3cff242e64"
+      "to": "9f45097a-6d1e-44d4-8694-ef3cff242e64",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "079e5425-a0a8-4b69-bbbc-51d41d2f7d02",
-      "to": "1e6f0fda-21fb-4718-b815-19164e7af4bd"
+      "to": "1e6f0fda-21fb-4718-b815-19164e7af4bd",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "a2d2159e-41e6-4d2f-a114-0613fda9c990",
-      "to": "9341b9c0-4db6-459b-8d8d-4c45e0eb201c"
+      "to": "9341b9c0-4db6-459b-8d8d-4c45e0eb201c",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "9547151b-8815-4390-b1c4-84ded90cfe11",
-      "to": "a17e8ef7-5995-47ae-a5d8-ecb5743e275e"
+      "to": "a17e8ef7-5995-47ae-a5d8-ecb5743e275e",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "10fd636b-b1e7-4a20-b8bb-e46a07658a45",
-      "to": "58a3319e-fa8b-4b35-b922-e36234a0eed2"
+      "to": "58a3319e-fa8b-4b35-b922-e36234a0eed2",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "f02720fa-35a6-4854-bfc1-07b36e04dd25",
-      "to": "b62b3975-654c-469d-bc26-eea225ebd292"
+      "to": "b62b3975-654c-469d-bc26-eea225ebd292",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "e6115f22-733a-4f53-93b3-1f6267d3f82d",
-      "to": "db09081f-e9ea-410c-bf65-a1bd633099de"
+      "to": "db09081f-e9ea-410c-bf65-a1bd633099de",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "8b27fa6c-bef1-43fe-acaa-19e256b5418e",
-      "to": "55156fd7-f337-4980-9b1e-1ca7032155b0"
+      "to": "55156fd7-f337-4980-9b1e-1ca7032155b0",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "7764bf17-0365-4967-abff-3d71f5f377b4",
-      "to": "7970dac6-e709-4a3d-bf71-5d27f3b6803a"
+      "to": "7970dac6-e709-4a3d-bf71-5d27f3b6803a",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "31e3ed98-8527-479a-853f-2b60a07f62bd",
-      "to": "4512966e-0ef9-4de8-86a8-96c3102014fa"
+      "to": "4512966e-0ef9-4de8-86a8-96c3102014fa",
+      "source_type": "e2e"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "91ae692f-01fa-4f46-b0ad-3bd8082aef75",
-      "to": "6c29119d-3049-4a17-8021-aeb1c060dbe7"
+      "to": "6c29119d-3049-4a17-8021-aeb1c060dbe7",
+      "source_type": "gui"
     },
     {
       "rel": "discovery_mentions_task",
       "from": "f3df08b1-f04c-4071-a9a1-385a9326b28b",
-      "to": "04966adf-e337-4382-bac9-ad76e0753335"
+      "to": "04966adf-e337-4382-bac9-ad76e0753335",
+      "source_type": "e2e"
     }
   ],
   "findings": [],
@@ -736,5 +768,6 @@
         }
       ]
     }
-  ]
+  ],
+  "exported_at_commit": "6fc9bdfe6752b948ff8cee291eeec0d80fd5a996"
 }

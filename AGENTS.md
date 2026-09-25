@@ -26,17 +26,17 @@ Symbol-level code exploration is **optional** via separate Codegraph MCP — Tra
 ## Orchestrator (paste per phase)
 
 ```text
-Phase 00–43 complete — do not re-run closed rows.
+Phase 00–44 complete — do not re-run closed rows.
 @docs/TODO.md
 
-- Active phase: **44** — Scoped graph linking & scope semantics
-- Next runnable: **P44-00** (phase planner)
+- Active phase: **none** (idle — await human promotion)
+- Next runnable: **none**
 - Follow docs/rules/agent-loop-protocol.md
 ```
 
 ## Current focus
 
-**Phase 44 active** (2026-08-23) — scoped graph linking & scope semantics; user intake: meaningful scope clusters (auth FE/BE, business scopes), not UI-only. Plan scaffold at [`docs/TODO/phase-44.md`](docs/TODO/phase-44.md) · design locks [`docs/phases/phase-44-scoped-graph-linking/01-DESIGN-LOCKS.md`](docs/phases/phase-44-scoped-graph-linking/01-DESIGN-LOCKS.md). First runnable: **P44-00**.
+**Phase 44 complete** (2026-08-23) — closed at `P44-S05-02`; scoped graph linking delivered (thin scopes, MVP rels, CLI infer, GUI clustering @ 500). Successor: **no successor** (idle). Board [`docs/TODO/phase-44.md`](docs/TODO/phase-44.md).
 
 **Phase 43 complete** (2026-08-22) — closed at `P43-S01-02`; GitHub triage (0 open issues), extended evals aligned with Phase 29 HTTP policy, perf ceilings re-locked; CI + GHCR green on main. Board: [`docs/TODO/phase-43.md`](docs/TODO/phase-43.md).
 

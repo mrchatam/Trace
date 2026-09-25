@@ -669,6 +669,14 @@ paths:
             maximum: 8
             default: 2
           description: Hop depth for neighborhood mode only
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Filter mode=project to one thin graph scope (slug or id) plus bounded N-hop
+            neighbors (default depth 1). Still requires max_nodes. Does not raise the 5000 cap.
       responses:
         "200":
           description: Budgeted nodes and edges
@@ -1583,6 +1591,10 @@ components:
           type: string
           format: uuid
           description: Present on task nodes when linked to a goal
+        scope_id:
+          type: string
+          format: uuid
+          description: Optional; populated from scope_member when present
 
     GraphEdge:
       type: object
@@ -1596,6 +1608,10 @@ components:
         to:
           type: string
           format: uuid
+        provenance:
+          type: string
+          enum: [explicit, inferred]
+          description: Optional; mapped from entity_links.source_type (not an inferred_ rel prefix)
 
     BoundedGraph:
       type: object

@@ -130,7 +130,7 @@ func TestCompatibilitySecurityChecklist(t *testing.T) {
 			"BackupTo VACUUM INTO + Restore Abs rebind",
 			"HasBlobLikeColumns false",
 			"access.token + TRACE_ACCESS_TOKEN → ErrUnauthorized",
-			"011_import_edge_provenance + 012_import_provenance_enum + 013_capability_tool_decisions + 014_capability_tool_decision_enum + 015_deliberation_state + 016_cognitive_artifacts + 017_changes_effects + 018_outcome_results_baselines + 019_regressions_reflections + 020_baselines_promotion + 021_experiments + 022_code_relationships + 023_graph_sync + 024_impact_compare + 025_engineering_knowledge + 026_eval_rules + 027_harness_agents present; no 028+",
+			"011_import_edge_provenance + 012_import_provenance_enum + 013_capability_tool_decisions + 014_capability_tool_decision_enum + 015_deliberation_state + 016_cognitive_artifacts + 017_changes_effects + 018_outcome_results_baselines + 019_regressions_reflections + 020_baselines_promotion + 021_experiments + 022_code_relationships + 023_graph_sync + 024_impact_compare + 025_engineering_knowledge + 026_eval_rules + 027_harness_agents + 028_deliberation_consecutive_empty + 029_graph_scopes present; no 030+",
 			"no MCP auth/backup tools",
 		},
 		TraceVersion: "0.0.0-dev",
@@ -257,14 +257,14 @@ func checkMigrateStatus(t *testing.T, moduleRoot string) (migrateOK, no011OK boo
 	if err != nil {
 		t.Fatalf("MigrationStatus: %v", err)
 	}
-	// Phase 26 S03 landed 028_deliberation_consecutive_empty; ceiling is 28 (no 029+).
-	migrateOK = st.EmbedExpected == 28 && st.MaxApplied == 28 && st.PendingCount == 0 && len(st.AppliedVersions) == 28
+	// Phase 44 S02 landed 029_graph_scopes; ceiling is 29 (no 030+).
+	migrateOK = st.EmbedExpected == 29 && st.MaxApplied == 29 && st.PendingCount == 0 && len(st.AppliedVersions) == 29
 	if !migrateOK {
 		t.Errorf("MigrationStatus: embed=%d max=%d pending=%d applied=%v", st.EmbedExpected, st.MaxApplied, st.PendingCount, st.AppliedVersions)
 	}
 	for _, v := range st.AppliedVersions {
-		if v >= 29 {
-			t.Errorf("unexpected applied migration version %d (029_* forbidden)", v)
+		if v >= 30 {
+			t.Errorf("unexpected applied migration version %d (030_* forbidden)", v)
 			migrateOK = false
 		}
 	}
@@ -292,6 +292,7 @@ func checkMigrateStatus(t *testing.T, moduleRoot string) (migrateOK, no011OK boo
 	saw026 := false
 	saw027 := false
 	saw028 := false
+	saw029 := false
 	no011OK = true
 	for _, e := range entries {
 		name := e.Name()
@@ -367,7 +368,11 @@ func checkMigrateStatus(t *testing.T, moduleRoot string) (migrateOK, no011OK boo
 			saw028 = true
 			continue
 		}
-		if strings.HasPrefix(name, "029_") || strings.Contains(name, "029_") {
+		if name == "029_graph_scopes.sql" {
+			saw029 = true
+			continue
+		}
+		if strings.HasPrefix(name, "030_") || strings.Contains(name, "030_") {
 			t.Errorf("forbidden migration file present: %s", name)
 			no011OK = false
 		}
@@ -444,11 +449,15 @@ func checkMigrateStatus(t *testing.T, moduleRoot string) (migrateOK, no011OK boo
 		t.Errorf("expected migration file 028_deliberation_consecutive_empty.sql")
 		no011OK = false
 	}
-	if st.EmbedExpected != 28 {
-		t.Errorf("EmbedExpected=%d want 28", st.EmbedExpected)
+	if !saw029 {
+		t.Errorf("expected migration file 029_graph_scopes.sql")
 		no011OK = false
 	}
-	// JSON field no_011_mig_ok retained for schema-compat v1; means ceiling OK (011–028 present, no 029+).
+	if st.EmbedExpected != 29 {
+		t.Errorf("EmbedExpected=%d want 29", st.EmbedExpected)
+		no011OK = false
+	}
+	// JSON field no_011_mig_ok retained for schema-compat v1; means ceiling OK (011–029 present, no 030+).
 	return migrateOK, no011OK
 }
 

@@ -12,14 +12,14 @@ func TestHarnessAgentCatalogMigrate027(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrationStatus: %v", err)
 	}
-	if st.EmbedExpected != 28 {
-		t.Fatalf("EmbedExpected: got %d want 28", st.EmbedExpected)
+	if st.EmbedExpected != 29 {
+		t.Fatalf("EmbedExpected: got %d want 29", st.EmbedExpected)
 	}
-	if st.MaxApplied != 28 {
-		t.Fatalf("MaxApplied: got %d want 28", st.MaxApplied)
+	if st.MaxApplied != 29 {
+		t.Fatalf("MaxApplied: got %d want 29", st.MaxApplied)
 	}
-	if len(st.AppliedVersions) != 28 {
-		t.Fatalf("AppliedVersions len: got %d want 28", len(st.AppliedVersions))
+	if len(st.AppliedVersions) != 29 {
+		t.Fatalf("AppliedVersions len: got %d want 29", len(st.AppliedVersions))
 	}
 
 	root := moduleRootFromStoreTest(t)
@@ -31,6 +31,7 @@ func TestHarnessAgentCatalogMigrate027(t *testing.T) {
 	sqlCount := 0
 	saw027 := false
 	saw028 := false
+	saw029 := false
 	for _, e := range entries {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".sql" {
 			continue
@@ -42,15 +43,21 @@ func TestHarnessAgentCatalogMigrate027(t *testing.T) {
 		if e.Name() == "028_deliberation_consecutive_empty.sql" {
 			saw028 = true
 		}
+		if e.Name() == "029_graph_scopes.sql" {
+			saw029 = true
+		}
 	}
-	if sqlCount != 28 {
-		t.Fatalf("schema sql file count: got %d want 28", sqlCount)
+	if sqlCount != 29 {
+		t.Fatalf("schema sql file count: got %d want 29", sqlCount)
 	}
 	if !saw027 {
 		t.Fatal("missing 027_harness_agents.sql")
 	}
 	if !saw028 {
 		t.Fatal("missing 028_deliberation_consecutive_empty.sql")
+	}
+	if !saw029 {
+		t.Fatal("missing 029_graph_scopes.sql")
 	}
 
 	agent, err := s.UpsertHarnessAgent(HarnessAgent{

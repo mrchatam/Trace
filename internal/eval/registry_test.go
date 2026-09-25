@@ -100,8 +100,8 @@ func TestAddMechanismWithoutSchemaChange(t *testing.T) {
 			sqlCount++
 		}
 	}
-	if sqlCount != 28 {
-		t.Fatalf("schema sql file count: got %d want 28", sqlCount)
+	if sqlCount != 29 {
+		t.Fatalf("schema sql file count: got %d want 29", sqlCount)
 	}
 
 	// outcome_results kind CHECK unchanged (018 migration).

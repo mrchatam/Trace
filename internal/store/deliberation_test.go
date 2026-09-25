@@ -81,7 +81,7 @@ func TestDeliberationStateTableMigrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrationStatus: %v", err)
 	}
-	if st.EmbedExpected != 28 || st.MaxApplied != 28 {
-		t.Fatalf("embed/applied: %+v want 28", st)
+	if st.EmbedExpected != 29 || st.MaxApplied != 29 {
+		t.Fatalf("embed/applied: %+v want 29", st)
 	}
 }

@@ -13,17 +13,17 @@ func TestMigrationStatusReportsEmbedMax(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrationStatus: %v", err)
 	}
-	if st.EmbedExpected != 28 {
-		t.Fatalf("EmbedExpected: got %d want 28", st.EmbedExpected)
+	if st.EmbedExpected != 29 {
+		t.Fatalf("EmbedExpected: got %d want 29", st.EmbedExpected)
 	}
-	if st.MaxApplied != 28 {
-		t.Fatalf("MaxApplied: got %d want 28", st.MaxApplied)
+	if st.MaxApplied != 29 {
+		t.Fatalf("MaxApplied: got %d want 29", st.MaxApplied)
 	}
 	if st.PendingCount != 0 {
 		t.Fatalf("PendingCount: got %d want 0", st.PendingCount)
 	}
-	if len(st.AppliedVersions) != 28 {
-		t.Fatalf("AppliedVersions len: got %d want 28", len(st.AppliedVersions))
+	if len(st.AppliedVersions) != 29 {
+		t.Fatalf("AppliedVersions len: got %d want 29", len(st.AppliedVersions))
 	}
 	for i, v := range st.AppliedVersions {
 		if v != i+1 {
