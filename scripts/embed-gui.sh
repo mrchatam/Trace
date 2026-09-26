@@ -26,12 +26,26 @@ command -v npm >/dev/null 2>&1 || fail "npm not found on PATH (install Node.js)"
 command -v node >/dev/null 2>&1 || fail "node not found on PATH (install Node.js)"
 [[ -f "$WEB/package.json" ]] || fail "missing $WEB/package.json"
 
-echo "embed-gui: building web/ (npm install --include=dev && npm run build)…"
+echo "embed-gui: building web/ (npm ci --include=dev && npm run build)…"
+LOCKFILE="$WEB/package-lock.json"
+if [[ -f "$LOCKFILE" ]]; then
+  # Record checksum before npm ci to detect rewrites
+  LOCKFILE_BEFORE=$(cksum <"$LOCKFILE")
+else
+  LOCKFILE_BEFORE=""
+fi
 (
   cd "$WEB"
-  npm install --include=dev
+  npm ci --include=dev
   npm run build
 )
+# Guard: fail if web/package-lock.json was rewritten during npm ci
+if [[ -n "$LOCKFILE_BEFORE" && -f "$LOCKFILE" ]]; then
+  LOCKFILE_AFTER=$(cksum <"$LOCKFILE")
+  if [[ "$LOCKFILE_BEFORE" != "$LOCKFILE_AFTER" ]]; then
+    fail "web/package-lock.json was rewritten during npm ci — lockfile drift detected"
+  fi
+fi
 
 [[ -f "$WEB/dist/index.html" ]] || fail "web/dist/index.html missing after build"
 if grep -q 'Embedded GUI stub' "$WEB/dist/index.html" 2>/dev/null; then
