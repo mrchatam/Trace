@@ -26,10 +26,10 @@ command -v npm >/dev/null 2>&1 || fail "npm not found on PATH (install Node.js)"
 command -v node >/dev/null 2>&1 || fail "node not found on PATH (install Node.js)"
 [[ -f "$WEB/package.json" ]] || fail "missing $WEB/package.json"
 
-echo "embed-gui: building web/ (npm ci && npm run build)…"
+echo "embed-gui: building web/ (npm install --include=dev && npm run build)…"
 (
   cd "$WEB"
-  npm ci
+  npm install --include=dev
   npm run build
 )
 
