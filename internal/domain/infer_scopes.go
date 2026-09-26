@@ -115,6 +115,7 @@ func (s *Service) InferScopes(ctx context.Context, opts InferOptions) (InferRepo
 		return keys[i].id < keys[j].id
 	})
 
+	// Build candidates first (read-only phase)
 	for _, k := range keys {
 		cands := bag[k]
 		if explicitMember[k.id] {
@@ -147,26 +148,53 @@ func (s *Service) InferScopes(ctx context.Context, opts InferOptions) (InferRepo
 			Confidence: InferredLinkConfidence,
 		}
 		report.Candidates = append(report.Candidates, cand)
-		if opts.DryRun {
-			continue
+	}
+
+	if opts.DryRun {
+		return report, nil
+	}
+
+	// Write phase: all inserts in a single transaction
+	err = s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		hookCalled := false
+		for _, cand := range report.Candidates {
+			inserted, _, err := stx.InsertLinkOrIgnore(store.EntityLink{
+				FromType:   cand.FromType,
+				FromID:     cand.FromID,
+				Rel:        cand.Rel,
+				ToType:     EntityScope,
+				ToID:       cand.ToID,
+				SourceType: SourceTypeInferred,
+				Confidence: InferredLinkConfidence,
+			})
+			if err != nil {
+				return err
+			}
+			if inserted {
+				report.Inserted++
+				if !hookCalled {
+					if tx.afterLinkMutateHook != nil {
+						if err := tx.afterLinkMutateHook(); err != nil {
+							return err
+						}
+					}
+					hookCalled = true
+				}
+				meta := LinkMeta{SourceType: SourceTypeInferred, Confidence: InferredLinkConfidence}
+				if err := tx.appendLinked(cand.FromType, cand.FromID, cand.Rel, EntityScope, cand.ToID, meta); err != nil {
+					return err
+				}
+			} else {
+				report.SkippedExisting++
+			}
 		}
-		inserted, _, err := s.store.InsertLinkOrIgnore(store.EntityLink{
-			FromType:   k.typ,
-			FromID:     k.id,
-			Rel:        RelScopeMember,
-			ToType:     EntityScope,
-			ToID:       scopeID,
-			SourceType: SourceTypeInferred,
-			Confidence: InferredLinkConfidence,
-		})
-		if err != nil {
-			return report, err
-		}
-		if inserted {
-			report.Inserted++
-		} else {
-			report.SkippedExisting++
-		}
+		return nil
+	})
+	if err != nil {
+		report.Inserted = 0
+		report.SkippedExisting = 0
+		return report, err
 	}
 	return report, nil
 }
