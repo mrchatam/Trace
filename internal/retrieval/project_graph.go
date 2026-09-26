@@ -25,6 +25,20 @@ var projectGraphKindOrder = map[string]int{
 	"change": 10, "regression": 11, "scope": 12,
 }
 
+func projectGraphSortLess(nodes []GraphNode) func(i, j int) bool {
+	return func(i, j int) bool {
+		oi, oki := projectGraphKindOrder[nodes[i].Kind]
+		oj, okj := projectGraphKindOrder[nodes[j].Kind]
+		if oki && okj && oi != oj {
+			return oi < oj
+		}
+		if oki != okj {
+			return oki
+		}
+		return nodes[i].ID < nodes[j].ID
+	}
+}
+
 // ProjectGraph returns a bounded view of project entities and edges between them.
 // max_nodes is required (1..5000). Truncated=true when total entities exceed the budget.
 // When Scope is set, returns scope members + N-hop neighbors only (still bounded by max_nodes).
@@ -111,8 +125,19 @@ func (e *Engine) projectGraphScoped(opts ProjectGraphOpts) (*BoundedGraph, error
 	seen[hitKey("scope", sc.ID)] = seedHit
 	frontier := []frontierItem{{h: seedHit}}
 
+	// Track candidates that were seen but not added due to budget.
+	dropped := map[string]struct{}{}
+
 	for _, l := range memberLinks {
 		if l.Rel != "scope_member" {
+			continue
+		}
+		k := hitKey(l.FromType, l.FromID)
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		if len(seen) >= opts.MaxNodes {
+			dropped[k] = struct{}{}
 			continue
 		}
 		nh, lerr := e.lookupEntity(l.FromType, l.FromID, "scope_member", 0, 1.0)
@@ -123,18 +148,11 @@ func (e *Engine) projectGraphScoped(opts ProjectGraphOpts) (*BoundedGraph, error
 			return nil, lerr
 		}
 		nh.Distance = 0
-		k := hitKey(nh.EntityType, nh.EntityID)
-		if _, ok := seen[k]; ok {
-			continue
-		}
-		if len(seen) >= opts.MaxNodes {
-			break
-		}
 		seen[k] = nh
 		frontier = append(frontier, frontierItem{h: nh})
 	}
 
-	truncated := len(seen) >= opts.MaxNodes
+	truncated := false
 	edgeSeen := map[string]struct{}{}
 	var edges []GraphEdge
 	addEdge := func(ed GraphEdge) {
@@ -163,6 +181,7 @@ func (e *Engine) projectGraphScoped(opts ProjectGraphOpts) (*BoundedGraph, error
 				}
 				if len(seen) >= opts.MaxNodes {
 					truncated = true
+					dropped[k] = struct{}{}
 					break
 				}
 				seen[k] = nh
@@ -220,12 +239,16 @@ func (e *Engine) projectGraphScoped(opts ProjectGraphOpts) (*BoundedGraph, error
 		addEdge(ed)
 	}
 
+	// Truncated is true only when at least one candidate was dropped.
+	// TotalEntities is a lower bound: included + distinct dropped candidates.
+	totalEntities := len(nodes) + len(dropped)
+
 	center := sc.ID
 	return &BoundedGraph{
 		Mode:          "project",
 		Center:        center,
 		MaxNodes:      opts.MaxNodes,
-		TotalEntities: len(nodes),
+		TotalEntities: totalEntities,
 		Nodes:         nodes,
 		Edges:         edges,
 		Truncated:     truncated,
@@ -265,6 +288,15 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 		total += n
 	}
 
+	nodes, err := e.collectProjectNodesUnsorted(maxNodes)
+	if err != nil {
+		return nil, 0, err
+	}
+	sort.SliceStable(nodes, projectGraphSortLess(nodes))
+	return nodes, total, nil
+}
+
+func (e *Engine) collectProjectNodesUnsorted(maxNodes int) ([]GraphNode, error) {
 	var nodes []GraphNode
 	appendNode := func(n GraphNode) bool {
 		if len(nodes) >= maxNodes {
@@ -284,21 +316,21 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 	if rem := remaining(); rem > 0 {
 		goals, err := e.store.ListGoalsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, g := range goals {
 			if !appendNode(GraphNode{ID: g.ID, Kind: "goal", Title: g.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		res, err := e.store.ListTasksFiltered(store.TaskListFilter{Limit: rem})
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, t := range res.Tasks {
 			gn := GraphNode{ID: t.ID, Kind: "task", Title: t.Title}
@@ -306,129 +338,129 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				gn.GoalID = *t.GoalID
 			}
 			if !appendNode(gn) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		decisions, err := e.store.ListDecisionsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, d := range decisions {
 			if !appendNode(GraphNode{ID: d.ID, Kind: "decision", Title: d.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		assumptions, err := e.store.ListAssumptionsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, a := range assumptions {
 			if !appendNode(GraphNode{ID: a.ID, Kind: "assumption", Title: a.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		discoveries, err := e.store.ListDiscoveriesLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, d := range discoveries {
 			if !appendNode(GraphNode{ID: d.ID, Kind: "discovery", Title: d.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		planChanges, err := e.store.ListPlanChangesLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, p := range planChanges {
 			if !appendNode(GraphNode{ID: p.ID, Kind: "plan_change", Title: p.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		claims, err := e.store.ListClaimsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, c := range claims {
 			if !appendNode(GraphNode{ID: c.ID, Kind: "claim", Title: c.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		evidence, err := e.store.ListEvidenceLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, ev := range evidence {
 			if !appendNode(GraphNode{ID: ev.ID, Kind: "evidence", Title: ev.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		reviews, err := e.store.ListReviewsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, r := range reviews {
 			if !appendNode(GraphNode{ID: r.ID, Kind: "review", Title: r.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		caps, err := e.store.ListCapabilities(store.CapabilityListFilter{Limit: rem})
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, c := range caps {
 			if !appendNode(GraphNode{ID: c.ID, Kind: "capability", Title: c.Title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		changes, err := e.store.ListChangesLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, c := range changes {
 			title := c.Reason
@@ -436,17 +468,17 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				title = c.ID
 			}
 			if !appendNode(GraphNode{ID: c.ID, Kind: "change", Title: title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		regressions, err := e.store.ListRegressionsLimited(rem)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		for _, r := range regressions {
 			title := r.Summary
@@ -454,17 +486,17 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				title = r.ID
 			}
 			if !appendNode(GraphNode{ID: r.ID, Kind: "regression", Title: title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
 	if rem := remaining(); rem > 0 {
 		allScopes, err := e.store.ListScopes()
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		scopes := allScopes
 		if len(scopes) > rem {
@@ -476,37 +508,14 @@ func (e *Engine) collectProjectNodes(maxNodes int) ([]GraphNode, int, error) {
 				title = sc.Slug
 			}
 			if !appendNode(GraphNode{ID: sc.ID, Kind: "scope", Title: title}) {
-				return nodes, total, nil
+				return nodes, nil
 			}
 		}
 	} else {
-		return nodes, total, nil
+		return nodes, nil
 	}
 
-	// Populate scope_id on members when a single membership is cheap to map.
-	memberOf, err := e.memberScopeIndex()
-	if err != nil {
-		return nil, 0, err
-	}
-	for i := range nodes {
-		if sid, ok := memberOf[nodes[i].ID]; ok {
-			nodes[i].ScopeID = sid
-		}
-	}
-
-	sort.SliceStable(nodes, func(i, j int) bool {
-		oi, oki := projectGraphKindOrder[nodes[i].Kind]
-		oj, okj := projectGraphKindOrder[nodes[j].Kind]
-		if oki && okj && oi != oj {
-			return oi < oj
-		}
-		if oki != okj {
-			return oki
-		}
-		return nodes[i].ID < nodes[j].ID
-	})
-
-	return nodes, total, nil
+	return nodes, nil
 }
 
 // memberScopeIndex maps entity id → scope id for scope_member links.
@@ -532,13 +541,20 @@ func (e *Engine) memberScopeIndex() (map[string]string, error) {
 func (e *Engine) collectEdgesForNodes(nodes []GraphNode, included map[string]struct{}) ([]GraphEdge, error) {
 	edgeSeen := map[string]struct{}{}
 	var edges []GraphEdge
-	for _, n := range nodes {
+	for i := range nodes {
+		n := &nodes[i]
 		fromType := domainEntityType(n.Kind)
 		links, err := e.store.ListLinksFrom(fromType, n.ID)
 		if err != nil {
 			return nil, err
 		}
 		for _, l := range links {
+			// Populate ScopeID from first scope_member link to a scope entity.
+			// Must be BEFORE the included/edgeSeen checks so it works even when
+			// the target scope node is not included (truncated graph).
+			if n.ScopeID == "" && l.Rel == "scope_member" && l.ToType == "scope" {
+				n.ScopeID = l.ToID
+			}
 			if _, ok := included[l.ToID]; !ok {
 				continue
 			}
