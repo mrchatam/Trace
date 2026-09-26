@@ -45,21 +45,32 @@ func (s *Service) CreateScope(ctx context.Context, in ScopeInput) (store.Scope, 
 		}
 	}
 
-	existed, err := scopeExists(s.store, id)
-	if err != nil {
-		return store.Scope{}, err
-	}
+	var sc store.Scope
+	err := s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		existed, err := scopeExists(stx, id)
+		if err != nil {
+			return err
+		}
 
-	sc, err := s.store.UpsertScope(store.Scope{
-		ID: id, Slug: slug, Title: title, Kind: kind,
+		sc, err = stx.UpsertScope(store.Scope{
+			ID: id, Slug: slug, Title: title, Kind: kind,
+		})
+		if err != nil {
+			return err
+		}
+		if !existed {
+			if tx.afterCreateMutateHook != nil {
+				if err := tx.afterCreateMutateHook(); err != nil {
+					return err
+				}
+			}
+			return tx.appendCreated(EntityScope, sc.ID, sc.Title)
+		}
+		return nil
 	})
 	if err != nil {
 		return store.Scope{}, err
-	}
-	if !existed {
-		if err := s.appendCreated(EntityScope, sc.ID, sc.Title); err != nil {
-			return store.Scope{}, err
-		}
 	}
 	return sc, nil
 }
@@ -101,18 +112,26 @@ func (s *Service) LinkScopeMember(ctx context.Context, fromID, scopeID string, m
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   fromType,
-		FromID:     fromID,
-		Rel:        RelScopeMember,
-		ToType:     EntityScope,
-		ToID:       scopeID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(fromType, fromID, RelScopeMember, EntityScope, scopeID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   fromType,
+			FromID:     fromID,
+			Rel:        RelScopeMember,
+			ToType:     EntityScope,
+			ToID:       scopeID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(fromType, fromID, RelScopeMember, EntityScope, scopeID, meta)
+	})
 }
 
 // LinkAPIContract links task → task (rel=api_contract).
@@ -130,18 +149,26 @@ func (s *Service) LinkAPIContract(ctx context.Context, fromTaskID, toTaskID stri
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityTask,
-		FromID:     fromTaskID,
-		Rel:        RelAPIContract,
-		ToType:     EntityTask,
-		ToID:       toTaskID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityTask, fromTaskID, RelAPIContract, EntityTask, toTaskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityTask,
+			FromID:     fromTaskID,
+			Rel:        RelAPIContract,
+			ToType:     EntityTask,
+			ToID:       toTaskID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityTask, fromTaskID, RelAPIContract, EntityTask, toTaskID, meta)
+	})
 }
 
 // LinkImplements links task or decision → task (rel=implements). Distinct from change_implements_decision.
@@ -160,18 +187,26 @@ func (s *Service) LinkImplements(ctx context.Context, fromID, toTaskID string, m
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   fromType,
-		FromID:     fromID,
-		Rel:        RelImplements,
-		ToType:     EntityTask,
-		ToID:       toTaskID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(fromType, fromID, RelImplements, EntityTask, toTaskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   fromType,
+			FromID:     fromID,
+			Rel:        RelImplements,
+			ToType:     EntityTask,
+			ToID:       toTaskID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(fromType, fromID, RelImplements, EntityTask, toTaskID, meta)
+	})
 }
 
 // LinkBlocks links task → task (rel=blocks). Distinct from uncertainty_blocks_task.
@@ -189,18 +224,26 @@ func (s *Service) LinkBlocks(ctx context.Context, fromTaskID, toTaskID string, m
 		return err
 	}
 	meta = meta.withDefaults()
-	if _, err := s.store.InsertLink(store.EntityLink{
-		FromType:   EntityTask,
-		FromID:     fromTaskID,
-		Rel:        RelBlocks,
-		ToType:     EntityTask,
-		ToID:       toTaskID,
-		SourceType: meta.SourceType,
-		Confidence: meta.Confidence,
-	}); err != nil {
-		return err
-	}
-	return s.appendLinked(EntityTask, fromTaskID, RelBlocks, EntityTask, toTaskID, meta)
+	return s.store.WithTx(func(stx *store.Store) error {
+		tx := s.withStore(stx)
+		if _, err := stx.InsertLink(store.EntityLink{
+			FromType:   EntityTask,
+			FromID:     fromTaskID,
+			Rel:        RelBlocks,
+			ToType:     EntityTask,
+			ToID:       toTaskID,
+			SourceType: meta.SourceType,
+			Confidence: meta.Confidence,
+		}); err != nil {
+			return err
+		}
+		if tx.afterLinkMutateHook != nil {
+			if err := tx.afterLinkMutateHook(); err != nil {
+				return err
+			}
+		}
+		return tx.appendLinked(EntityTask, fromTaskID, RelBlocks, EntityTask, toTaskID, meta)
+	})
 }
 
 func (s *Service) resolveTaskOrDecision(id string) (string, error) {
