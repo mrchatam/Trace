@@ -533,7 +533,8 @@ func (e *Engine) collectEdgesForNodes(nodes []GraphNode, included map[string]str
 	edgeSeen := map[string]struct{}{}
 	var edges []GraphEdge
 	for _, n := range nodes {
-		links, err := e.store.ListLinksFrom("entity", n.ID)
+		fromType := domainEntityType(n.Kind)
+		links, err := e.store.ListLinksFrom(fromType, n.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -546,8 +547,57 @@ func (e *Engine) collectEdgesForNodes(nodes []GraphNode, included map[string]str
 				continue
 			}
 			edgeSeen[k] = struct{}{}
-			edges = append(edges, GraphEdge{From: l.FromID, To: l.ToID, Rel: l.Rel})
+			edges = append(edges, GraphEdge{
+				From:       l.FromID,
+				To:         l.ToID,
+				Rel:        l.Rel,
+				Provenance: ProvenanceFromSourceType(l.SourceType),
+			})
+		}
+		// Add goal_has_task edges from task.GoalID (not in entity_links table)
+		if n.Kind == "task" && n.GoalID != "" {
+			if _, ok := included[n.GoalID]; ok {
+				k := "goal_has_task\x00" + n.GoalID + "\x00" + n.ID
+				if _, ok := edgeSeen[k]; !ok {
+					edgeSeen[k] = struct{}{}
+					edges = append(edges, GraphEdge{From: n.GoalID, To: n.ID, Rel: "goal_has_task", Provenance: "explicit"})
+				}
+			}
 		}
 	}
 	return edges, nil
+}
+
+// domainEntityType maps graph node kind to store entity type string.
+func domainEntityType(kind string) string {
+	switch kind {
+	case "goal":
+		return "goal"
+	case "task":
+		return "task"
+	case "decision":
+		return "decision"
+	case "assumption":
+		return "assumption"
+	case "discovery":
+		return "discovery"
+	case "plan_change":
+		return "plan_change"
+	case "claim":
+		return "claim"
+	case "evidence":
+		return "evidence"
+	case "review":
+		return "review"
+	case "capability":
+		return "capability"
+	case "change":
+		return "change"
+	case "regression":
+		return "regression"
+	case "scope":
+		return "scope"
+	default:
+		return "entity"
+	}
 }

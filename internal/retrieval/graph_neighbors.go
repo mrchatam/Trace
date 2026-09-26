@@ -10,9 +10,9 @@ type graphWalkNeighbor struct {
 	edge     GraphEdge
 }
 
-// provenanceFromSourceType maps entity_links.source_type → wire provenance.
+// ProvenanceFromSourceType maps entity_links.source_type → wire provenance.
 // Empty when unset / unknown (S02 may leave provenance empty).
-func provenanceFromSourceType(sourceType string) string {
+func ProvenanceFromSourceType(sourceType string) string {
 	switch sourceType {
 	case "USER_ASSERTED", "IMPORTED", "AGENT_PROPOSED":
 		return "explicit"
@@ -44,7 +44,7 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 			neighbor: nh,
 			edge: GraphEdge{
 				Rel: l.Rel, From: l.FromID, To: l.ToID,
-				Provenance: provenanceFromSourceType(l.SourceType),
+				Provenance: ProvenanceFromSourceType(l.SourceType),
 			},
 		})
 	}
@@ -65,7 +65,7 @@ func (e *Engine) graphWalkNeighbors(h Hit) ([]graphWalkNeighbor, error) {
 			neighbor: nh,
 			edge: GraphEdge{
 				Rel: l.Rel, From: l.FromID, To: l.ToID,
-				Provenance: provenanceFromSourceType(l.SourceType),
+				Provenance: ProvenanceFromSourceType(l.SourceType),
 			},
 		})
 	}
