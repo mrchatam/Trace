@@ -347,6 +347,99 @@ func TestGraphBudgetAndDefer(t *testing.T) {
 	}
 }
 
+func TestGraphProjectModeDepthValidation(t *testing.T) {
+	dir, srv := openFixture(t)
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	sc, err := svc.CreateScope(ctx, domain.ScopeInput{
+		Slug: "test-scope", Title: "Test Scope", Kind: "feature",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tk, err := svc.CreateTask(ctx, domain.TaskInput{Title: "Task 1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.LinkScopeMember(ctx, tk.ID, sc.ID, domain.LinkMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+
+	h := srv.Handler()
+
+	// depth=abc (invalid) -> 400 VALIDATION_ERROR
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&scope=test-scope&depth=abc", nil))
+	if rr.Code != 400 {
+		t.Fatalf("depth=abc: expected 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var env map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &env)
+	errObj := env["error"].(map[string]any)
+	if errObj["code"] != "VALIDATION_ERROR" {
+		t.Fatalf("depth=abc: expected VALIDATION_ERROR, got %v", errObj)
+	}
+
+	// depth=3 (out of range for mode=project) -> 400 VALIDATION_ERROR
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&scope=test-scope&depth=3", nil))
+	if rr.Code != 400 {
+		t.Fatalf("depth=3: expected 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &env)
+	errObj = env["error"].(map[string]any)
+	if errObj["code"] != "VALIDATION_ERROR" {
+		t.Fatalf("depth=3: expected VALIDATION_ERROR, got %v", errObj)
+	}
+
+	// depth=2 (valid) -> 200 OK
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&scope=test-scope&depth=2", nil))
+	if rr.Code != 200 {
+		t.Fatalf("depth=2: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// depth=1 (valid, default) -> 200 OK
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&scope=test-scope&depth=1", nil))
+	if rr.Code != 200 {
+		t.Fatalf("depth=1: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// no depth (default 1) -> 200 OK
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&scope=test-scope", nil))
+	if rr.Code != 200 {
+		t.Fatalf("no depth: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Neighborhood mode should still accept depth up to 8 (not tested here, but ensure we didn't break it)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?center="+tk.ID+"&max_nodes=10&depth=8", nil))
+	if rr.Code != 200 {
+		t.Fatalf("neighborhood depth=8: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// mode=project WITHOUT scope, depth=3 -> 200 OK (depth ignored when no scope)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&depth=3", nil))
+	if rr.Code != 200 {
+		t.Fatalf("mode=project no scope depth=3: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// mode=project WITHOUT scope, depth=abc -> 200 OK (depth ignored when no scope)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/graph?mode=project&max_nodes=10&depth=abc", nil))
+	if rr.Code != 200 {
+		t.Fatalf("mode=project no scope depth=abc: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestSeedPathConfinement(t *testing.T) {
 	_, srv := openFixture(t)
 	h := srv.Handler()
