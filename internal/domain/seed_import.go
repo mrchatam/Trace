@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -12,15 +13,15 @@ import (
 
 // SeedImportSummary is the import result for CLI JSON output.
 type SeedImportSummary struct {
-	OK                  bool                 `json:"ok"`
-	Created             map[string][]string  `json:"created"`
-	Links               int                  `json:"links"`
-	Findings            int                  `json:"findings"`
-	Alternatives        int                  `json:"alternatives"`
-	Transitions         int                  `json:"transitions"`
+	OK                           bool                 `json:"ok"`
+	Created                      map[string][]string  `json:"created"`
+	Links                        int                  `json:"links"`
+	Findings                     int                  `json:"findings"`
+	Alternatives                 int                  `json:"alternatives"`
+	Transitions                  int                  `json:"transitions"`
 	PromotionCandidates          []PromotionCandidate `json:"promotion_candidates"`
 	PromotionCandidatesTruncated bool                 `json:"promotion_candidates_truncated,omitempty"`
-	PromotionHint               string               `json:"promotion_hint,omitempty"`
+	PromotionHint                string               `json:"promotion_hint,omitempty"`
 }
 
 // ImportSeedDocument idempotently imports seed JSON v1 (DF-81/83/84).
@@ -276,7 +277,6 @@ func (s *Service) importSeedDocumentBody(ctx context.Context, doc SeedDocument, 
 
 	return nil
 }
-
 
 func seedEntityExists(s *store.Store, entityType, id string) (bool, error) {
 	if id == "" {
@@ -710,10 +710,27 @@ func (s *Service) ImportSeedScope(ctx context.Context, in SeedScope) (store.Scop
 	if slug == "" || title == "" {
 		return store.Scope{}, false, &ErrValidation{Msg: "scope slug and title required"}
 	}
+	switch kind {
+	case store.ScopeKindFeature, store.ScopeKindLayer, store.ScopeKindBusiness:
+	default:
+		return store.Scope{}, false, &ErrValidation{Msg: "scope kind must be feature, layer, or business: " + slug}
+	}
+
 	id := strings.TrimSpace(in.ID)
+	if existing, err := s.store.GetScopeBySlug(slug); err == nil {
+		if id == "" {
+			id = existing.ID
+		} else if existing.ID != id {
+			return store.Scope{}, false, &ErrValidation{Msg: fmt.Sprintf("scope slug %q already exists with id %s while seed has id %s", slug, existing.ID, id)}
+		}
+	} else if !isNotFoundErr(err) {
+		return store.Scope{}, false, err
+	}
+
 	if id == "" {
 		id = uuid.NewString()
 	}
+
 	existed, err := scopeExists(s.store, id)
 	if err != nil {
 		return store.Scope{}, false, err
