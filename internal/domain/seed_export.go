@@ -461,12 +461,57 @@ func BuildSeedDocument(ctx context.Context, st *store.Store, opts ExportOpts) (S
 		doc.Evidence = append(doc.Evidence, SeedEntity{ID: e.ID, Title: e.Title, Body: e.Body})
 	}
 
+	graphScopes, err := st.ListScopes()
+	if err != nil {
+		return SeedDocument{}, err
+	}
+	for _, sc := range graphScopes {
+		doc.Scopes = append(doc.Scopes, SeedScope{
+			ID: sc.ID, Slug: sc.Slug, Title: sc.Title, Kind: sc.Kind,
+		})
+	}
+
+	exportedIDs := make(map[string]struct{}, len(doc.Goals)+len(doc.Tasks)+len(doc.Decisions)+len(doc.Assumptions)+len(doc.Discoveries)+len(doc.PlanChanges)+len(doc.Claims)+len(doc.Evidence)+len(doc.Scopes))
+	for _, g := range doc.Goals {
+		exportedIDs[g.ID] = struct{}{}
+	}
+	for _, t := range doc.Tasks {
+		exportedIDs[t.ID] = struct{}{}
+	}
+	for _, d := range doc.Decisions {
+		exportedIDs[d.ID] = struct{}{}
+	}
+	for _, a := range doc.Assumptions {
+		exportedIDs[a.ID] = struct{}{}
+	}
+	for _, d := range doc.Discoveries {
+		exportedIDs[d.ID] = struct{}{}
+	}
+	for _, p := range doc.PlanChanges {
+		exportedIDs[p.ID] = struct{}{}
+	}
+	for _, c := range doc.Claims {
+		exportedIDs[c.ID] = struct{}{}
+	}
+	for _, e := range doc.Evidence {
+		exportedIDs[e.ID] = struct{}{}
+	}
+	for _, sc := range doc.Scopes {
+		exportedIDs[sc.ID] = struct{}{}
+	}
+
 	for _, rel := range seedExportLinkRels {
 		links, err := st.ListLinksByRel(rel)
 		if err != nil {
 			return SeedDocument{}, err
 		}
 		for _, l := range links {
+			if _, okFrom := exportedIDs[l.FromID]; !okFrom {
+				continue
+			}
+			if _, okTo := exportedIDs[l.ToID]; !okTo {
+				continue
+			}
 			doc.Links = append(doc.Links, SeedLink{
 				Rel:        l.Rel,
 				From:       l.FromID,
@@ -518,16 +563,6 @@ func BuildSeedDocument(ctx context.Context, st *store.Store, opts ExportOpts) (S
 		doc.PlanScopes = append(doc.PlanScopes, SeedPlanScope{
 			ID: sc.ID, PhaseID: sc.PhaseID, Title: sc.Title, Body: sc.Body,
 			Ord: sc.Ord, Status: sc.Status, AutoReplanCount: sc.AutoReplanCount,
-		})
-	}
-
-	graphScopes, err := st.ListScopes()
-	if err != nil {
-		return SeedDocument{}, err
-	}
-	for _, sc := range graphScopes {
-		doc.Scopes = append(doc.Scopes, SeedScope{
-			ID: sc.ID, Slug: sc.Slug, Title: sc.Title, Kind: sc.Kind,
 		})
 	}
 
