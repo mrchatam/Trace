@@ -174,7 +174,18 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 
 	if mode == "project" {
 		scope := strings.TrimSpace(r.URL.Query().Get("scope"))
-		depth, _ := queryInt(r, "depth", 1)
+		depth := 1
+		if scope != "" {
+			depthStr := strings.TrimSpace(r.URL.Query().Get("depth"))
+			if depthStr != "" {
+				d, err := queryInt(r, "depth", 1)
+				if err != nil || d < 1 || d > 2 {
+					writeEnvelope(w, http.StatusBadRequest, "VALIDATION_ERROR", "depth must be an integer in 1..2 for mode=project with scope", nil)
+					return
+				}
+				depth = d
+			}
+		}
 		g, err := eng.ProjectGraph(r.Context(), retrieval.ProjectGraphOpts{
 			MaxNodes: maxNodes,
 			Scope:    scope,
