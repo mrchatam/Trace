@@ -10,6 +10,7 @@ import (
 
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/store"
+	"github.com/mrchatam/Trace/internal/testrun"
 )
 
 func TestChangesCapturePromotesMeaningfulCommit(t *testing.T) {
@@ -57,6 +58,125 @@ func TestChangesCapturePromotesMeaningfulCommit(t *testing.T) {
 	}
 	if len(rows2) != 1 || rows2[0].ID != rows[0].ID {
 		t.Fatalf("second capture idempotent: first=%+v second=%q", rows[0], out2)
+	}
+}
+
+// TestChangesRecordCLIThenTestSelection proves the CLI-drivable loop:
+// `changes record` persists a task-scoped change (OPEN without --commit,
+// RECORDED with it), `changes list --task` sees it, and its paths seed
+// `test run` selection (validating test selected without --paths).
+func TestChangesRecordCLIThenTestSelection(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/cli\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	g, err := svc.CreateGoal(ctx, domain.GoalInput{Title: "g"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "t", GoalID: &g.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lib, err := st.UpsertFile("pkg/foo.go", "hlib", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFile, err := st.UpsertFile("pkg/foo_test.go", "htest", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/foo.go", []store.Symbol{
+		{Name: "Foo", Kind: "function", StartLine: 1, EndLine: 5},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/foo_test.go", []store.Symbol{
+		{Name: "TestFoo", Kind: "test", StartLine: 3, EndLine: 10},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prod, _ := st.ListSymbolsByPath("pkg/foo.go")
+	tests, _ := st.ListSymbolsByPath("pkg/foo_test.go")
+	fromID := tests[0].ID
+	toID := prod[0].ID
+	if err := st.ReplaceFileEdges("pkg/foo_test.go", []store.CodeEdge{
+		{
+			FromFileID: testFile.ID, FromSymbolID: &fromID,
+			ToFileID: lib.ID, ToSymbolID: &toID,
+			Rel: store.RelValidates, Provenance: store.ImportProvenanceInferred,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+
+	// OPEN without --commit.
+	out := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "changes", "record", "--task", task.ID,
+			"--reason", "first cut", "pkg/foo.go"})
+	})
+	var rec struct {
+		OK     bool   `json:"ok"`
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(out), &rec); err != nil {
+		t.Fatalf("json: %v out=%q", err, out)
+	}
+	if !rec.OK || rec.ID == "" || rec.Status != "OPEN" {
+		t.Fatalf("record: %+v out=%q", rec, out)
+	}
+
+	// Visible via changes list --task.
+	listOut := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "changes", "list", "--task", task.ID})
+	})
+	if !strings.Contains(listOut, rec.ID) {
+		t.Fatalf("changes list missing recorded change: %q", listOut)
+	}
+
+	// OPEN changes deliberately do NOT seed selection (provenance honesty:
+	// only RECORDED/COMPARED evidence does). Record with a commit SHA.
+	out2 := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "changes", "record", "--task", task.ID,
+			"--commit", "abc1234", "--reason", "committed cut", "pkg/foo.go"})
+	})
+	var rec2 struct {
+		OK     bool   `json:"ok"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(out2), &rec2); err != nil {
+		t.Fatalf("json: %v out=%q", err, out2)
+	}
+	if !rec2.OK || rec2.Status != "RECORDED" {
+		t.Fatalf("record with commit: %+v out=%q", rec2, out2)
+	}
+
+	// Selection derives from the recorded change paths (library seam used by the
+	// CLI): the validating test is selected without explicit --paths.
+	st2, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st2.Close()
+	targets, err := testrun.SelectTestTargets(context.Background(), st2, domain.New(st2), task.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].Name != "TestFoo" {
+		t.Fatalf("targets=%+v want TestFoo seeded by recorded change paths", targets)
 	}
 }
 

@@ -135,6 +135,10 @@ Commands:
                         Compare project states; JSON on stdout
   changes list [--task <uuid>] [--limit N]
                         List recent changes newest-first; JSON array on stdout
+  changes record --task <id> [--commit <sha>] [--reason <text>] path [path...]
+                        Record a task-scoped change with explicit paths; JSON on stdout.
+                        Paths seed "test run" selection; --commit marks RECORDED,
+                        otherwise the change stays OPEN
   changes show <change-id>
                         Show one change and path refs (no file content); JSON on stdout
   changes similar --path <prefix> | --kind <kind> [--limit N]

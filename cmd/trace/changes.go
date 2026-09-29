@@ -44,7 +44,7 @@ type changeShowResponse struct {
 
 func cmdChanges(root string, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: trace changes capture|compare|list|show|similar\n")
+		fmt.Fprintf(os.Stderr, "usage: trace changes capture|compare|list|record|show|similar\n")
 		return exitUsage
 	}
 	switch args[0] {
@@ -54,6 +54,8 @@ func cmdChanges(root string, args []string) int {
 		return cmdChangesCompare(root, args[1:])
 	case "list":
 		return cmdChangesList(root, args[1:])
+	case "record":
+		return cmdChangesRecord(root, args[1:])
 	case "show":
 		return cmdChangesShow(root, args[1:])
 	case "similar":
@@ -62,6 +64,58 @@ func cmdChanges(root string, args []string) int {
 		fmt.Fprintf(os.Stderr, "unknown changes subcommand: %s\n", args[0])
 		return exitUsage
 	}
+}
+
+// cmdChangesRecord records a task-scoped change with explicit paths, making the
+// test→verify loop fully CLI-drivable (paths seed `test run` selection; a
+// --commit SHA marks the change RECORDED, otherwise it stays OPEN).
+func cmdChangesRecord(root string, args []string) int {
+	fs := flag.NewFlagSet("changes record", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	taskID := fs.String("task", "", "task UUID")
+	commit := fs.String("commit", "", "git commit SHA (optional; present → RECORDED)")
+	reason := fs.String("reason", "", "why the change was made")
+	if err := fs.Parse(flagsFirst(args, map[string]bool{"task": true, "commit": true, "reason": true})); err != nil {
+		return exitUsage
+	}
+	paths := fs.Args()
+	if len(paths) == 0 || strings.TrimSpace(*taskID) == "" {
+		fmt.Fprintf(os.Stderr, "usage: trace changes record --task <id> [--commit <sha>] [--reason <text>] path [path...]\n")
+		return exitUsage
+	}
+
+	svc, st, code := openDomain(root)
+	if code != exitOK {
+		return code
+	}
+	defer st.Close()
+	if code := failCLIDenied(svc, "changes", "changes record"); code != exitOK {
+		return code
+	}
+
+	inputs := make([]domain.ChangePathInput, 0, len(paths))
+	for _, p := range paths {
+		inputs = append(inputs, domain.ChangePathInput{Path: p})
+	}
+	c, err := svc.CreateChange(context.Background(), domain.ChangeInput{
+		TaskID:     *taskID,
+		GitCommit:  *commit,
+		Reason:     *reason,
+		SourceType: "CLI",
+		Paths:      inputs,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "changes record: %v\n", err)
+		return exitFail
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(map[string]any{
+		"ok": true, "id": c.ID, "task": c.TaskID, "status": c.Status,
+		"commit": c.GitCommit, "path_count": len(inputs),
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "changes record: %v\n", err)
+		return exitFail
+	}
+	return exitOK
 }
 
 func cmdChangesCapture(root string, args []string) int {
