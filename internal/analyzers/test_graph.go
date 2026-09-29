@@ -261,6 +261,7 @@ func computeValidatesEdges(st *store.Store, testPath, goPkg string) ([]store.Cod
 
 func extractedValidates(st *store.Store, testPath string, testFile store.FileRecord, lang string, imps []store.Import) ([]store.CodeEdge, error) {
 	var out []store.CodeEdge
+	seen := map[string]bool{} // one validates edge per (target file, target symbol)
 	for _, im := range imps {
 		targets := resolveImportTargets(st, testPath, lang, im.ImportedPath)
 		for _, tpath := range targets {
@@ -282,6 +283,14 @@ func extractedValidates(st *store.Store, testPath string, testFile store.FileRec
 					}
 				}
 			}
+			key := tf.ID + "\x00"
+			if toSym != nil {
+				key += *toSym
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
 			out = append(out, store.CodeEdge{
 				FromFileID: testFile.ID,
 				ToFileID:   tf.ID,
@@ -329,13 +338,35 @@ func jsRelativeCandidates(fromPath, imported string) []string {
 		return nil
 	}
 	joined := store.NormalizePath(path.Clean(path.Join(path.Dir(fromPath), imported)))
-	cands := []string{joined}
+	var cands []string
+	// TypeScript NodeNext style: `import "./x.js"` refers to ./x.ts on disk.
+	// Prefer the TS source alias so indexed TS wins over stray compiled JS.
+	if a := tsSourceAlias(joined); a != "" {
+		cands = append(cands, a)
+	}
+	cands = append(cands, joined)
 	if path.Ext(joined) == "" {
 		for _, e := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"} {
 			cands = append(cands, joined+e)
 		}
 	}
 	return cands
+}
+
+// tsSourceAlias maps a compiled-JS specifier extension to its TypeScript source
+// extension (.js→.ts, .jsx→.tsx, .mjs→.mts, .cjs→.cts); "" when not applicable.
+func tsSourceAlias(p string) string {
+	switch path.Ext(p) {
+	case ".js":
+		return strings.TrimSuffix(p, ".js") + ".ts"
+	case ".jsx":
+		return strings.TrimSuffix(p, ".jsx") + ".tsx"
+	case ".mjs":
+		return strings.TrimSuffix(p, ".mjs") + ".mts"
+	case ".cjs":
+		return strings.TrimSuffix(p, ".cjs") + ".cts"
+	}
+	return ""
 }
 
 func pythonModuleCandidates(fromPath, imported string) []string {

@@ -1384,7 +1384,6 @@ func edgeTargetNamesKinds(t *testing.T, st *store.Store, edges []store.CodeEdge)
 	return out
 }
 
-
 func TestIndexFileSkipsUnchangedContentHash(t *testing.T) {
 	st := openTemp(t)
 	ctx := context.Background()
@@ -1461,5 +1460,34 @@ func TestIndexFileMutationsUseSingleTxn(t *testing.T) {
 	}
 	if len(after) != len(before) {
 		t.Fatalf("edges not rolled back: before %d after %d", len(before), len(after))
+	}
+}
+
+func TestJSValidatesResolveNodeNextJsExtension(t *testing.T) {
+	// TypeScript NodeNext style: `import "../src/index.js"` must resolve to
+	// src/index.ts so test->source validates edges exist for TS repos.
+	st := openTemp(t)
+	ctx := context.Background()
+	src := []byte("export function one() { return 1; }\n")
+	if err := IndexFile(ctx, st, "src/index.ts", src, IndexOptions{}); err != nil {
+		t.Fatalf("index src: %v", err)
+	}
+	testSrc := []byte("import { one } from '../src/index.js';\nimport { one as one2 } from '../src/index.js';\nimport * as side from './side.effect.js';\n\ndescribe('x', () => {\n  it('works', () => {\n    if (one() !== 1) throw new Error('no');\n  });\n});\n")
+	if err := IndexFile(ctx, st, "src/index.test.ts", testSrc, IndexOptions{}); err != nil {
+		t.Fatalf("index test: %v", err)
+	}
+
+	found := false
+	for _, e := range mustListEdges(t, st, "src/index.test.ts") {
+		if e.Rel != store.RelValidates {
+			continue
+		}
+		f, err := st.GetFileByID(e.ToFileID)
+		if err == nil && f.Path == "src/index.ts" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("no validates edge to src/index.ts; .js specifier did not resolve to .ts source")
 	}
 }

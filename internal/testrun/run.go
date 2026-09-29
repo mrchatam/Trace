@@ -41,16 +41,14 @@ func RunRelevantTests(
 		return nil, &domain.ErrValidation{Msg: "task_id is required"}
 	}
 
-	baseSpec, ok, err := resolveDefaultRunner(st.ProjectRoot())
+	baseSpec, source, err := resolveDefaultRunner(st.ProjectRoot())
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
+	if source == runnerSourceNone {
 		return nil, errors.New("testrun: no test command available")
 	}
-
-	customCfg, _ := loadRunnerConfig(st.ProjectRoot())
-	useCustom := customCfg != nil
+	useCustom := source == runnerSourceCustom
 
 	targets, err := SelectTestTargets(ctx, st, dom, taskID, opts.Paths)
 	if err != nil {
@@ -80,7 +78,9 @@ func RunRelevantTests(
 	var recorded []store.OutcomeResult
 	for _, target := range targets {
 		spec := baseSpec
-		if !useCustom {
+		if useCustom {
+			spec = specForTarget(baseSpec, target)
+		} else {
 			spec = goTestSpec(st.ProjectRoot(), target)
 		}
 		runCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -115,6 +115,29 @@ func goTestSpec(root string, target TestTarget) RunSpec {
 		args = append(args, "-run", target.RunPattern)
 	}
 	return RunSpec{Command: "go", Args: args, Cwd: root}
+}
+
+// specForTarget substitutes the {path} placeholder in a custom runner's args with
+// the selected test file path (root-relative). Args without the placeholder pass
+// through unchanged; a config with no {path} anywhere runs once per target as-is.
+func specForTarget(base RunSpec, target TestTarget) RunSpec {
+	if target.Path == "" {
+		return base
+	}
+	var sub bool
+	args := make([]string, 0, len(base.Args))
+	for _, a := range base.Args {
+		if strings.Contains(a, "{path}") {
+			args = append(args, strings.ReplaceAll(a, "{path}", target.Path))
+			sub = true
+		} else {
+			args = append(args, a)
+		}
+	}
+	if !sub {
+		return base
+	}
+	return RunSpec{Command: base.Command, Args: args, Cwd: base.Cwd}
 }
 
 func exitCodeToStatus(exitCode int, runErr error) string {

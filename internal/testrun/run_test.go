@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/mrchatam/Trace/internal/domain"
@@ -258,6 +260,262 @@ func TestTestRunClearsTestPending(t *testing.T) {
 	}
 	if after.TestPending {
 		t.Fatalf("test_pending must clear after recorded outcome: %#v", after)
+	}
+}
+
+// writeConfig writes a test-runner.json at rel (relative to project root).
+func writeConfig(t *testing.T, dir, rel, contents string) {
+	t.Helper()
+	path := filepath.Join(dir, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTestRunUsesCustomRunnerConfig proves the configured command is invoked
+// (regression: root-level test-runner.json was ignored entirely — RunRelevantTests
+// fell back to go test even with a valid config present).
+func TestTestRunUsesCustomRunnerConfig(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, testName := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json",
+		`{"command":"custom-runner","args":["run","all"]}`)
+
+	stub := &stubRunner{exit: 0, out: "ok"}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(outcomes) != 1 || outcomes[0].TestName != testName {
+		t.Fatalf("outcomes=%+v want 1 %q", outcomes, testName)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("calls=%d want 1", len(stub.calls))
+	}
+	got := stub.calls[0]
+	if got.Command != "custom-runner" {
+		t.Fatalf("command=%q want custom-runner (config must not be overridden by go test)", got.Command)
+	}
+	if len(got.Args) != 2 || got.Args[0] != "run" || got.Args[1] != "all" {
+		t.Fatalf("args=%v want [run all] (raw config, no go-style rewriting)", got.Args)
+	}
+}
+
+// TestTestRunCustomConfigAtProjectRoot proves the root-level convenience location.
+func TestTestRunCustomConfigAtProjectRoot(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json",
+		`{"command":"root-runner","args":["-x"]}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 || stub.calls[0].Command != "root-runner" {
+		t.Fatalf("calls=%+v want root-runner", stub.calls)
+	}
+}
+
+// TestTestRunCustomConfigCanonicalTraceDir proves the canonical P22 location
+// (trace/test-runner.json) keeps working end to end.
+func TestTestRunCustomConfigCanonicalTraceDir(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), filepath.Join("trace", "test-runner.json"),
+		`{"command":"trace-dir-runner"}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 || stub.calls[0].Command != "trace-dir-runner" {
+		t.Fatalf("calls=%+v want trace-dir-runner", stub.calls)
+	}
+}
+
+// TestTestRunCustomConfigWinsOverGoMod proves precedence config > go fallback.
+func TestTestRunCustomConfigWinsOverGoMod(t *testing.T) {
+	st, dom := openTestrun(t) // openTestrun writes go.mod
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"cfg-runner"}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 || stub.calls[0].Command != "cfg-runner" {
+		t.Fatalf("calls=%+v want cfg-runner (config beats go.mod)", stub.calls)
+	}
+}
+
+// TestTestRunCustomConfigNoTargetsErrors is the non-Go fail-closed contract
+// (the exact reported scenario): no go.mod, root-level test-runner.json present,
+// task with no changes and no seed paths. The config must be honored (error is
+// about target selection, not a missing config), and no outcome may be recorded.
+func TestTestRunCustomConfigNoTargetsErrors(t *testing.T) {
+	dir := t.TempDir() // no go.mod — non-Go repo
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	dom := domain.New(st)
+	task := mustTask(t, dom)
+	writeConfig(t, dir, "test-runner.json", `{"command":"never-runner"}`)
+
+	_, err = RunRelevantTests(context.Background(), st, dom, task.ID, Options{Runner: &stubRunner{}})
+	if err == nil || !strings.Contains(err.Error(), "no relevant tests selected") {
+		t.Fatalf("err=%v want no relevant tests selected", err)
+	}
+	rows, err := st.ListOutcomeResultsByTaskKind(task.ID, store.OutcomeKindTest)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("must not record outcomes when nothing selected: rows=%d err=%v", len(rows), err)
+	}
+}
+
+// TestTestRunCustomConfigPathPlaceholder proves {path} substitution lets a
+// custom runner execute only the selected test file (relevant tests, not the suite).
+func TestTestRunCustomConfigPathPlaceholder(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json",
+		`{"command":"vitest","args":["run","{path}","--reporter=dot"]}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("calls=%d want 1", len(stub.calls))
+	}
+	got := stub.calls[0]
+	wantArgs := []string{"run", "pkg/foo_test.go", "--reporter=dot"}
+	if got.Command != "vitest" || !reflect.DeepEqual(got.Args, wantArgs) {
+		t.Fatalf("spec=%+v want vitest %v", got, wantArgs)
+	}
+}
+
+// TestResolveDefaultRunnerCustomCwd proves custom cwd resolves relative to root.
+func TestResolveDefaultRunnerCustomCwd(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "test-runner.json")
+	if err := os.WriteFile(path, []byte(`{"command":"c","cwd":"sub"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	spec, source, err := resolveDefaultRunner(root)
+	if err != nil || source != runnerSourceCustom {
+		t.Fatalf("source=%v err=%v", source, err)
+	}
+	if spec.Cwd != filepath.Join(root, "sub") {
+		t.Fatalf("cwd=%q want %q", spec.Cwd, filepath.Join(root, "sub"))
+	}
+}
+
+// TestTestRunCustomConfigCommandGo is the edge where a custom config's command
+// is literally `go` — the runnerSource-based classification must still treat it
+// as custom (args passed through unrewritten, no package fallback semantics).
+func TestTestRunCustomConfigCommandGo(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json",
+		`{"command":"go","args":["test","./pkg/..."]}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("calls=%d want 1", len(stub.calls))
+	}
+	got := stub.calls[0]
+	wantArgs := []string{"test", "./pkg/..."}
+	if got.Command != "go" || !reflect.DeepEqual(got.Args, wantArgs) {
+		t.Fatalf("spec=%+v want go %v (config args must pass through unrewritten)", got, wantArgs)
+	}
+}
+
+// TestTestRunCustomConfigWhenTraceIsFile proves the loader falls through to the
+// root-level config when trace/ exists as a regular file (ENOTDIR, not NotExist).
+func TestTestRunCustomConfigWhenTraceIsFile(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	libPath, _ := seedValidatesGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: libPath}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "trace", "not a directory")
+	t.Cleanup(func() { _ = os.Remove(filepath.Join(st.ProjectRoot(), "trace")) })
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"root-runner"}`)
+
+	stub := &stubRunner{exit: 0}
+	if _, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub}); err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 || stub.calls[0].Command != "root-runner" {
+		t.Fatalf("calls=%+v want root-runner (trace-as-file must not break root config)", stub.calls)
 	}
 }
 

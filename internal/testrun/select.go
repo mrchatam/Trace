@@ -17,6 +17,7 @@ type TestTarget struct {
 	Name       string
 	Package    string // go test package arg, e.g. ./internal/foo
 	RunPattern string // optional -run value
+	Path       string // root-relative test file path; enables {path} substitution for custom runners (may be empty for package fallback)
 }
 
 type targetKey struct {
@@ -188,7 +189,7 @@ func addValidatesTargets(st *store.Store, changedPath string, add func(TestTarge
 		if !ok {
 			continue
 		}
-		t := TestTarget{Name: name, Package: pkg}
+		t := TestTarget{Name: name, Package: pkg, Path: fromFile.Path}
 		if strings.HasPrefix(name, "Test") {
 			t.RunPattern = "^" + name + "$"
 		}
@@ -223,7 +224,7 @@ func targetFromBlastHit(st *store.Store, hit retrieval.BlastHit) (TestTarget, bo
 	if !ok {
 		return TestTarget{}, false
 	}
-	t := TestTarget{Name: name, Package: pkg}
+	t := TestTarget{Name: name, Package: pkg, Path: path}
 	if strings.HasPrefix(name, "Test") {
 		t.RunPattern = "^" + name + "$"
 	}

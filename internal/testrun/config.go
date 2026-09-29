@@ -7,20 +7,49 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
-// RunnerConfig is optional trace/test-runner.json override.
+// RunnerConfig is the optional test-runner override. Locations, most specific
+// first: trace/test-runner.json (canonical), then test-runner.json at project
+// root. Schema: {"command":string, "args":[string...], "cwd":string} — cwd is
+// relative to project root when not absolute. The literal {path} placeholder in
+// any arg is replaced with the selected test file path (root-relative), enabling
+// per-target runs (e.g. "args":["exec","vitest","run","{path}"]). Without {path},
+// the exact command runs once per selected target. Custom config always wins
+// over the go.mod → `go test` fallback.
 type RunnerConfig struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
 	Cwd     string   `json:"cwd"`
 }
 
+// runnerConfigPaths lists candidate locations for test-runner.json, most specific first:
+// trace/test-runner.json (canonical, P22) then project-root test-runner.json (convenience).
+var runnerConfigPaths = []string{
+	filepath.Join("trace", "test-runner.json"),
+	"test-runner.json",
+}
+
 func loadRunnerConfig(root string) (*RunnerConfig, error) {
-	path := filepath.Join(root, "trace", "test-runner.json")
+	for _, rel := range runnerConfigPaths {
+		cfg, err := loadRunnerConfigAt(root, filepath.Join(root, rel))
+		if err != nil {
+			return nil, err
+		}
+		if cfg != nil {
+			return cfg, nil
+		}
+	}
+	return nil, nil
+}
+
+func loadRunnerConfigAt(root, path string) (*RunnerConfig, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		// NotExist and ENOTDIR (e.g. trace/ exists as a regular file) mean "no
+		// config here" — callers fall through to the next candidate location.
+		if os.IsNotExist(err) || errors.Is(err, syscall.ENOTDIR) {
 			return nil, nil
 		}
 		return nil, err
@@ -67,23 +96,32 @@ func goModulePath(root string) (string, bool) {
 	return "", false
 }
 
+// runnerSource reports which runner resolution produced a spec.
+type runnerSource int
+
+const (
+	runnerSourceNone   runnerSource = iota // no config, no go.mod
+	runnerSourceCustom                     // test-runner.json
+	runnerSourceGo                         // go.mod fallback
+)
+
 // resolveDefaultRunner returns custom config or go test default. Fail-closed when unknown stack.
-func resolveDefaultRunner(root string) (RunSpec, bool, error) {
+func resolveDefaultRunner(root string) (RunSpec, runnerSource, error) {
 	if cfg, err := loadRunnerConfig(root); err != nil {
-		return RunSpec{}, false, err
+		return RunSpec{}, runnerSourceNone, err
 	} else if cfg != nil {
 		return RunSpec{
 			Command: cfg.Command,
 			Args:    append([]string(nil), cfg.Args...),
 			Cwd:     cfg.Cwd,
-		}, true, nil
+		}, runnerSourceCustom, nil
 	}
 	if goModPresent(root) {
 		return RunSpec{
 			Command: "go",
 			Args:    []string{"test", "./..."},
 			Cwd:     root,
-		}, true, nil
+		}, runnerSourceGo, nil
 	}
-	return RunSpec{}, false, errors.New("testrun: no test-runner.json and no go.mod at project root")
+	return RunSpec{}, runnerSourceNone, errors.New("testrun: no test-runner.json and no go.mod at project root")
 }
