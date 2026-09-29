@@ -142,8 +142,8 @@ func TestLoopStatusValidationErrors(t *testing.T) {
 		url  string
 		want string
 	}{
-		{"no_goal_id", "/v1/loop/status?task_id="+orphan.ID+"&goal_id="+goal.ID, "has no goal_id"},
-		{"seed_mismatch", "/v1/loop/status?task_id="+linked.ID+"&goal_id="+other.ID, "seed goal mismatch"},
+		{"no_goal_id", "/v1/loop/status?task_id=" + orphan.ID + "&goal_id=" + goal.ID, "has no goal_id"},
+		{"seed_mismatch", "/v1/loop/status?task_id=" + linked.ID + "&goal_id=" + other.ID, "seed goal mismatch"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -170,7 +170,6 @@ func TestLoopStatusValidationErrors(t *testing.T) {
 		})
 	}
 }
-
 
 // TestLoopNextWhyValidationErrors covers #114: missing plan / unknown why type
 // must surface as 400 VALIDATION_ERROR with the real message, not opaque 500.

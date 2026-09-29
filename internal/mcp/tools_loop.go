@@ -17,12 +17,12 @@ import (
 
 // LoopInput mirrors `trace loop next|apply|status|gate`.
 type LoopInput struct {
-	Project  string          `json:"project,omitempty" jsonschema:"optional project root override"`
-	Action   string          `json:"action" jsonschema:"next|apply|status|gate"`
-	TaskID   string          `json:"task_id,omitempty" jsonschema:"next|status|gate: seed task UUID"`
-	GoalID   string          `json:"goal_id,omitempty" jsonschema:"status: optional seed goal UUID (derived from task when omitted)"`
-	For      string          `json:"for,omitempty" jsonschema:"gate: orient|edit|execute|done|export (default edit)"`
-	Envelope any `json:"envelope,omitempty" jsonschema:"apply: trace.loop.apply.v1 JSON object or string (not a byte array)"`
+	Project  string `json:"project,omitempty" jsonschema:"optional project root override"`
+	Action   string `json:"action" jsonschema:"next|apply|status|gate"`
+	TaskID   string `json:"task_id,omitempty" jsonschema:"next|status|gate: seed task UUID"`
+	GoalID   string `json:"goal_id,omitempty" jsonschema:"status: optional seed goal UUID (derived from task when omitted)"`
+	For      string `json:"for,omitempty" jsonschema:"gate: orient|edit|execute|done|export (default edit)"`
+	Envelope any    `json:"envelope,omitempty" jsonschema:"apply: trace.loop.apply.v1 JSON object or string (not a byte array)"`
 }
 
 const mcpGateSchemaVersion = "trace.loop.gate.v1"

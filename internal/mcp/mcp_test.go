@@ -1920,7 +1920,6 @@ func moduleRoot(t *testing.T) string {
 	}
 }
 
-
 func TestTraceContextFormatBothIncludesWarning(t *testing.T) {
 	dir := t.TempDir()
 	st, err := store.Open(dir)

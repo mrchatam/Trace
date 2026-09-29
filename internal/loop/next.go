@@ -49,29 +49,29 @@ type WhySnapshot struct {
 }
 
 type NextPacket struct {
-	SchemaVersion           string                         `json:"schema_version"`
-	GeneratedAt             time.Time                      `json:"generated_at"`
-	Seed                    SeedSection                    `json:"seed"`
-	Tasks                   TasksSection                   `json:"tasks"`
-	Plan                    PlanSection                    `json:"plan"`
-	Why                     WhySection                     `json:"why"`
-	Context                 ContextSection                 `json:"context"`
-	Related                 RelatedSection                 `json:"related"`
-	LoopHints               LoopHintsSection               `json:"loop_hints"`
-	PromotionCandidates          []PromotionCandidate `json:"promotion_candidates"`
-	PromotionCandidatesTruncated bool                 `json:"promotion_candidates_truncated,omitempty"`
-	Deliberation            DeliberationSection            `json:"deliberation"`
-	OpenUncertainties       OpenUncertaintiesSection       `json:"open_uncertainties"`
-	VerificationDebt        VerificationDebtSection        `json:"verification_debt"`
-	RecentChanges           RecentChangesSection           `json:"recent_changes"`
-	HistoricalRelationships HistoricalRelationshipsSection `json:"historical_relationships"`
-	PlanningEvidence        PlanningEvidenceSection        `json:"planning_evidence"`
-	Tendencies              TendenciesSection              `json:"tendencies"`
-	SuccessfulApproaches    SuccessfulApproachesSection    `json:"successful_approaches"`
-	SimilarChanges          SimilarChangesSection          `json:"similar_changes"`
-	RiskHints               RiskHintsSection               `json:"risk_hints"`
-	WorkConflicts           WorkConflictsSection           `json:"work_conflicts"`
-	HarnessRecommendations  HarnessRecommendationsSection  `json:"harness_recommendations"`
+	SchemaVersion                string                         `json:"schema_version"`
+	GeneratedAt                  time.Time                      `json:"generated_at"`
+	Seed                         SeedSection                    `json:"seed"`
+	Tasks                        TasksSection                   `json:"tasks"`
+	Plan                         PlanSection                    `json:"plan"`
+	Why                          WhySection                     `json:"why"`
+	Context                      ContextSection                 `json:"context"`
+	Related                      RelatedSection                 `json:"related"`
+	LoopHints                    LoopHintsSection               `json:"loop_hints"`
+	PromotionCandidates          []PromotionCandidate           `json:"promotion_candidates"`
+	PromotionCandidatesTruncated bool                           `json:"promotion_candidates_truncated,omitempty"`
+	Deliberation                 DeliberationSection            `json:"deliberation"`
+	OpenUncertainties            OpenUncertaintiesSection       `json:"open_uncertainties"`
+	VerificationDebt             VerificationDebtSection        `json:"verification_debt"`
+	RecentChanges                RecentChangesSection           `json:"recent_changes"`
+	HistoricalRelationships      HistoricalRelationshipsSection `json:"historical_relationships"`
+	PlanningEvidence             PlanningEvidenceSection        `json:"planning_evidence"`
+	Tendencies                   TendenciesSection              `json:"tendencies"`
+	SuccessfulApproaches         SuccessfulApproachesSection    `json:"successful_approaches"`
+	SimilarChanges               SimilarChangesSection          `json:"similar_changes"`
+	RiskHints                    RiskHintsSection               `json:"risk_hints"`
+	WorkConflicts                WorkConflictsSection           `json:"work_conflicts"`
+	HarnessRecommendations       HarnessRecommendationsSection  `json:"harness_recommendations"`
 }
 
 // PromotionCandidate mirrors domain.PromotionCandidate for NextPacket JSON.
@@ -386,21 +386,21 @@ func BuildNextPacket(ctx context.Context, in BuildNextInput) (NextPacket, error)
 			Freshness: contextFreshness,
 			Snapshot:  contextPacket,
 		},
-		Related:                 related,
+		Related:                      related,
 		PromotionCandidates:          promotionCandidates,
 		PromotionCandidatesTruncated: promoTruncated,
-		Deliberation:            delibSec,
-		OpenUncertainties:       openUnc,
-		VerificationDebt:        verifyDebt,
-		RecentChanges:           recent,
-		HistoricalRelationships: historical,
-		PlanningEvidence:        planningEvidence,
-		Tendencies:              tendencies,
-		SuccessfulApproaches:    successfulApproaches,
-		SimilarChanges:          similarChanges,
-		RiskHints:               riskHints,
-		WorkConflicts:           workConflicts,
-		HarnessRecommendations:  harnessRecs,
+		Deliberation:                 delibSec,
+		OpenUncertainties:            openUnc,
+		VerificationDebt:             verifyDebt,
+		RecentChanges:                recent,
+		HistoricalRelationships:      historical,
+		PlanningEvidence:             planningEvidence,
+		Tendencies:                   tendencies,
+		SuccessfulApproaches:         successfulApproaches,
+		SimilarChanges:               similarChanges,
+		RiskHints:                    riskHints,
+		WorkConflicts:                workConflicts,
+		HarnessRecommendations:       harnessRecs,
 		LoopHints: LoopHintsSection{
 			Freshness:         FreshnessUnknown,
 			Available:         false,

@@ -233,4 +233,3 @@ func TestInstallAgentDefaultsReusesOpenStore(t *testing.T) {
 		t.Fatal("want non-empty agents catalog after install with reused store")
 	}
 }
-

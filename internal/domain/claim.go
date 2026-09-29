@@ -53,7 +53,6 @@ func (s *Service) CreateClaim(ctx context.Context, in ClaimInput) (store.Claim, 
 			Confidence:     in.Confidence,
 			Status:         status,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
@@ -94,7 +93,6 @@ func (s *Service) CreateEvidence(ctx context.Context, in EvidenceInput) (store.E
 			Confidence:     in.Confidence,
 			Status:         status,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err

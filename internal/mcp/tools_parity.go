@@ -194,7 +194,7 @@ func (s *Server) capabilityList(ctx context.Context, in CapabilityInput) (*sdkmc
 	fetchLimit := capLimit
 	if in.All {
 		capLimit = store.MaxTaskListLimit // hard-cap (#118)
-		fetchLimit = capLimit + 1 // detect overflow for truncated
+		fetchLimit = capLimit + 1         // detect overflow for truncated
 	} else if in.Limit > 0 {
 		capLimit = int(in.Limit)
 		if capLimit > store.MaxTaskListLimit {

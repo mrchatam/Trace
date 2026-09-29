@@ -631,7 +631,6 @@ func TestHelpIncludesSeedExportStrict(t *testing.T) {
 	}
 }
 
-
 func TestTransitionDoneConfigWarnWithoutFlag(t *testing.T) {
 	dir := t.TempDir()
 	_, taskID := setupVerificationDebtFixture(t, dir)

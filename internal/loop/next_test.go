@@ -611,4 +611,3 @@ func TestLoopNextWhyTruncationHonesty(t *testing.T) {
 		t.Fatal("why.snapshot.truncated must be true when expand exceeds MaxWhySteps")
 	}
 }
-

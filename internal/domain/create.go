@@ -127,7 +127,6 @@ func (s *Service) CreateGoal(ctx context.Context, in GoalInput) (store.Goal, err
 			Confidence:     in.Confidence,
 			Status:         status,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
@@ -168,7 +167,6 @@ func (s *Service) CreateDecision(ctx context.Context, in DecisionInput) (store.D
 			Confidence:     in.Confidence,
 			Status:         status,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
@@ -283,7 +281,6 @@ func (s *Service) CreateTask(ctx context.Context, in TaskInput) (store.Task, err
 			Status:         status,
 			WorkState:      ws,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
@@ -329,7 +326,6 @@ func (s *Service) CreateDiscovery(ctx context.Context, in DiscoveryInput) (store
 			Status:         status,
 			Severity:       sev,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
@@ -389,7 +385,6 @@ func (s *Service) CreatePlanChange(ctx context.Context, in PlanChangeInput) (sto
 			Confidence:     in.Confidence,
 			Status:         status,
 			LastVerifiedAt: in.LastVerifiedAt,
-	
 		})
 		if err != nil {
 			return err
