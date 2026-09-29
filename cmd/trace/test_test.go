@@ -106,6 +106,103 @@ func TestTestRunCLI(t *testing.T) {
 	}
 }
 
+// TestTestRunCLICustomConfig proves end to end (CLI arg parse → ExecRunner →
+// real subprocess → JSON) that a root-level test-runner.json command executes
+// as configured. A `go version` custom config discriminates precisely: pre-fix
+// the runner rewrote the spec to `go test …` (summary "ok …"); post-fix the
+// recorded summary contains "go version".
+func TestTestRunCLICustomConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/cli\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "test-runner.json"), []byte(`{"command":"go","args":["version"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := domain.New(st)
+	ctx := context.Background()
+	g, err := svc.CreateGoal(ctx, domain.GoalInput{Title: "g"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "t", GoalID: &g.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lib, err := st.UpsertFile("pkg/foo.go", "hlib", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFile, err := st.UpsertFile("pkg/foo_test.go", "htest", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/foo.go", []store.Symbol{
+		{Name: "Foo", Kind: "function", StartLine: 1, EndLine: 5},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/foo_test.go", []store.Symbol{
+		{Name: "TestFoo", Kind: "test", StartLine: 3, EndLine: 10},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prod, _ := st.ListSymbolsByPath("pkg/foo.go")
+	tests, _ := st.ListSymbolsByPath("pkg/foo_test.go")
+	fromID := tests[0].ID
+	toID := prod[0].ID
+	if err := st.ReplaceFileEdges("pkg/foo_test.go", []store.CodeEdge{
+		{
+			FromFileID: testFile.ID, FromSymbolID: &fromID,
+			ToFileID: lib.ID, ToSymbolID: &toID,
+			Rel: store.RelValidates, Provenance: store.ImportProvenanceInferred,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: "pkg/foo.go"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+
+	out := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "test", "run", "--task", task.ID})
+	})
+	var body struct {
+		OK       bool `json:"ok"`
+		Count    int  `json:"count"`
+		Outcomes []struct {
+			TestName   string `json:"test_name"`
+			TestStatus string `json:"test_status"`
+			Summary    string `json:"summary"`
+		} `json:"outcomes"`
+	}
+	if err := json.Unmarshal([]byte(out), &body); err != nil {
+		t.Fatalf("json: %v body=%q", err, out)
+	}
+	if !body.OK || body.Count != 1 {
+		t.Fatalf("body: %+v out=%q", body, out)
+	}
+	if body.Outcomes[0].TestStatus != "pass" {
+		t.Fatalf("status=%q out=%q", body.Outcomes[0].TestStatus, out)
+	}
+	if !strings.Contains(body.Outcomes[0].Summary, "go version") {
+		t.Fatalf("custom config command did not run as configured: summary=%q", body.Outcomes[0].Summary)
+	}
+}
+
 func TestTestRunCLIRequiresTask(t *testing.T) {
 	dir := t.TempDir()
 	if code := run([]string{"-C", dir, "init"}); code != exitOK {

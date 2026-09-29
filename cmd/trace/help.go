@@ -150,7 +150,13 @@ Commands:
   search <query> [--limit N]
                         Full-text search over indexed entities; JSON {ok,hits,count} on stdout
   test run --task <id> [--paths path,...]
-                        Run relevant tests for a task; record kind=test outcomes; JSON on stdout
+                        Run relevant tests for a task; record kind=test outcomes; JSON on
+                        stdout. --paths seeds are changed source files; their validating
+                        tests are selected via the graph. Runner: trace/test-runner.json
+                        or test-runner.json at project root ({"command","args","cwd"});
+                        {path} in args is replaced with the selected test file so only
+                        relevant tests run. Falls back to go test when go.mod exists;
+                        fails closed without config or go.mod.
   tests verifying --symbol <uuid> | --file <path>
                         List tests that validate a symbol or file via validates edges; JSON on stdout
   verify run --task <id> [--force-eval]
