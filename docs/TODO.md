@@ -85,6 +85,8 @@ Phase 00–44 complete — do not re-run closed rows.
 
 Do not re-run Phase 28 `done` rows. Residual wave closed at `P28-S07-02` with successor **no successor**.
 
+**Out-of-band 2026-09-29 (board idle, no phase spawned):** `trace test run` runner fix shipped directly — `test-runner.json` is now honored from `trace/` or project root (was read-but-discarded; non-Go repos dead-ended), `{path}` placeholder enables per-target custom runners, TS NodeNext `"…/x.js"` imports resolve to `.ts` sources so validates edges exist for TS repos. New CLI: `trace changes record --task <id> [--commit <sha>] paths…` (task-scoped change evidence; OPEN stays selection-ineligible by provenance-honesty design). Commits `4ebab43`, `1dd3152`, `3255822`, `5da6596`.
+
 ---
 
 ## Later developments (not a board phase)
