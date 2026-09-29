@@ -3,6 +3,14 @@
 set -euo pipefail
 export CGO_ENABLED=1
 
+echo "ci-go-test: gofmt…"
+unformatted="$(gofmt -l internal cmd evals)"
+if [ -n "$unformatted" ]; then
+	echo "gofmt needed on:" >&2
+	echo "$unformatted" >&2
+	exit 1
+fi
+
 echo "ci-go-test: go test (packages)…"
 go test ./internal/... ./cmd/trace/... ./cmd/trace-mcp/... -count=1 -timeout=15m
 
