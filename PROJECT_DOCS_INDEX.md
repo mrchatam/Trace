@@ -40,6 +40,7 @@ See [docs/init/README.md](docs/init/README.md).
 ## Research
 
 - [docs/research/SIMILAR-PROJECTS-REVIEW-PROMPT.md](docs/research/SIMILAR-PROJECTS-REVIEW-PROMPT.md) — paste-ready agent prompt to mine techniques from `similar projects/`
+- [docs/research/LOOP-GATES-ENVELOPE-PROMPT.md](docs/research/LOOP-GATES-ENVELOPE-PROMPT.md) — paste-ready agent prompt for four loop gate/envelope defects (D1 reflection key, D2 one-field-at-a-time validation, D3 gate preconditions not surfaced at point of failure, D4 `discovery-plan-change` cannot target a scope). Reported by a consumer project; self-contained, no cross-repo reads required.
 - [docs/research/SIMILAR-PROJECTS-REVIEW-OUTPUT-TEMPLATE.md](docs/research/SIMILAR-PROJECTS-REVIEW-OUTPUT-TEMPLATE.md) — findings template for consistent review runs
 - [docs/research/SIMILAR-PROJECTS-REVIEW-2026-08-16.md](docs/research/SIMILAR-PROJECTS-REVIEW-2026-08-16.md) — 2026-08-16 peer review; thin **Phase 12** closed (S01+S02); ranks 4–6 thin-cut boarded as **Phase 14**; ranks 7+ / S05 still deferred
 - [docs/research/TRACE-GOALS-PROGRESS-2026-08-17.md](docs/research/TRACE-GOALS-PROGRESS-2026-08-17.md) — 2026-08-17 goals vs achieved vs remaining; §4 #1 → **Phase 14** scaffold
