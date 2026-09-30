@@ -1,9 +1,11 @@
 package x0
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -13,10 +15,21 @@ const (
 	gateCModelPin      = "recorded-operator-sim/v1"
 )
 
-// TestX0GateCRecordedMetrics grades committed Mode-B answer packs (N≥3/condition),
-// emits schema-valid dry_run:false metrics, and refreshes docs/verification/gate-c-x0/.
-// Does not require a network LLM. Phase 01 dry-run is a separate test and is not a Gate C pass.
+// TestX0GateCRecordedMetrics grades committed Mode-B answer packs (N≥3/condition)
+// and emits schema-valid dry_run:false metrics. Does not require a network LLM.
+// Phase 01 dry-run is a separate test and is not a Gate C pass.
+//
+// Committed verification artifacts (docs/verification/gate-c-x0/metrics-*.json)
+// are NEVER rewritten by `go test`: by default this test verifies they still
+// match the graded packs (trace_version normalized — build stamps differ per
+// run). To refresh them deliberately, run
+//
+//	TRACE_REFRESH_GATE_C=1 go test ./evals/x0 -run TestX0GateCRecordedMetrics
+//
+// and commit the updated artifacts. This keeps ordinary `go test` runs from
+// dirtying the working tree and from silently restamping recorded evidence.
 func TestX0GateCRecordedMetrics(t *testing.T) {
+	refresh := os.Getenv("TRACE_REFRESH_GATE_C") == "1"
 	root := moduleRoot(t)
 	sch := loadSchema(t)
 	bankPath := filepath.Join(root, "evals", "x0", "queries.json")
@@ -132,15 +145,43 @@ func TestX0GateCRecordedMetrics(t *testing.T) {
 	cmG1 := MeanCriticalMisses(g1.qualities)
 	t.Logf("Gate C means: B0 accuracy=%.3f cm=%.3f; G1 accuracy=%.3f cm=%.3f", meanB0, cmB0, meanG1, cmG1)
 
-	// Persist committed verification artifacts (refresh from graded packs).
+	// Committed verification artifacts: verify by default, rewrite only on
+	// explicit TRACE_REFRESH_GATE_C=1. go test must never dirty the tree or
+	// silently restamp recorded evidence.
 	outDir := filepath.Join(root, "docs", "verification", "gate-c-x0")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		t.Fatal(err)
+	committedB0 := filepath.Join(outDir, "metrics-b0.json")
+	committedG1 := filepath.Join(outDir, "metrics-g1.json")
+	if !refresh {
+		for _, pair := range []struct {
+			path string
+			doc  map[string]any
+		}{
+			{committedB0, validateMetricsFile(t, sch, b0.path)},
+			{committedG1, validateMetricsFile(t, sch, g1.path)},
+		} {
+			got, err := os.ReadFile(pair.path)
+			if err != nil {
+				t.Fatalf("committed Gate C artifact missing (%v); regenerate with TRACE_REFRESH_GATE_C=1 go test ./evals/x0 -run TestX0GateCRecordedMetrics", err)
+			}
+			var committed map[string]any
+			if err := json.Unmarshal(got, &committed); err != nil {
+				t.Fatalf("%s: invalid JSON: %v", pair.path, err)
+			}
+			if !metricsMatchIgnoringTraceVersion(committed, pair.doc) {
+				t.Fatalf("%s: drifted from graded packs (trace_version normalized); regenerate with TRACE_REFRESH_GATE_C=1 go test ./evals/x0 -run TestX0GateCRecordedMetrics and commit", pair.path)
+			}
+		}
+		t.Logf("Gate C artifacts verified against graded packs (TRACE_REFRESH_GATE_C=1 regenerates)")
+	} else {
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		copyFileMust(t, b0.path, committedB0)
+		copyFileMust(t, g1.path, committedG1)
+		validateMetricsFile(t, sch, committedB0)
+		validateMetricsFile(t, sch, committedG1)
+		t.Logf("TRACE_REFRESH_GATE_C=1: rewrote %s and %s — commit the updated artifacts", committedB0, committedG1)
 	}
-	copyFileMust(t, b0.path, filepath.Join(outDir, "metrics-b0.json"))
-	copyFileMust(t, g1.path, filepath.Join(outDir, "metrics-g1.json"))
-	validateMetricsFile(t, sch, filepath.Join(outDir, "metrics-b0.json"))
-	validateMetricsFile(t, sch, filepath.Join(outDir, "metrics-g1.json"))
 
 	// Kill criteria check is reported in GATE-C-NOTES; test asserts honesty of comparison inputs.
 	if meanG1 <= meanB0 {
@@ -157,4 +198,13 @@ func copyFileMust(t *testing.T, src, dst string) {
 	if err := os.WriteFile(dst, b, 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// metricsMatchIgnoringTraceVersion compares two metrics docs while ignoring
+// trace_version: build stamps legitimately differ across runs, but recorded
+// evidence content (runs, scores, pins, flags) must not.
+func metricsMatchIgnoringTraceVersion(committed, graded map[string]any) bool {
+	delete(committed, "trace_version")
+	delete(graded, "trace_version")
+	return reflect.DeepEqual(committed, graded)
 }
