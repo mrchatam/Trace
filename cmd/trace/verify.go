@@ -66,7 +66,8 @@ func cmdVerifyRun(root string, args []string) int {
 	fs.SetOutput(os.Stderr)
 	taskID := fs.String("task", "", "task UUID")
 	forceEval := fs.Bool("force-eval", false, "run evaluation even when latest test failed")
-	if err := fs.Parse(flagsFirst(args, map[string]bool{"task": true, "force-eval": true})); err != nil {
+	scores := fs.String("scores", "", "current scores as a JSON object (e.g. '{\"correctness\":0.95}'); required to record an evaluation")
+	if err := fs.Parse(flagsFirst(args, map[string]bool{"task": true, "force-eval": true, "scores": true})); err != nil {
 		return exitUsage
 	}
 	if fs.NArg() != 0 || strings.TrimSpace(*taskID) == "" {
@@ -86,6 +87,7 @@ func cmdVerifyRun(root string, args []string) int {
 	result, err := svc.CoordinateVerification(context.Background(), *taskID, domain.CoordinateOptions{
 		ForceEval:  *forceEval,
 		RunTests:   testrun.CoordinateTestRun(st, svc, testrun.Options{Actor: "cli", SourceType: "CLI"}),
+		ScoresJSON: *scores,
 		Actor:      "cli",
 		SourceType: "CLI",
 	})

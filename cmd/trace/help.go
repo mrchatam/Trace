@@ -163,8 +163,11 @@ Commands:
                         fails closed without config or go.mod.
   tests verifying --symbol <uuid> | --file <path>
                         List tests that validate a symbol or file via validates edges; JSON on stdout
-  verify run --task <id> [--force-eval]
-                        Coordinate test → verification → evaluation cycle; JSON on stdout
+  verify run --task <id> [--force-eval] [--scores '<json object>']
+                        Coordinate test → verification → evaluation cycle; JSON on stdout.
+                        --scores records a kind=evaluation outcome against the baseline for
+                        the task's latest change commit (created on demand from these scores
+                        when absent); without --scores the run stops at verification.
   verify invariants --task <id>
                         Advisory architectural invariant check on latest change paths; JSON on stdout
   eval rules            Show project eval-rules.json (or defaults); JSON on stdout

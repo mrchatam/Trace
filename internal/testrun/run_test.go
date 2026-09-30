@@ -282,7 +282,7 @@ func TestTestRunUsesCustomRunnerConfig(t *testing.T) {
 	st, dom := openTestrun(t)
 	ctx := context.Background()
 	task := mustTask(t, dom)
-	libPath, testName := seedValidatesGraph(t, st)
+	libPath, _ := seedValidatesGraph(t, st)
 	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
 		TaskID: task.ID, GitCommit: "abc1234",
 		Paths: []domain.ChangePathInput{{Path: libPath}},
@@ -298,9 +298,6 @@ func TestTestRunUsesCustomRunnerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunRelevantTests: %v", err)
 	}
-	if len(outcomes) != 1 || outcomes[0].TestName != testName {
-		t.Fatalf("outcomes=%+v want 1 %q", outcomes, testName)
-	}
 	if len(stub.calls) != 1 {
 		t.Fatalf("calls=%d want 1", len(stub.calls))
 	}
@@ -310,6 +307,14 @@ func TestTestRunUsesCustomRunnerConfig(t *testing.T) {
 	}
 	if len(got.Args) != 2 || got.Args[0] != "run" || got.Args[1] != "all" {
 		t.Fatalf("args=%v want [run all] (raw config, no go-style rewriting)", got.Args)
+	}
+	// The stub's output carries no per-file report, so the whole-run verdict
+	// is recorded once under a synthetic suite name — never under TestFoo.
+	if len(outcomes) != 1 || !strings.HasPrefix(outcomes[0].TestName, "suite:") {
+		t.Fatalf("outcomes=%+v want single suite outcome", outcomes)
+	}
+	if outcomes[0].TestStatus != store.TestStatusPass {
+		t.Fatalf("status=%q want pass", outcomes[0].TestStatus)
 	}
 }
 
@@ -516,6 +521,392 @@ func TestTestRunCustomConfigWhenTraceIsFile(t *testing.T) {
 	}
 	if len(stub.calls) != 1 || stub.calls[0].Command != "root-runner" {
 		t.Fatalf("calls=%+v want root-runner (trace-as-file must not break root config)", stub.calls)
+	}
+}
+
+// runConfiguredRunner seeds a second validating test so the selection has two
+// real targets, then returns a stubRunner for custom-config runs.
+func seedSecondValidatesGraph(t *testing.T, st *store.Store) (string, string) {
+	t.Helper()
+	lib, err := st.UpsertFile("pkg/bar.go", "hlib2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFile, err := st.UpsertFile("pkg/bar_test.go", "htest2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/bar.go", []store.Symbol{
+		{Name: "Bar", Kind: "function", StartLine: 1, EndLine: 5},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("pkg/bar_test.go", []store.Symbol{
+		{Name: "TestBar", Kind: "test", StartLine: 3, EndLine: 10},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prod, err := st.ListSymbolsByPath("pkg/bar.go")
+	if err != nil || len(prod) != 1 {
+		t.Fatalf("prod symbols: %v %v", prod, err)
+	}
+	tests, err := st.ListSymbolsByPath("pkg/bar_test.go")
+	if err != nil || len(tests) != 1 {
+		t.Fatalf("test symbols: %v %v", tests, err)
+	}
+	fromID := tests[0].ID
+	toID := prod[0].ID
+	if err := st.ReplaceFileEdges("pkg/bar_test.go", []store.CodeEdge{
+		{
+			FromFileID: testFile.ID, FromSymbolID: &fromID,
+			ToFileID: lib.ID, ToSymbolID: &toID,
+			Rel: store.RelValidates, Provenance: store.ImportProvenanceInferred,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return "pkg/bar.go", "TestBar"
+}
+
+// seedVitestGraph seeds two vitest-style targets (src/foo.test.ts,
+// src/bar.test.ts) with validates edges so SelectTestTargets returns real
+// custom-runner targets whose names are file basenames. Returns the seed
+// change paths.
+func seedVitestGraph(t *testing.T, st *store.Store) ([]string, string, string) {
+	t.Helper()
+	lib, err := st.UpsertFile("src/core.ts", "hcore", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("src/core.ts", []store.Symbol{
+		{Name: "core", Kind: "function", StartLine: 1, EndLine: 5},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prod, err := st.ListSymbolsByPath("src/core.ts")
+	if err != nil || len(prod) != 1 {
+		t.Fatalf("prod symbols: %v %v", prod, err)
+	}
+	coreSym := prod[0].ID
+	coreFile, err := st.GetFileByPath("src/core.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Symbol names mirror the real indexed-repo shape: vitest file symbols are
+	// named after the file basename, so targets carry basename names while the
+	// runner reports repo-relative paths.
+	for _, tc := range []struct{ path, symbol string }{
+		{"src/foo.test.ts", "foo.test.ts"},
+		{"src/bar.test.ts", "bar.test.ts"},
+	} {
+		tf, err := st.UpsertFile(tc.path, "h"+tc.symbol, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.ReplaceFileSymbols(tc.path, []store.Symbol{
+			{Name: tc.symbol, Kind: "test", StartLine: 1, EndLine: 4},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		syms, err := st.ListSymbolsByPath(tc.path)
+		if err != nil || len(syms) != 1 {
+			t.Fatalf("symbols %s: %v %v", tc.path, syms, err)
+		}
+		fromID := syms[0].ID
+		if err := st.ReplaceFileEdges(tc.path, []store.CodeEdge{
+			{
+				FromFileID: tf.ID, FromSymbolID: &fromID,
+				ToFileID: lib.ID, ToSymbolID: &coreSym,
+				Rel: store.RelValidates, Provenance: store.ImportProvenanceInferred,
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		_ = coreFile
+	}
+	return []string{"src/core.ts"}, "foo.test.ts", "bar.test.ts"
+}
+
+// TestTestRunCustomAttributionFromReportedResults is work item 2's core
+// regression: with a custom runner whose command fails, only targets the run
+// actually reported are fail, and the command is invoked exactly once.
+func TestTestRunCustomAttributionFromReportedResults(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The command exits 1 but the run reports one passing and one failing file:
+	// the failure belongs only to the file that failed, never to every target.
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"runner","args":["run"]}`)
+	stub := &stubRunner{
+		exit: 1,
+		out: "\u2713 src/foo.test.ts (2 tests) 12ms\n" +
+			"\u00d7 src/bar.test.ts (3 tests | 1 failed) 9ms\n",
+	}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("invocations=%d want 1 (run once, not once per target)", len(stub.calls))
+	}
+	byName := map[string]string{}
+	for _, o := range outcomes {
+		byName[o.TestName] = o.TestStatus
+	}
+	if got := byName[fooName]; got != store.TestStatusPass {
+		t.Fatalf("%s status=%q want pass (reported passing)", fooName, got)
+	}
+	if got := byName[barName]; got != store.TestStatusFail {
+		t.Fatalf("%s status=%q want fail (reported failing)", barName, got)
+	}
+	// Only the two selected targets appear — a reported file with no selected
+	// target must NOT be recorded under a target's name.
+	if len(outcomes) != 2 {
+		t.Fatalf("outcomes=%d want exactly the 2 selected targets", len(outcomes))
+	}
+}
+
+// TestTestRunCustomUnreportedTargetIsSkip asserts no outcome is invented for a
+// selected target the run did not report: it is recorded as skip with a
+// distinct source_type, so the miss is surfaced, not dropped or faked.
+func TestTestRunCustomUnreportedTargetIsSkip(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"runner","args":["run"]}`)
+	// Green run that reports only foo — bar was never reported.
+	stub := &stubRunner{exit: 0, out: "\u2713 src/foo.test.ts (2 tests) 8ms\n"}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("invocations=%d want 1", len(stub.calls))
+	}
+	var skipRow *store.OutcomeResult
+	for i := range outcomes {
+		if outcomes[i].TestName == barName {
+			skipRow = &outcomes[i]
+		}
+	}
+	if skipRow == nil {
+		t.Fatalf("unreported target must be recorded, outcomes=%+v", outcomes)
+	}
+	if skipRow.TestStatus != store.TestStatusSkip {
+		t.Fatalf("unreported target status=%q want skip (no invented pass)", skipRow.TestStatus)
+	}
+	if skipRow.SourceType != sourceTypeUnreported {
+		t.Fatalf("unreported target source_type=%q want %q", skipRow.SourceType, sourceTypeUnreported)
+	}
+	for _, o := range outcomes {
+		if o.TestName == fooName && o.TestStatus != store.TestStatusPass {
+			t.Fatalf("reported target must keep its own status, got %q", o.TestStatus)
+		}
+	}
+}
+
+// TestTestRunCustomAlwaysFailNotAllFail is the deterministic scenario from the
+// bug report: a command that runs no tests at all (exit 1, no per-file output)
+// must NOT mark every selected target fail.
+func TestTestRunCustomAlwaysFailNotAllFail(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"sh","args":["-c","exit 1"]}`)
+	stub := &stubRunner{exit: 1, out: ""}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("invocations=%d want 1", len(stub.calls))
+	}
+	for _, o := range outcomes {
+		if o.TestName == fooName || o.TestName == barName {
+			t.Fatalf("whole-run verdict must not be mis-attributed: %s=%s", o.TestName, o.TestStatus)
+		}
+	}
+	if len(outcomes) != 1 || !strings.HasPrefix(outcomes[0].TestName, "suite:") {
+		t.Fatalf("want single suite-level outcome, got %+v", outcomes)
+	}
+	if outcomes[0].TestStatus != store.TestStatusFail {
+		t.Fatalf("suite outcome status=%q want fail", outcomes[0].TestStatus)
+	}
+}
+
+// TestTestRunCustomResultsFilePreferred proves trace/test-runner-results.json
+// wins over stdout parsing for attribution.
+func TestTestRunCustomResultsFilePreferred(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"runner","args":["run"]}`)
+	writeConfig(t, st.ProjectRoot(), filepath.Join("trace", "test-runner-results.json"),
+		`{"files":[{"name":"src/foo.test.ts","status":"fail"}]}`)
+	t.Cleanup(func() {
+		_ = os.Remove(filepath.Join(st.ProjectRoot(), "trace", "test-runner-results.json"))
+	})
+	stub := &stubRunner{exit: 1, out: "\u2713 src/foo.test.ts (2 tests) 8ms\n"}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	byName := map[string]string{}
+	for _, o := range outcomes {
+		byName[o.TestName] = o.TestStatus
+	}
+	if byName[fooName] != store.TestStatusFail {
+		t.Fatalf("%s=%q want fail from results file (overrides stdout)", fooName, byName[fooName])
+	}
+	if byName[barName] != store.TestStatusSkip {
+		t.Fatalf("unreported bar=%q want skip", byName[barName])
+	}
+}
+
+// TestTestRunCustomVitestReporterFormat covers the real vitest default-reporter
+// line shape including the ✓/× glyphs and failed-count grouping.
+func TestTestRunCustomVitestReporterFormat(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json",
+		`{"command":"pnpm","args":["exec","vitest","run","--reporter=dot"]}`)
+	out := "\n Test Files  1 failed | 1 passed (2)\n\n" +
+		"\u2713 src/foo.test.ts (2 tests) 12ms\n" +
+		"\u00d7 src/bar.test.ts (3 tests | 1 failed) 9ms\n"
+	stub := &stubRunner{exit: 1, out: out}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("invocations=%d want 1", len(stub.calls))
+	}
+	byName := map[string]string{}
+	for _, o := range outcomes {
+		byName[o.TestName] = o.TestStatus
+	}
+	if got := byName[fooName]; got != store.TestStatusPass {
+		t.Fatalf("%s=%q want pass (vitest \u2713 line)", fooName, got)
+	}
+	if got := byName[barName]; got != store.TestStatusFail {
+		t.Fatalf("%s=%q want fail (vitest \u00d7 line with failed count)", barName, got)
+	}
+}
+
+// TestTestRunCustomNoPlaceholderRunsOnce proves the no-{path} config invokes
+// the command once total (was: once per target with identical args).
+func TestTestRunCustomNoPlaceholderRunsOnce(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+	task := mustTask(t, dom)
+	seedPaths, fooName, barName := seedVitestGraph(t, st)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: seedPaths[0]}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	writeConfig(t, st.ProjectRoot(), "test-runner.json", `{"command":"runner","args":["run","all"]}`)
+	stub := &stubRunner{exit: 0, out: "\u2713 src/foo.test.ts (1 test) 4ms\n\u2713 src/bar.test.ts (1 test) 4ms\n"}
+	outcomes, err := RunRelevantTests(ctx, st, dom, task.ID, Options{Runner: stub})
+	if err != nil {
+		t.Fatalf("RunRelevantTests: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("invocations=%d want 1 total", len(stub.calls))
+	}
+	got := stub.calls[0]
+	if len(got.Args) != 2 || got.Args[0] != "run" || got.Args[1] != "all" {
+		t.Fatalf("args=%v want passthrough [run all]", got.Args)
+	}
+	byName := map[string]string{}
+	for _, o := range outcomes {
+		byName[o.TestName] = o.TestStatus
+	}
+	if byName[fooName] != store.TestStatusPass || byName[barName] != store.TestStatusPass {
+		t.Fatalf("both reported targets must be attributed: %v", byName)
+	}
+}
+
+// TestStatusForTargetSuffixMatchIsDeterministic pins the path/name resolution:
+// exact keys first, then a unique, sorted path-suffix match.
+func TestStatusForTargetSuffixMatchIsDeterministic(t *testing.T) {
+	reported := map[string]testFileResult{
+		"src/foo.test.ts": {Name: "src/foo.test.ts", Status: store.TestStatusFail},
+	}
+	target := TestTarget{Name: "foo.test.ts", Path: "pkg/foo_test.go"}
+	status, ok, err := statusForTarget(reported, target)
+	if err != nil || !ok || status != store.TestStatusFail {
+		t.Fatalf("suffix match: status=%q ok=%v err=%v", status, ok, err)
+	}
+	if _, ok, _ := statusForTarget(map[string]testFileResult{}, target); ok {
+		t.Fatal("no report must not match")
+	}
+	// Ambiguous suffixes (two dirs, same basename) resolve to nothing — never
+	// guessed: only an exact key or a unique suffix matches.
+	amb := map[string]testFileResult{
+		"a/foo.test.ts": {Status: store.TestStatusPass},
+		"b/foo.test.ts": {Status: store.TestStatusFail},
+	}
+	if _, ok, _ := statusForTarget(amb, target); ok {
+		t.Fatal("ambiguous suffix must not match")
+	}
+	// But when only one dir reports the basename, the unique suffix matches.
+	uni := map[string]testFileResult{
+		"b/foo.test.ts": {Status: store.TestStatusFail},
+	}
+	if status, ok, _ := statusForTarget(uni, target); !ok || status != store.TestStatusFail {
+		t.Fatalf("unique suffix: status=%q ok=%v", status, ok)
+	}
+	// Same-basename reports under both path forms are unambiguous too.
+	dup := map[string]testFileResult{
+		"b/foo.test.ts":   {Status: store.TestStatusPass},
+		"./b/foo.test.ts": {Status: store.TestStatusPass},
+	}
+	if status, ok, _ := statusForTarget(dup, target); !ok || status != store.TestStatusPass {
+		t.Fatalf("same-file dup: status=%q ok=%v", status, ok)
 	}
 }
 

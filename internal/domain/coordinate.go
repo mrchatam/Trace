@@ -218,12 +218,14 @@ func (s *Service) CoordinateVerification(ctx context.Context, taskID string, opt
 			}
 			out.EvaluationRecorded = true
 		} else {
-			baseline, err := s.activeBaselineForTaskCommit(taskID)
-			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+			baseline, baselineErr := s.ensureBaselineForTaskCommit(ctx, taskID, opts.ScoresJSON)
+			if baselineErr != nil {
+				if errors.Is(baselineErr, sql.ErrNoRows) {
+					// No change commit to anchor to — soft stop (pre-existing
+					// contract). Never fabricate a baseline without a commit.
 					out.StopReason = "no_active_baseline"
 				} else {
-					return out, fmt.Errorf("coordinate: baseline: %w", err)
+					return out, fmt.Errorf("coordinate: baseline: %w", baselineErr)
 				}
 			} else {
 				evalOut, err := s.RecordEvaluationOutcome(ctx, EvaluationOutcomeInput{
@@ -302,18 +304,77 @@ func (s *Service) latestTestsFailedSinceChange(taskID string) (bool, error) {
 	return false, nil
 }
 
+// activeBaselineForTaskCommit returns the active baseline for the latest
+// RECORDED/COMPARED change's git commit. It is a lookup only — it never writes.
 func (s *Service) activeBaselineForTaskCommit(taskID string) (store.Baseline, error) {
-	changes, err := s.store.ListChangesByTaskID(taskID)
-	if err != nil {
-		return store.Baseline{}, err
-	}
-	latest, ok := latestRecordedOrComparedChange(changes)
-	if !ok || strings.TrimSpace(latest.GitCommit) == "" {
-		return store.Baseline{}, sql.ErrNoRows
-	}
-	sha, err := normalizeGitCommit(latest.GitCommit)
+	sha, err := s.latestTaskCommit(taskID)
 	if err != nil {
 		return store.Baseline{}, err
 	}
 	return s.store.GetActiveBaselineByCommitLabel(sha, "")
+}
+
+// ensureBaselineForTaskCommit returns the active baseline for the task's
+// latest change commit, creating one on demand when none exists. A baseline is
+// a snapshot of scores at a commit, created when work is evaluated — not
+// imported from a seed file. The snapshot is taken from the evaluation's own
+// scores, so the first evaluation at a commit is an initialization pass (every
+// delta is zero; nothing can regress against a snapshot that did not exist
+// yet), and later re-evaluations at the same commit compare against that
+// snapshot — drift within the commit is what becomes visible.
+//
+// When an active baseline already exists for the commit it is returned
+// unchanged; scores are never mutated after creation. When a superseded
+// baseline exists for the commit it is promoted back to active via the
+// existing status/supersedes_id chain (Law 11 — no delete) instead of
+// inserting a duplicate row for the same commit. Missing change or commit
+// surfaces as sql.ErrNoRows (soft stop upstream) — no baseline is fabricated.
+func (s *Service) ensureBaselineForTaskCommit(ctx context.Context, taskID, scoresJSON string) (store.Baseline, error) {
+	sha, err := s.latestTaskCommit(taskID)
+	if err != nil {
+		return store.Baseline{}, err
+	}
+	if b, err := s.store.GetActiveBaselineByCommitLabel(sha, ""); err == nil {
+		return b, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return store.Baseline{}, err
+	}
+	// No active baseline for this commit: create one. If a superseded
+	// baseline exists for the same commit, PromoteBaseline reactivates it and
+	// links the supersedes chain; otherwise it inserts a fresh active row.
+	rows, err := s.store.ListAllBaselines()
+	if err != nil {
+		return store.Baseline{}, err
+	}
+	for _, b := range rows {
+		if b.GitCommit != sha {
+			continue
+		}
+		return s.PromoteBaseline(ctx, b.ID)
+	}
+	return s.CreateBaseline(ctx, BaselineInput{
+		GitCommit:  sha,
+		ScoresJSON: scoresJSON,
+		SourceType: "COORDINATED",
+	})
+}
+
+// latestTaskCommit resolves the git commit of the latest RECORDED/COMPARED
+// change for a task. Fails closed (sql.ErrNoRows) when there is no change or
+// the change has no commit — an evaluation without a commit has nothing to
+// anchor to.
+func (s *Service) latestTaskCommit(taskID string) (string, error) {
+	changes, err := s.store.ListChangesByTaskID(taskID)
+	if err != nil {
+		return "", err
+	}
+	latest, ok := latestRecordedOrComparedChange(changes)
+	if !ok || strings.TrimSpace(latest.GitCommit) == "" {
+		return "", sql.ErrNoRows
+	}
+	sha, err := normalizeGitCommit(latest.GitCommit)
+	if err != nil {
+		return "", err
+	}
+	return sha, nil
 }
