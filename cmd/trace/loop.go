@@ -76,8 +76,9 @@ Subcommands:
         hints when violations present; exit stays 0.
   gate --task <id> [--for orient|edit|execute|done|export]
         Check deliberation gate for a task. Emits trace.loop.gate.v1 JSON on stdout.
-        Exit 0 when allowed, 1 when blocked, 2 on usage or internal error.
-        Default --for is edit (pre-edit harness choke point).
+        Blocked refusals include a "remedy" naming the concrete call that clears
+        the reason_code. Exit 0 when allowed, 1 when blocked, 2 on usage or
+        internal error. Default --for is edit (pre-edit harness choke point).
   reset --task <id>
         Clear sticky STOP, hop_count, and consecutive empty-apply counter.
         Sets phase to EXECUTE; preserves plan_critiqued.

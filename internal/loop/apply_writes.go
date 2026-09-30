@@ -26,6 +26,45 @@ var allowedApplyWriteKeys = map[string]struct{}{
 	"reflections":   {},
 }
 
+// validateReflectionKeys rejects unknown keys inside writes.reflections[]
+// items instead of silently dropping them. A guessed key ("findings",
+// "weaknesses", …) would otherwise vanish into struct decoding and surface as
+// the key-less domain error "reflection requires at least one structured
+// array", leaving the caller with no idea which key was wrong.
+func validateReflectionKeys(writesRaw json.RawMessage) error {
+	if len(writesRaw) == 0 {
+		return nil
+	}
+	var writes map[string]json.RawMessage
+	if err := json.Unmarshal(writesRaw, &writes); err != nil {
+		// validateWritesKeys already reports malformed writes.
+		return nil
+	}
+	raw, ok := writes["reflections"]
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+	var items []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return fmt.Errorf("loop apply: parse writes.reflections: %w", err)
+	}
+	allowed := map[string]struct{}{
+		"summary":                    {},
+		"invalidated_assumption_ids": {},
+		"new_dependencies":           {},
+		"useful_tests":               {},
+		"broaden_tests_note":         {},
+	}
+	for i, item := range items {
+		for key := range item {
+			if _, ok := allowed[key]; !ok {
+				return fmt.Errorf("loop apply: unknown writes.reflections[%d] key %q (accepted keys: invalidated_assumption_ids, new_dependencies, useful_tests, summary, broaden_tests_note)", i, key)
+			}
+		}
+	}
+	return nil
+}
+
 func validateWritesKeys(raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return nil

@@ -187,6 +187,7 @@ type ApplyLink struct {
 type ApplyResult struct {
 	NewDiscoveries  int      `json:"new_discoveries"`
 	NewPlanChanges  int      `json:"new_plan_changes"`
+	PlanChangeIDs   []string `json:"plan_change_ids"`
 	NewSpawnedTasks int      `json:"new_spawned_tasks"`
 	SpawnedTaskIDs  []string `json:"spawned_task_ids"`
 	Saturated       bool     `json:"saturated"`
@@ -236,6 +237,7 @@ type loopStepPayload struct {
 	Seed                    ApplySeed `json:"seed"`
 	NewDiscoveries          int       `json:"new_discoveries"`
 	NewPlanChanges          int       `json:"new_plan_changes"`
+	PlanChangeIDs           []string  `json:"plan_change_ids,omitempty"`
 	NewSpawnedTasks         int       `json:"new_spawned_tasks"`
 	SpawnedTaskIDs          []string  `json:"spawned_task_ids"`
 	MaxIterationsReached    bool      `json:"max_iterations_reached"`
@@ -248,11 +250,16 @@ func ParseApplyEnvelope(raw []byte) (ApplyEnvelope, error) {
 	if err := json.Unmarshal(raw, &top); err != nil {
 		return ApplyEnvelope{}, fmt.Errorf("loop apply: parse envelope: %w", err)
 	}
-	required := []string{"schema_version", "apply_id", "seed", "writes"}
-	for _, key := range required {
+	var missing []string
+	for _, key := range []string{"schema_version", "apply_id", "seed", "writes"} {
 		if _, ok := top[key]; !ok {
-			return ApplyEnvelope{}, fmt.Errorf("loop apply: missing required field %q", key)
+			missing = append(missing, fmt.Sprintf("missing required field %q", key))
 		}
+	}
+	if len(missing) > 0 {
+		// Name every missing top-level field at once: one-error-per-round-trip
+		// validation cost consumers whole sessions (D2).
+		return ApplyEnvelope{}, fmt.Errorf("loop apply: %s", strings.Join(missing, "; "))
 	}
 	var env ApplyEnvelope
 	if err := json.Unmarshal(raw, &env); err != nil {
@@ -261,136 +268,150 @@ func ParseApplyEnvelope(raw []byte) (ApplyEnvelope, error) {
 	if err := validateWritesKeys(top["writes"]); err != nil {
 		return ApplyEnvelope{}, err
 	}
+	if err := validateReflectionKeys(top["writes"]); err != nil {
+		return ApplyEnvelope{}, err
+	}
 	if err := ValidateApplyEnvelope(env); err != nil {
 		return ApplyEnvelope{}, err
 	}
 	return env, nil
 }
 
+// ValidateApplyEnvelope reports every missing/invalid field in one pass (D2):
+// a caller reaches a valid envelope in one round trip instead of one error
+// per attempt. Cross-field checks that need full-envelope context (spawned
+// goal_id vs seed) run only after all per-field problems are collected, so a
+// field-local problem never masks the rest.
 func ValidateApplyEnvelope(env ApplyEnvelope) error {
+	var problems []string
 	if env.SchemaVersion != ApplySchemaVersion {
-		return fmt.Errorf("loop apply: schema_version must be %q", ApplySchemaVersion)
+		problems = append(problems, fmt.Sprintf("schema_version must be %q", ApplySchemaVersion))
 	}
 	if err := requireUUID("apply_id", env.ApplyID); err != nil {
-		return fmt.Errorf("loop apply: %w", err)
+		problems = append(problems, err.Error())
 	}
 	if err := requireUUID("seed.task_id", env.Seed.TaskID); err != nil {
-		return fmt.Errorf("loop apply: %w", err)
+		problems = append(problems, err.Error())
 	}
 	if err := requireUUID("seed.goal_id", env.Seed.GoalID); err != nil {
-		return fmt.Errorf("loop apply: %w", err)
+		problems = append(problems, err.Error())
 	}
 	for i, d := range env.Writes.Discoveries {
 		if err := requireUUID(fmt.Sprintf("writes.discoveries[%d].id", i), d.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(d.Title) == "" {
-			return fmt.Errorf("loop apply: writes.discoveries[%d].title is required", i)
+			problems = append(problems, fmt.Sprintf("writes.discoveries[%d].title is required", i))
 		}
 		for j, l := range d.Links {
 			if err := validateLink(fmt.Sprintf("writes.discoveries[%d].links[%d]", i, j), l); err != nil {
-				return fmt.Errorf("loop apply: %w", err)
+				problems = append(problems, err.Error())
 			}
 		}
 	}
 	for i, p := range env.Writes.PlanChanges {
 		if err := requireUUID(fmt.Sprintf("writes.plan_changes[%d].id", i), p.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if p.DiscoveryID != "" {
 			if err := requireUUID(fmt.Sprintf("writes.plan_changes[%d].discovery_id", i), p.DiscoveryID); err != nil {
-				return fmt.Errorf("loop apply: %w", err)
+				problems = append(problems, err.Error())
 			}
 		}
 		if p.Replan != nil {
 			if err := requireUUID(fmt.Sprintf("writes.plan_changes[%d].replan.scope_id", i), p.Replan.ScopeID); err != nil {
-				return fmt.Errorf("loop apply: %w", err)
+				problems = append(problems, err.Error())
 			}
 		}
 	}
 	for i, t := range env.Writes.SpawnedTasks {
 		if err := requireUUID(fmt.Sprintf("writes.spawned_tasks[%d].id", i), t.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(t.DiscoveryID) != "" {
 			if err := requireUUID(fmt.Sprintf("writes.spawned_tasks[%d].discovery_id", i), t.DiscoveryID); err != nil {
-				return fmt.Errorf("loop apply: %w", err)
+				problems = append(problems, err.Error())
 			}
 		}
 		if strings.TrimSpace(t.Title) == "" && strings.TrimSpace(t.DiscoveryID) == "" {
-			return fmt.Errorf("loop apply: writes.spawned_tasks[%d].title is required", i)
-		}
-		if strings.TrimSpace(t.GoalID) != "" && strings.TrimSpace(t.GoalID) != env.Seed.GoalID {
-			return fmt.Errorf("loop apply: writes.spawned_tasks[%d].goal_id must match seed.goal_id", i)
+			problems = append(problems, fmt.Sprintf("writes.spawned_tasks[%d].title is required", i))
 		}
 		for j, l := range t.Links {
 			if err := validateLink(fmt.Sprintf("writes.spawned_tasks[%d].links[%d]", i, j), l); err != nil {
-				return fmt.Errorf("loop apply: %w", err)
+				problems = append(problems, err.Error())
 			}
 		}
 	}
 	for i, u := range env.Writes.Uncertainties {
 		if err := requireUUID(fmt.Sprintf("writes.uncertainties[%d].id", i), u.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(u.Title) == "" && strings.TrimSpace(u.Status) != store.UncertaintyStatusResolved {
-			return fmt.Errorf("loop apply: writes.uncertainties[%d].title is required", i)
+			problems = append(problems, fmt.Sprintf("writes.uncertainties[%d].title is required", i))
 		}
 	}
 	for i, h := range env.Writes.Hypotheses {
 		if err := requireUUID(fmt.Sprintf("writes.hypotheses[%d].id", i), h.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(h.Title) == "" {
-			return fmt.Errorf("loop apply: writes.hypotheses[%d].title is required", i)
+			problems = append(problems, fmt.Sprintf("writes.hypotheses[%d].title is required", i))
 		}
 	}
 	for i, c := range env.Writes.Changes {
 		if err := requireUUID(fmt.Sprintf("writes.changes[%d].id", i), c.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if len(c.Paths) < 1 {
-			return fmt.Errorf("loop apply: writes.changes[%d].paths is required", i)
+			problems = append(problems, fmt.Sprintf("writes.changes[%d].paths is required", i))
 		}
 	}
 	for i, e := range env.Writes.Effects {
 		if strings.TrimSpace(e.ChangeID) == "" {
-			return fmt.Errorf("loop apply: writes.effects[%d].change_id is required", i)
+			problems = append(problems, fmt.Sprintf("writes.effects[%d].change_id is required", i))
 		}
 		if err := requireUUID(fmt.Sprintf("writes.effects[%d].change_id", i), e.ChangeID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(e.Dimension) == "" {
-			return fmt.Errorf("loop apply: writes.effects[%d].dimension is required", i)
+			problems = append(problems, fmt.Sprintf("writes.effects[%d].dimension is required", i))
 		}
 	}
 	for i, tr := range env.Writes.TestResults {
 		if err := requireUUID(fmt.Sprintf("writes.test_results[%d].id", i), tr.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if strings.TrimSpace(tr.TestName) == "" {
-			return fmt.Errorf("loop apply: writes.test_results[%d].test_name is required", i)
+			problems = append(problems, fmt.Sprintf("writes.test_results[%d].test_name is required", i))
 		}
 	}
 	for i, v := range env.Writes.Verifications {
 		if err := requireUUID(fmt.Sprintf("writes.verifications[%d].id", i), v.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if len(v.EvidenceIDs) < 1 {
-			return fmt.Errorf("loop apply: writes.verifications[%d].evidence_ids is required", i)
+			problems = append(problems, fmt.Sprintf("writes.verifications[%d].evidence_ids is required", i))
 		}
 	}
 	for i, ev := range env.Writes.Evaluations {
 		if err := requireUUID(fmt.Sprintf("writes.evaluations[%d].id", i), ev.ID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 		if err := requireUUID(fmt.Sprintf("writes.evaluations[%d].baseline_id", i), ev.BaselineID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
 		}
 	}
 	for i, r := range env.Writes.Regressions {
 		if err := requireUUID(fmt.Sprintf("writes.regressions[%d].source_id", i), r.SourceID); err != nil {
-			return fmt.Errorf("loop apply: %w", err)
+			problems = append(problems, err.Error())
+		}
+	}
+	if len(problems) > 0 {
+		return fmt.Errorf("loop apply: %s", strings.Join(problems, "; "))
+	}
+	for i, t := range env.Writes.SpawnedTasks {
+		if strings.TrimSpace(t.GoalID) != "" && strings.TrimSpace(t.GoalID) != env.Seed.GoalID {
+			return fmt.Errorf("loop apply: writes.spawned_tasks[%d].goal_id must match seed.goal_id", i)
 		}
 	}
 	return nil
@@ -408,9 +429,14 @@ func Apply(ctx context.Context, st *store.Store, plan *planner.Service, env Appl
 		return ApplyResult{}, fmt.Errorf("loop apply: seed goal mismatch for task %q", env.Seed.TaskID)
 	}
 	if prev, ok := findLoopStep(st, env.Seed, env.ApplyID); ok {
+		replayIDs := append([]string(nil), prev.PlanChangeIDs...)
+		if replayIDs == nil {
+			replayIDs = []string{}
+		}
 		return ApplyResult{
 			NewDiscoveries:  prev.NewDiscoveries,
 			NewPlanChanges:  prev.NewPlanChanges,
+			PlanChangeIDs:   replayIDs,
 			NewSpawnedTasks: prev.NewSpawnedTasks,
 			SpawnedTaskIDs:  append([]string(nil), prev.SpawnedTaskIDs...),
 			Saturated:       prev.MaxIterationsReached || prev.Saturated,
@@ -418,7 +444,7 @@ func Apply(ctx context.Context, st *store.Store, plan *planner.Service, env Appl
 		}, nil
 	}
 
-	out := ApplyResult{SpawnedTaskIDs: []string{}}
+	out := ApplyResult{SpawnedTaskIDs: []string{}, PlanChangeIDs: []string{}}
 	err = st.WithTx(func(txSt *store.Store) error {
 		txDom := domain.New(txSt)
 		var txPlan *planner.Service
@@ -460,6 +486,10 @@ func Apply(ctx context.Context, st *store.Store, plan *planner.Service, env Appl
 			if inserted {
 				out.NewPlanChanges++
 			}
+			// Echo every created plan_changes id so callers can link against it
+			// (e.g. `trace link discovery-plan-change --to <id>`); the MCP surface
+			// has no other way to obtain this id space.
+			out.PlanChangeIDs = append(out.PlanChangeIDs, p.ID)
 			if strings.TrimSpace(p.DiscoveryID) != "" {
 				if err := txDom.ImportSeedLink(ctx, domain.SeedLink{
 					Rel:  "discovery-plan-change",
@@ -577,6 +607,7 @@ func Apply(ctx context.Context, st *store.Store, plan *planner.Service, env Appl
 			Seed:                    env.Seed,
 			NewDiscoveries:          out.NewDiscoveries,
 			NewPlanChanges:          out.NewPlanChanges,
+			PlanChangeIDs:           out.PlanChangeIDs,
 			NewSpawnedTasks:         out.NewSpawnedTasks,
 			SpawnedTaskIDs:          out.SpawnedTaskIDs,
 			MaxIterationsReached:    maxReached,

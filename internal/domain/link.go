@@ -127,6 +127,8 @@ func (s *Service) LinkDiscoveryMentionsTask(ctx context.Context, discoveryID, ta
 }
 
 // LinkDiscoveryPlanChange inserts entity_links rel=discovery_causes_plan_change.
+// The target must be a plan_changes row id (what `loop apply` echoes back as
+// plan_change_ids); a plan_scopes id is rejected with both id spaces named.
 func (s *Service) LinkDiscoveryPlanChange(ctx context.Context, discoveryID, planChangeID string, meta LinkMeta) error {
 	_ = ctx
 	if discoveryID == "" || planChangeID == "" {

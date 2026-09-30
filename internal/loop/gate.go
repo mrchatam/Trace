@@ -42,6 +42,7 @@ type Violation struct {
 	Message          string `json:"message"`
 	RecommendedPhase string `json:"recommended_phase,omitempty"`
 	ReasonCode       string `json:"reason_code"`
+	Remedy           string `json:"remedy,omitempty"`
 }
 
 // EvaluateGate is the single harness/product gate entrypoint.
@@ -294,6 +295,23 @@ func prematureViolation(
 	return prematureViolationWithReason(gateFor, taskID, phase, stopped, string(reason), message)
 }
 
+// remedyFor returns the concrete call that clears a known gate refusal, so a
+// caller reading {"allowed": false, "reason_code": …} does not have to search
+// the source (docs/rules/agent-loop-protocol.md § Post-bootstrap critique
+// path). Descriptive only — it never changes what a gate accepts.
+func remedyFor(reason deliberation.ReasonCode) string {
+	switch reason {
+	case deliberation.ReasonPlanUncritiqued:
+		return "apply `trace loop apply` with a writes.plan_changes[] envelope (this — not `trace add plan-change` — sets plan_critiqued); canonical pattern: TestGreenfield_MCPPlanBootstrap_EditGatePasses in internal/mcp/mcp_test.go, see docs/rules/agent-loop-protocol.md § Post-bootstrap critique path"
+	case deliberation.ReasonTestPending:
+		return "record a test outcome for the latest change: `trace test run --task <id>` (or writes.test_results[] via `trace loop apply`)"
+	case deliberation.ReasonExecutePending:
+		return "record the change and its outcomes (`trace changes record`, `trace test run`, `trace verify run`) — a loop apply is not an implementation signal"
+	default:
+		return ""
+	}
+}
+
 func prematureViolationWithReason(
 	gateFor GateFor,
 	taskID string,
@@ -302,13 +320,17 @@ func prematureViolationWithReason(
 	reasonCode string,
 	message string,
 ) Violation {
-	return Violation{
+	v := Violation{
 		Code:             violationCodePrematureImplementation,
 		For:              string(gateFor),
 		Message:          message,
 		RecommendedPhase: recommendedPhase(phase, stopped),
 		ReasonCode:       reasonCode,
 	}
+	if remedy := remedyFor(deliberation.ReasonCode(reasonCode)); remedy != "" {
+		v.Remedy = remedy
+	}
+	return v
 }
 
 func recommendedPhase(phase deliberation.Phase, stopped bool) string {

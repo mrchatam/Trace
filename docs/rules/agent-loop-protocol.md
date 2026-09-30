@@ -26,6 +26,8 @@ Agents begin in **Agent mode** (full tools), not Plan mode.
 
 Planners, implementers, and reviewers all follow this gate. Skipping clarification when blocked on ambiguity is a defect.
 
+**Loop-gate refusals carry their remedy.** A `trace loop gate` refusal (`{"allowed": false, "reason_code": …}`) includes a `remedy` naming the concrete call that clears it. In particular, `plan_uncritiqued` is cleared by **`trace loop apply` with a `writes.plan_changes[]` envelope** — `trace add plan-change` does **not** set the flag — and every loop-apply result now echoes the created ids as `plan_change_ids[]`. See § [Post-bootstrap critique path](#post-bootstrap-critique-path-phase-37-r11) below.
+
 ---
 
 ## Prompt taxonomy

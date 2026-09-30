@@ -1454,12 +1454,20 @@ components:
     LoopApplyResult:
       type: object
       additionalProperties: true
-      description: Schema TODO — map from loop.Apply result in S03
+      description: >-
+        Schema TODO — map from loop.Apply result in S03. Includes
+        plan_change_ids[]: the created plan_changes row ids (echoed so callers
+        can link them, e.g. discovery-plan-change --to <id>), and
+        spawned_task_ids[] for promoted tasks.
 
     LoopGateResponse:
       type: object
       additionalProperties: true
-      description: Schema TODO — map 1:1 from trace.loop.gate.v1 / loop.EvaluateGate in S03
+      description: >-
+        Schema TODO — map 1:1 from trace.loop.gate.v1 / loop.EvaluateGate in
+        S03. Blocked refusals carry violations[].remedy: the concrete call that
+        clears the reason_code (descriptive only; does not change gate
+        verdicts).
 
     LoopResetResponse:
       type: object

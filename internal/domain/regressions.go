@@ -728,9 +728,11 @@ func (s *Service) CreateReflection(ctx context.Context, in ReflectionInput) (sto
 	if len(tests) > maxReflectionArrayItems {
 		return store.Reflection{}, &ErrValidation{Msg: "useful_tests_json exceeds 32 items"}
 	}
-
 	if len(assumpIDs) == 0 && len(deps) == 0 && len(tests) == 0 {
-		return store.Reflection{}, &ErrValidation{Msg: "reflection requires at least one structured array"}
+		// Essay-only reflections fail closed by design (see doc comment above).
+		// Name every accepted key and its shape so a caller who has never read
+		// the schema gets it right on the first try instead of guessing.
+		return store.Reflection{}, &ErrValidation{Msg: "reflection requires at least one structured array — use `invalidated_assumption_ids` (JSON array of strings: existing assumption ids), `new_dependencies` (JSON array of objects: {kind: path|symbol|file, ref}), or `useful_tests` (JSON array of strings: test names)"}
 	}
 
 	invJSON, err := marshalJSONArray(assumpIDs)

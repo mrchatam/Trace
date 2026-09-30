@@ -350,7 +350,10 @@ func (s *Store) GetPlanChange(id string) (PlanChange, error) {
 		&p.CreatedAt, &p.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return PlanChange{}, fmt.Errorf("store: plan_change %q: %w", id, err)
+		// Name the expected id space explicitly: consumers have handed this
+		// lookup a plan_scopes id (what `trace plan deep` returns and
+		// `set-current` takes) and could not tell which id was wrong.
+		return PlanChange{}, fmt.Errorf("store: no plan_changes row for id %q (expected a plan_changes id, not a plan_scopes id): %w", id, err)
 	}
 	if err != nil {
 		return PlanChange{}, fmt.Errorf("store: get plan_change: %w", err)
