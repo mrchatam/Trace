@@ -278,7 +278,7 @@ func cmdImpactReport(root string, args []string) int {
 	return exitOK
 }
 
-// seedFlagList collects repeated --seed file:<uuid>|symbol:<uuid> values.
+// seedFlagList collects repeated --seed file:<uuid-or-path>|symbol:<uuid> values.
 type seedFlagList []string
 
 func (s *seedFlagList) String() string { return strings.Join(*s, ",") }
@@ -291,13 +291,13 @@ func cmdImpactWalk(root string, args []string) int {
 	fs := flag.NewFlagSet("impact walk", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var seeds seedFlagList
-	fs.Var(&seeds, "seed", "seed as file:<uuid> or symbol:<uuid> (repeatable)")
+	fs.Var(&seeds, "seed", "seed as file:<uuid-or-path> or symbol:<uuid> (repeatable)")
 	depth := fs.Int("depth", retrieval.DefaultImpactDepth(), "BFS depth 1..2 (default 2)")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage
 	}
 	if len(seeds) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: trace impact walk --seed file:<uuid>|symbol:<uuid> [--seed …] [--depth 1|2]\n")
+		fmt.Fprintf(os.Stderr, "usage: trace impact walk --seed file:<uuid-or-path>|symbol:<uuid> [--seed …] [--depth 1|2]\n")
 		return exitUsage
 	}
 
@@ -305,7 +305,7 @@ func cmdImpactWalk(root string, args []string) int {
 	for _, raw := range seeds {
 		typ, id, ok := strings.Cut(raw, ":")
 		if !ok || typ == "" || id == "" {
-			fmt.Fprintf(os.Stderr, "impact walk: bad --seed %q (want file:<uuid> or symbol:<uuid>)\n", raw)
+			fmt.Fprintf(os.Stderr, "impact walk: bad --seed %q (want file:<uuid-or-path> or symbol:<uuid>)\n", raw)
 			return exitUsage
 		}
 		typ = strings.ToLower(strings.TrimSpace(typ))

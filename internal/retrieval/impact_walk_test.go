@@ -3,6 +3,8 @@ package retrieval_test
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/mrchatam/Trace/internal/retrieval"
@@ -349,5 +351,103 @@ func TestImpactWalkDepthStillCapped(t *testing.T) {
 	}, 3)
 	if err == nil {
 		t.Fatal("expected depth 3 to fail closed")
+	}
+}
+
+// TestImpactWalkFileSeedByPath locks the path-form file seed (D1/D2): a
+// file:<path> seed resolves to exactly the row its path names and returns the
+// identical blast as the same file seeded by uuid (A/B pair, same store).
+// Unresolved paths must error — never a silent empty walk — and the error must
+// name the accepted forms instead of leaking the store's no-rows error.
+func TestImpactWalkFileSeedByPath(t *testing.T) {
+	eng, st, _ := openEngine(t)
+	ctx := context.Background()
+
+	a, err := st.UpsertFile("a.go", "ha", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile a: %v", err)
+	}
+	b, err := st.UpsertFile("b.go", "hb", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile b: %v", err)
+	}
+	if err := st.ReplaceFileImports("b.go", []store.Import{{ImportedPath: "a.go"}}); err != nil {
+		t.Fatalf("imports: %v", err)
+	}
+
+	// A: uuid form — the regression baseline (locked by the sibling tests).
+	resUUID, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: a.ID},
+	}, 2)
+	if err != nil {
+		t.Fatalf("ImpactWalk uuid seed: %v", err)
+	}
+	if len(resUUID.Blast) != 1 || resUUID.Blast[0].EntityID != b.ID || resUUID.Blast[0].Hop != 1 {
+		t.Fatalf("uuid baseline blast: %+v", resUUID.Blast)
+	}
+
+	// B: path form — same store, same file. Blast must be identical.
+	resPath, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: "a.go"},
+	}, 2)
+	if err != nil {
+		t.Fatalf("ImpactWalk path seed: %v", err)
+	}
+	if !reflect.DeepEqual(resPath.Blast, resUUID.Blast) {
+		t.Fatalf("path-seed blast differs from uuid-seed blast:\npath=%+v\nuuid=%+v", resPath.Blast, resUUID.Blast)
+	}
+	if !reflect.DeepEqual(resPath.AffectedTests, resUUID.AffectedTests) {
+		t.Fatalf("affected_tests differ:\npath=%+v\nuuid=%+v", resPath.AffectedTests, resUUID.AffectedTests)
+	}
+	if len(resPath.Seeds) != 1 || resPath.Seeds[0].EntityType != "file" || resPath.Seeds[0].EntityID != a.ID {
+		t.Fatalf("path seed must echo the resolved uuid: %+v", resPath.Seeds)
+	}
+
+	// NormalizePath acceptance: "./a.go" and backslash separators resolve to
+	// the same row, never to a broader match.
+	resDot, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: "./a.go"},
+	}, 2)
+	if err != nil {
+		t.Fatalf("ImpactWalk ./path seed: %v", err)
+	}
+	if !reflect.DeepEqual(resDot.Blast, resUUID.Blast) {
+		t.Fatalf("./-prefixed path blast differs: %+v", resDot.Blast)
+	}
+
+	m, err := st.UpsertFile("pkg/mod.go", "hm", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile pkg/mod.go: %v", err)
+	}
+	resBack, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: "pkg\\mod.go"},
+	}, 2)
+	if err != nil {
+		t.Fatalf("ImpactWalk backslash seed: %v", err)
+	}
+	if len(resBack.Seeds) != 1 || resBack.Seeds[0].EntityID != m.ID {
+		t.Fatalf("backslash seed must resolve pkg/mod.go: %+v", resBack.Seeds)
+	}
+
+	// A path naming no row is an error, never an empty walk.
+	_, err = eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: "missing.go"},
+	}, 2)
+	if err == nil {
+		t.Fatal("unresolved path seed must error, not return an empty blast")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "uuid-or-path") || !strings.Contains(msg, "missing.go") {
+		t.Fatalf("error must name the accepted form and the seed: %v", msg)
+	}
+	if strings.Contains(msg, "sql: no rows") {
+		t.Fatalf("store no-rows error leaked through: %v", msg)
+	}
+
+	// No prefix/basename fallback: "a.g" names no row and must not resolve.
+	if _, err = eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "file", EntityID: "a.g"},
+	}, 2); err == nil {
+		t.Fatal("prefix of an existing path must not resolve")
 	}
 }

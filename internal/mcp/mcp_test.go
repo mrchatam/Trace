@@ -1885,6 +1885,91 @@ func mustText(t *testing.T, res any) string {
 	return tracemcp.ResultText(t, res)
 }
 
+// TestMCPImpactWalkPathSeed locks the path-form file seed on the MCP surface:
+// a file:<path> seed walks identically to the uuid form (A/B, same store),
+// echoes the resolved uuid, and an unresolved path errors naming the accepted
+// form instead of leaking the store's no-rows error.
+func TestMCPImpactWalkPathSeed(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := st.UpsertFile("a.go", "ha", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := st.UpsertFile("b.go", "hb", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileImports("b.go", []store.Import{{ImportedPath: "a.go"}}); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+
+	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
+	ctx := context.Background()
+
+	// B: path form.
+	res, _, err := callImpact(srv, ctx, tracemcp.ImpactInput{
+		Action: "walk", Seeds: []string{"file:a.go"}, Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("trace_impact walk path seed: %v", err)
+	}
+	var mPath map[string]any
+	if err := json.Unmarshal([]byte(mustText(t, res)), &mPath); err != nil {
+		t.Fatal(err)
+	}
+	if mPath["ok"] != true {
+		t.Fatalf("ok: %v", mPath)
+	}
+	blast, _ := mPath["blast"].([]any)
+	if len(blast) != 1 {
+		t.Fatalf("blast: %v", mPath["blast"])
+	}
+	hit := blast[0].(map[string]any)
+	if hit["entity_id"] != b.ID || hit["hop"] != float64(1) {
+		t.Fatalf("want importer B at hop 1: %v", hit)
+	}
+	seeds, _ := mPath["seeds"].([]any)
+	if len(seeds) != 1 || seeds[0].(map[string]any)["entity_id"] != a.ID {
+		t.Fatalf("path seed must echo resolved uuid: %v", mPath["seeds"])
+	}
+
+	// A: uuid form — identical blast.
+	resU, _, err := callImpact(srv, ctx, tracemcp.ImpactInput{
+		Action: "walk", Seeds: []string{"file:" + a.ID}, Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("trace_impact walk uuid seed: %v", err)
+	}
+	var mUUID map[string]any
+	if err := json.Unmarshal([]byte(mustText(t, resU)), &mUUID); err != nil {
+		t.Fatal(err)
+	}
+	blastU, _ := json.Marshal(mUUID["blast"])
+	blastP, _ := json.Marshal(mPath["blast"])
+	if string(blastU) != string(blastP) {
+		t.Fatalf("path-seed blast differs from uuid-seed blast:\npath=%s\nuuid=%s", blastP, blastU)
+	}
+
+	// Unresolved path: tool error naming the accepted form, not a store leak.
+	_, _, err = callImpact(srv, ctx, tracemcp.ImpactInput{
+		Action: "walk", Seeds: []string{"file:missing.go"}, Depth: 1,
+	})
+	if err == nil {
+		t.Fatal("unresolved path seed must error, not return an empty blast")
+	}
+	if !strings.Contains(err.Error(), "uuid-or-path") {
+		t.Fatalf("error must name accepted form: %v", err)
+	}
+	if strings.Contains(err.Error(), "sql: no rows") {
+		t.Fatalf("store no-rows error leaked: %v", err)
+	}
+}
+
 func mustOKID(t *testing.T, text string) string {
 	t.Helper()
 	var m map[string]any

@@ -55,8 +55,10 @@ type impactFrontier struct {
 }
 
 // ImpactWalk runs one multi-seed BFS over file|symbol seeds with incoming-import
-// deps and contains asymmetry. Seeds are hop 0 and excluded from blast.
-// Depth must be 1..2; callers that omit depth at the CLI use defaultImpactDepth (2).
+// deps and contains asymmetry. File seeds accept a uuid or an exact repo-relative
+// path (resolveSeed); symbol seeds are uuid-only. Seeds are hop 0 and excluded
+// from blast. Depth must be 1..2; callers that omit depth at the CLI use
+// defaultImpactDepth (2).
 func (e *Engine) ImpactWalk(ctx context.Context, seeds []ImpactSeed, depth int) (*ImpactWalkResult, error) {
 	_ = ctx
 	if len(seeds) == 0 {
@@ -79,17 +81,17 @@ func (e *Engine) ImpactWalk(ctx context.Context, seeds []ImpactSeed, depth int) 
 		if s.EntityID == "" {
 			return nil, fmt.Errorf("retrieval: ImpactWalk: seed entity_id required")
 		}
-		h, err := e.lookupEntity(typ, s.EntityID, ReasonExactID, 0, 1.0)
+		h, err := e.resolveSeed(typ, s.EntityID)
 		if err != nil {
-			return nil, fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, s.EntityID, err)
+			return nil, err
 		}
-		k := hitKey(typ, s.EntityID)
+		k := hitKey(typ, h.EntityID)
 		seedKeys[k] = struct{}{}
-		normalizedSeeds = append(normalizedSeeds, ImpactSeed{EntityType: typ, EntityID: s.EntityID})
+		normalizedSeeds = append(normalizedSeeds, ImpactSeed{EntityType: typ, EntityID: h.EntityID})
 
 		n := &impactFrontier{
 			entityType:       typ,
-			entityID:         s.EntityID,
+			entityID:         h.EntityID,
 			title:            h.Title,
 			path:             h.Path,
 			hop:              0,
@@ -197,6 +199,35 @@ func (e *Engine) ImpactWalk(ctx context.Context, seeds []ImpactSeed, depth int) 
 
 // DefaultImpactDepth returns the CLI default depth (2).
 func DefaultImpactDepth() int { return defaultImpactDepth }
+
+// resolveSeed resolves one walk seed to its hit.
+//
+// File seeds accept a uuid or an exact repo-relative path (D1/D2): the uuid is
+// tried first — byte-identical to the historical behavior — and on miss the
+// value is treated as a path, resolved exactly as Engine.Exact resolves q.Path:
+// store.NormalizePath, then a single exact-row match on `files` by path.
+// No prefix, basename, or fuzzy fallback; a seed that names no row (by uuid nor
+// path) is an error — never a silently empty walk — and the error names both
+// accepted forms instead of leaking the store's no-rows error.
+func (e *Engine) resolveSeed(typ, value string) (Hit, error) {
+	h, err := e.lookupEntity(typ, value, ReasonExactID, 0, 1.0)
+	if err == nil || typ != "file" || !isNotFound(err) {
+		if err != nil {
+			err = fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, value, err)
+		}
+		return h, err
+	}
+	f, perr := e.store.GetFileByPath(store.NormalizePath(value))
+	if perr != nil {
+		if !isNotFound(perr) {
+			return Hit{}, fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, value, perr)
+		}
+		return Hit{}, fmt.Errorf(
+			"retrieval: ImpactWalk: seed file:<uuid-or-path> not found — %q matched no row in `files` (by path) nor in `files.id` (by uuid); get one with `trace search <term>` and use the entity_id",
+			value)
+	}
+	return Hit{EntityType: "file", EntityID: f.ID, Title: f.Path, Path: f.Path, ReasonCode: ReasonExactPath, Score: 1.0, Distance: 0}, nil
+}
 
 func (e *Engine) impactNeighbors(fi impactFrontier) ([]impactFrontier, error) {
 	switch fi.entityType {

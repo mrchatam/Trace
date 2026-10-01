@@ -30,7 +30,7 @@ type ImpactInput struct {
 	Title       string   `json:"title,omitempty" jsonschema:"alternative add"`
 	Recommended bool     `json:"recommended,omitempty" jsonschema:"alternative add bool"`
 	ID          string   `json:"id,omitempty" jsonschema:"alternative recommend; optional on add"`
-	Seeds       []string `json:"seeds,omitempty" jsonschema:"walk string array file:<uuid>|symbol:<uuid>"`
+	Seeds       []string `json:"seeds,omitempty" jsonschema:"walk string array file:<uuid>|file:<repo-relative-path>|symbol:<uuid>"`
 	Depth       float64  `json:"depth,omitempty" jsonschema:"walk 1|2; default library DefaultImpactDepth()"`
 }
 
@@ -261,13 +261,13 @@ func (s *Server) impactReport(ctx context.Context, in ImpactInput) (*sdkmcp.Call
 
 func (s *Server) impactWalk(ctx context.Context, in ImpactInput) (*sdkmcp.CallToolResult, any, error) {
 	if len(in.Seeds) == 0 {
-		return nil, nil, fmt.Errorf("trace_impact walk: seeds required (file:<uuid>|symbol:<uuid>)")
+		return nil, nil, fmt.Errorf("trace_impact walk: seeds required (file:<uuid-or-path>|symbol:<uuid>)")
 	}
 	walkSeeds := make([]retrieval.ImpactSeed, 0, len(in.Seeds))
 	for _, raw := range in.Seeds {
 		typ, id, ok := strings.Cut(raw, ":")
 		if !ok || typ == "" || id == "" {
-			return nil, nil, fmt.Errorf("trace_impact walk: bad seed %q (want file:<uuid> or symbol:<uuid>)", raw)
+			return nil, nil, fmt.Errorf("trace_impact walk: bad seed %q (want file:<uuid-or-path> or symbol:<uuid>)", raw)
 		}
 		typ = strings.ToLower(strings.TrimSpace(typ))
 		if typ != "file" && typ != "symbol" {

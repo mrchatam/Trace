@@ -1529,6 +1529,103 @@ func TestImpactWalkCLI(t *testing.T) {
 	}
 }
 
+// captureStderrAllowFail captures stderr without enforcing the exit code
+// (captureStderr fatals on non-OK; the unresolved-seed case must observe the
+// failure instead).
+func captureStderrAllowFail(t *testing.T, fn func() int) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	_ = fn()
+	_ = w.Close()
+	os.Stderr = old
+	buf := make([]byte, 1<<20)
+	n, _ := r.Read(buf)
+	_ = r.Close()
+	return string(buf[:n])
+}
+
+// TestImpactWalkCLIPathSeed locks the path-form file seed at the CLI surface:
+// same store, same file — file:<path> must return the same blast as file:<uuid>
+// (A/B), echo the resolved uuid, and an unresolved path must fail loudly naming
+// the accepted form instead of leaking the store's no-rows error.
+func TestImpactWalkCLIPathSeed(t *testing.T) {
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	a, err := st.UpsertFile("a.go", "ha", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile a: %v", err)
+	}
+	b, err := st.UpsertFile("b.go", "hb", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile b: %v", err)
+	}
+	if err := st.ReplaceFileImports("b.go", []store.Import{{ImportedPath: "a.go"}}); err != nil {
+		t.Fatalf("imports: %v", err)
+	}
+	_ = st.Close()
+
+	out := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "impact", "walk", "--seed", "file:a.go", "--depth", "1"})
+	})
+	var res map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &res); err != nil {
+		t.Fatalf("json: %v (%s)", err, out)
+	}
+	if res["ok"] != true {
+		t.Fatalf("ok: %#v", res)
+	}
+	blast, _ := res["blast"].([]any)
+	if len(blast) != 1 {
+		t.Fatalf("blast: %#v", blast)
+	}
+	hit := blast[0].(map[string]any)
+	if hit["entity_id"] != b.ID || hit["hop"] != float64(1) {
+		t.Fatalf("want importer B at hop 1: %#v", hit)
+	}
+	seeds, _ := res["seeds"].([]any)
+	if len(seeds) != 1 {
+		t.Fatalf("seeds: %#v", res["seeds"])
+	}
+	seed := seeds[0].(map[string]any)
+	if seed["entity_id"] != a.ID {
+		t.Fatalf("path seed must echo resolved uuid: %#v", seed)
+	}
+
+	// A/B: the uuid form returns the same blast body.
+	outUUID := captureStdout(t, func() int {
+		return run([]string{"-C", dir, "impact", "walk", "--seed", "file:" + a.ID, "--depth", "1"})
+	})
+	var resUUID map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(outUUID)), &resUUID); err != nil {
+		t.Fatalf("json: %v (%s)", err, outUUID)
+	}
+	if fmt.Sprint(resUUID["blast"]) != fmt.Sprint(res["blast"]) {
+		t.Fatalf("path-seed blast differs from uuid-seed blast:\npath=%v\nuuid=%v", res["blast"], resUUID["blast"])
+	}
+
+	// Unresolved path: exit fail with the accepted-form error, not a store leak.
+	errOut := captureStderrAllowFail(t, func() int {
+		return run([]string{"-C", dir, "impact", "walk", "--seed", "file:missing.go", "--depth", "1"})
+	})
+	if !strings.Contains(errOut, "uuid-or-path") {
+		t.Fatalf("error must name accepted form: %q", errOut)
+	}
+	if strings.Contains(errOut, "sql: no rows") {
+		t.Fatalf("store no-rows error leaked: %q", errOut)
+	}
+}
+
 // TestImpactPredictCompareCLI covers C08 thin adapters.
 func TestImpactPredictCompareCLI(t *testing.T) {
 	dir := t.TempDir()
