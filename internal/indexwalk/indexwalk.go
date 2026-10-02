@@ -125,16 +125,10 @@ type Drift struct {
 // ComputeDrift walks root (gitignore filtering on — it self-disables outside
 // git work trees) and diffs against the store's indexed paths.
 func ComputeDrift(root string, st *store.Store) (*Drift, error) {
-	walkable, err := Walk(root, true)
+	walkable, indexed, err := walkAndIndexed(root, st)
 	if err != nil {
 		return nil, err
 	}
-	indexed, err := st.ListFilePaths()
-	if err != nil {
-		return nil, err
-	}
-	sort.Strings(walkable)
-	sort.Strings(indexed)
 	inStore := make(map[string]bool, len(indexed))
 	for _, p := range indexed {
 		inStore[p] = true
@@ -166,4 +160,39 @@ func ComputeDrift(root string, st *store.Store) (*Drift, error) {
 		}
 	}
 	return d, nil
+}
+
+// MissingPaths returns every walkable path absent from the store — the full,
+// uncapped not_indexed list, for callers that act on it (watch-mode drift
+// healing) rather than report it.
+func MissingPaths(root string, st *store.Store) ([]string, error) {
+	walkable, indexed, err := walkAndIndexed(root, st)
+	if err != nil {
+		return nil, err
+	}
+	inStore := make(map[string]bool, len(indexed))
+	for _, p := range indexed {
+		inStore[p] = true
+	}
+	var out []string
+	for _, p := range walkable {
+		if !inStore[p] {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func walkAndIndexed(root string, st *store.Store) (walkable, indexed []string, err error) {
+	walkable, err = Walk(root, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	indexed, err = st.ListFilePaths()
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Strings(walkable)
+	sort.Strings(indexed)
+	return walkable, indexed, nil
 }

@@ -53,6 +53,65 @@ func TestIndexWatchDebounced(t *testing.T) {
 	}
 }
 
+// TestIndexWatchHealsDrift pins watch-mode drift healing: files the event
+// stream cannot see (a directory created with contents — only the dir event
+// fires — and fsnotify blind spots generally) are indexed by the drift sweep
+// after the debounce window, so the store converges to the tree without a
+// manual `trace index`.
+func TestIndexWatchHealsDrift(t *testing.T) {
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan int, 1)
+	go func() {
+		done <- runIndexWatch(ctx, dir, []string{"--debounce", "50ms", "."})
+	}()
+
+	// Allow watcher setup.
+	time.Sleep(100 * time.Millisecond)
+
+	// A new directory with a file already inside: the watcher receives only
+	// the dir Create event, so per-path timers never fire for inner.go.
+	sub := filepath.Join(dir, "late")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "inner.go"), []byte("package late\nfunc Inner() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Root-level new file: covered by the event path, healed identically if
+	// the event is dropped.
+	if err := os.WriteFile(filepath.Join(dir, "late_root.go"), []byte("package late\nfunc Root() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait past the debounce window plus the sweep (watch holds the store
+	// lock until exit, so assertions run after cancel).
+	time.Sleep(600 * time.Millisecond)
+	cancel()
+	if code := <-done; code != exitOK {
+		t.Fatalf("watch exit: %d", code)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	for _, rel := range []string{"late/inner.go", "late_root.go"} {
+		if _, ferr := st.GetFileByPath(rel); ferr != nil {
+			t.Fatalf("drift heal missed %s: %v", rel, ferr)
+		}
+		syms, serr := st.ListSymbolsByPath(rel)
+		if serr != nil || len(syms) == 0 {
+			t.Fatalf("%s symbols: err=%v len=%d", rel, serr, len(syms))
+		}
+	}
+}
+
 func TestIndexWatchForegroundExit(t *testing.T) {
 	dir := t.TempDir()
 	if code := run([]string{"-C", dir, "init"}); code != exitOK {
