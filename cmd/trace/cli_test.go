@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -533,6 +534,70 @@ func TestIndexGCAfterPathRename(t *testing.T) {
 		if symsB1[i].Name != symsB2[i].Name {
 			t.Fatalf("b.js symbol drift: %+v vs %+v", symsB1[i], symsB2[i])
 		}
+	}
+}
+
+func TestIndexFullTreeContinuesPastPerFileFailure(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("permission-denied poison only fails for non-root on POSIX")
+	}
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+
+	// Lexical walk order: the poisoned file sorts first so files after it
+	// prove the walk continued instead of aborting.
+	broken := filepath.Join(dir, "aaa-broken.js")
+	early := filepath.Join(dir, "bbb-early.js")
+	late := filepath.Join(dir, "zzz-late.js")
+	for _, p := range []struct {
+		path    string
+		content string
+	}{
+		{broken, "export function broken() { return 1 }\n"},
+		{early, "export function early() { return 2 }\n"},
+		{late, "export function late() { return 3 }\n"},
+	} {
+		if err := os.WriteFile(p.path, []byte(p.content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if code := run([]string{"-C", dir, "index"}); code != exitOK {
+		t.Fatalf("initial full-tree index: %d", code)
+	}
+
+	if err := os.Chmod(broken, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(broken, 0o644) })
+
+	code, _, stderr := runCapture(t, []string{"-C", dir, "index"})
+	if code == exitOK {
+		t.Fatalf("index must exit non-zero when a file fails, stderr: %q", stderr)
+	}
+	if !strings.Contains(stderr, "FAILED aaa-broken.js") {
+		t.Fatalf("stderr must name the failed path, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "1 of 3 files failed") {
+		t.Fatalf("stderr must summarize the failure count, got %q", stderr)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	for _, p := range []string{"bbb-early.js", "zzz-late.js"} {
+		if _, err := st.GetFileByPath(p); err != nil {
+			t.Fatalf("%s must stay indexed despite aaa-broken.js failing: %v", p, err)
+		}
+	}
+
+	// Explicit argv keeps hard-fail semantics for the file the caller named.
+	code2, _, stderr2 := runCapture(t, []string{"-C", dir, "index", "aaa-broken.js"})
+	if code2 == exitOK {
+		t.Fatalf("explicit argv index must fail on its own file, stderr: %q", stderr2)
 	}
 }
 

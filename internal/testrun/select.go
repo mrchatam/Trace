@@ -3,10 +3,13 @@ package testrun
 import (
 	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/mrchatam/Trace/internal/analyzers"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/retrieval"
 	"github.com/mrchatam/Trace/internal/store"
@@ -25,7 +28,10 @@ type targetKey struct {
 	pkg  string
 }
 
-// SelectTestTargets picks relevant tests from seed paths via impact walk + validates; Go package fallback.
+// SelectTestTargets picks relevant tests from seed paths via impact walk +
+// validates; Go package fallback; JS/TS sibling test-dir fallback. When
+// nothing is selected it fails closed with the reason: which stage produced
+// zero targets, and which seed paths are not in the index at all.
 func SelectTestTargets(
 	ctx context.Context,
 	st *store.Store,
@@ -55,7 +61,17 @@ func SelectTestTargets(
 	if len(targets) > 0 {
 		return targets, nil
 	}
-	return packageFallbackTargets(st.ProjectRoot(), paths)
+	fallback, ferr := packageFallbackTargets(st.ProjectRoot(), paths)
+	if ferr != nil {
+		return nil, ferr
+	}
+	if len(fallback) > 0 {
+		return fallback, nil
+	}
+	if fallback := jstsFallbackTargets(st, paths); len(fallback) > 0 {
+		return fallback, nil
+	}
+	return nil, noTargetsDiagnosis(st, paths)
 }
 
 func resolveSeedPaths(ctx context.Context, dom *domain.Service, taskID string, explicit []string) ([]string, error) {
@@ -259,6 +275,108 @@ func packageFallbackTargets(root string, paths []string) ([]TestTarget, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
+}
+
+// jstsExts are the extensions the tree-sitter analyzers index for JS/TS.
+var jstsExts = map[string]bool{
+	".ts": true, ".tsx": true, ".mts": true, ".cts": true,
+	".js": true, ".jsx": true, ".mjs": true, ".cjs": true,
+}
+
+// jstsFallbackTargets mirrors the Go package fallback for JS/TS repos: for a
+// changed source file, the indexed test files in its sibling test/ or
+// __tests__/ directory are the same "run this file's package tests" idea. Only
+// already-indexed test files become targets, so the fallback is honest about
+// what the graph knows (mirrors analyzers.isTestFile).
+func jstsFallbackTargets(st *store.Store, paths []string) []TestTarget {
+	seen := map[string]bool{}
+	var out []TestTarget
+	for _, p := range paths {
+		p = store.NormalizePath(p)
+		if !jstsExts[path.Ext(p)] {
+			continue
+		}
+		dir := path.Dir(p)
+		for _, testDir := range []string{
+			path.Join(dir, "test"),
+			path.Join(dir, "__tests__"),
+			path.Join(path.Dir(dir), "test"),
+			path.Join(path.Dir(dir), "__tests__"),
+		} {
+			files, err := st.ListFilePathsInDir(testDir)
+			if err != nil {
+				continue
+			}
+			for _, f := range files {
+				if !jstsTestPath(f) || seen[f] {
+					continue
+				}
+				seen[f] = true
+				out = append(out, TestTarget{Name: path.Base(f), Path: f})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+// jstsTestPath mirrors analyzers.isTestFile for JS/TS layouts.
+func jstsTestPath(p string) bool {
+	base := path.Base(p)
+	stem := strings.TrimSuffix(base, path.Ext(base))
+	return strings.HasSuffix(stem, ".test") || strings.HasSuffix(stem, ".spec") || path.Base(path.Dir(p)) == "__tests__"
+}
+
+// maxNamedPathsInError caps path lists inside the diagnosis so a 9-path
+// failure does not produce a 9-line error (progressive disclosure).
+const maxNamedPathsInError = 5
+
+// noTargetsDiagnosis explains WHY selection produced zero targets instead of a
+// bare "no relevant tests selected". Consumers could not previously tell "the
+// graph has no validates edges for these files" from "the index is stale" from
+// "this repo has no tests for that package" — on the reporting repo all nine
+// changed paths were silently missing from a truncated index while `index
+// status` claimed the index was fine.
+func noTargetsDiagnosis(st *store.Store, paths []string) error {
+	var notIndexed, notSource []string
+	for _, p := range paths {
+		p = store.NormalizePath(p)
+		if _, err := st.GetFileByPath(p); err == nil {
+			continue
+		}
+		if _, ok := analyzers.DetectLanguage(p); ok {
+			notIndexed = append(notIndexed, p)
+		} else {
+			notSource = append(notSource, p)
+		}
+	}
+	parts := make([]string, 0, 3)
+	if len(notIndexed) > 0 {
+		parts = append(parts, fmt.Sprintf("%d changed path(s) not in the index — run `trace index` to add them: %s",
+			len(notIndexed), quotePathList(notIndexed)))
+	}
+	if len(notSource) > 0 {
+		parts = append(parts, fmt.Sprintf("ignored non-source path(s): %s", quotePathList(notSource)))
+	}
+	parts = append(parts, "no incoming validates edges and no impact-walk tests for the indexed changed paths")
+	return fmt.Errorf("testrun: no relevant tests selected: %s", strings.Join(parts, "; "))
+}
+
+func quotePathList(paths []string) string {
+	named := paths
+	more := 0
+	if len(paths) > maxNamedPathsInError {
+		named = paths[:maxNamedPathsInError]
+		more = len(paths) - maxNamedPathsInError
+	}
+	quoted := make([]string, 0, len(named))
+	for _, p := range named {
+		quoted = append(quoted, strconv.Quote(p))
+	}
+	if more > 0 {
+		quoted = append(quoted, fmt.Sprintf("…and %d more", more))
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func goPackageArg(root, filePath string) (string, bool) {

@@ -71,6 +71,11 @@ func cmdIndex(root string, args []string, command string) int {
 	}
 
 	var indexed, hashSkipped, skipped, removed int
+	type indexFailure struct {
+		path string
+		err  error
+	}
+	var failures []indexFailure
 	for _, p := range paths {
 		rel, absPath, err := normalizeProjectPath(abs, p)
 		if err != nil {
@@ -97,6 +102,18 @@ func cmdIndex(root string, args []string, command string) int {
 			var skip *analyzers.SkipError
 			if errors.As(err, &skip) {
 				skipped++
+				continue
+			}
+			if fullTree {
+				// One bad record must not truncate the rest of the tree: a
+				// whole-tree walk that aborted on the first failing file left
+				// every later file unindexed with only a one-line error to show
+				// for it (20 files went missing this way on a consumer repo).
+				// Continue, report every failure by path below, keep the sync
+				// watermark where it is so `index status` stays stale, and exit
+				// non-zero. Explicit argv keeps hard-fail semantics: the caller
+				// asked for exactly that file.
+				failures = append(failures, indexFailure{path: rel, err: err})
 				continue
 			}
 			fmt.Fprintf(os.Stderr, "index: %v\n", err)
@@ -141,6 +158,13 @@ func cmdIndex(root string, args []string, command string) int {
 	}
 
 	fmt.Fprintf(os.Stderr, "indexed %d, hash_skipped %d, skipped %d, removed %d\n", indexed, hashSkipped, skipped, removed)
+	if len(failures) > 0 {
+		for _, f := range failures {
+			fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", f.path, f.err)
+		}
+		fmt.Fprintf(os.Stderr, "index: %d of %d files failed; store is incomplete until these index cleanly (re-run `trace index` after fixing)\n", len(failures), len(paths))
+		return exitFail
+	}
 	if repo != nil {
 		if err := updateGraphSyncWatermark(ctx, st, repo); err != nil {
 			fmt.Fprintf(os.Stderr, "index: graph sync watermark: %v\n", err)

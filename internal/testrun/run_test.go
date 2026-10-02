@@ -946,6 +946,107 @@ func TestPackageFallbackTargets(t *testing.T) {
 	}
 }
 
+// TestJSTSFallbackTargetsFromSiblingTestDir pins the non-Go fallback: a
+// changed TS source with no incoming validates and no impact-walk tests still
+// selects the indexed test files in its sibling test/ directory (the JS/TS
+// analogue of the Go package fallback). Regression: packageFallbackTargets
+// skipped every non-.go path, so a TypeScript repo failed closed with no
+// explanation while a Go repo was rescued by the same code path.
+func TestJSTSFallbackTargetsFromSiblingTestDir(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+
+	if _, err := st.UpsertFile("src/util.ts", "hutil", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("src/util.ts", []store.Symbol{
+		{Name: "util", Kind: "function", StartLine: 1, EndLine: 2},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	testFile, err := st.UpsertFile("src/test/core-util.test.ts", "htest", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("src/test/core-util.test.ts", []store.Symbol{
+		{Name: "core-util.test.ts", Kind: "test", StartLine: 1, EndLine: 3},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A non-test file in the same dir must never become a target.
+	if _, err := st.UpsertFile("src/test/helpers.ts", "hh", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	task := mustTask(t, dom)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{{Path: "src/util.ts"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	targets, err := SelectTestTargets(ctx, st, dom, task.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("targets=%+v", targets)
+	}
+	tg := targets[0]
+	if tg.Name != "core-util.test.ts" || tg.Path != "src/test/core-util.test.ts" || tg.Package != "" {
+		t.Fatalf("fallback target mismatch: %+v (test file %s)", tg, testFile.Path)
+	}
+}
+
+// TestSelectTestTargetsDiagnosesZeroTargets pins the truthful failure: when
+// every stage yields nothing, the error names the stage and the paths that are
+// missing from the index, instead of a bare "no relevant tests selected".
+func TestSelectTestTargetsDiagnosesZeroTargets(t *testing.T) {
+	st, dom := openTestrun(t)
+	ctx := context.Background()
+
+	// Indexed source file with no incoming validates and no impact-walk tests.
+	if _, err := st.UpsertFile("src/core.ts", "hcore", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceFileSymbols("src/core.ts", []store.Symbol{
+		{Name: "core", Kind: "function", StartLine: 1, EndLine: 2},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	task := mustTask(t, dom)
+	if _, err := dom.CreateChange(ctx, domain.ChangeInput{
+		TaskID: task.ID, GitCommit: "abc1234",
+		Paths: []domain.ChangePathInput{
+			{Path: "src/core.ts"},
+			{Path: "src/ghost.ts"},  // source path, never indexed
+			{Path: "docs/notes.md"}, // non-source path
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := SelectTestTargets(ctx, st, dom, task.ID, nil)
+	if err == nil {
+		t.Fatal("expected zero-target diagnosis error")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		"no relevant tests selected",
+		"1 changed path(s) not in the index",
+		`"src/ghost.ts"`,
+		"ignored non-source path(s)",
+		`"docs/notes.md"`,
+		"no incoming validates edges",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("diagnosis missing %q: %s", want, msg)
+		}
+	}
+}
+
 func TestImpactWalkStillWorks(t *testing.T) {
 	st, _ := openTestrun(t)
 	eng := retrieval.New(st)

@@ -337,6 +337,9 @@ func (s *Store) ReplaceFileSymbols(path string, symbols []Symbol) error {
 		// Upsert first (deterministic ids). A blanket DELETE would ON DELETE SET NULL
 		// every incoming to_symbol_id; two incoming validates from the same file then
 		// collide on idx_code_edges_unique (NULL to_symbol_id collapses).
+		// Incoming validates on stable ids are kept; leftover incoming is collapsed
+		// before the DELETE — including pre-existing file-level (NULL) rows in the
+		// same group, which are invisible to a leftover-only candidate set.
 		keep := make([]string, 0, len(symbols))
 		for _, sym := range symbols {
 			id := sym.ID
@@ -420,6 +423,14 @@ func leftoverSymbolIDs(tx *sql.Tx, fileID string, keep []string) ([]string, erro
 
 // collapseEdgesTargetingSymbols drops extras that would share
 // (from_file_id, from_symbol_id, to_file_id, rel) after ON DELETE SET NULL.
+// The candidate set must also include rows whose to_symbol_id is already NULL:
+// a file-level edge written by an earlier index (e.g. a named import that did
+// not resolve against the then-stored symbols) shares the group with
+// symbol-level rows targeting leftover symbols, and the leftover DELETE SET
+// NULLs the surviving symbol-level row onto it — colliding on
+// idx_code_edges_unique (real-store repro, store-test counterpart in
+// file_graph_test.go). Groups holding only an already-NULL row are untouched:
+// that row is the group's MIN(id).
 func collapseEdgesTargetingSymbols(tx *sql.Tx, leftover []string) error {
 	if len(leftover) == 0 {
 		return nil
@@ -436,10 +447,10 @@ func collapseEdgesTargetingSymbols(tx *sql.Tx, leftover []string) error {
 		DELETE FROM code_edges WHERE id IN (
 			SELECT id FROM (
 				SELECT id FROM code_edges
-				WHERE to_symbol_id IN (` + in + `)
+				WHERE (to_symbol_id IS NULL OR to_symbol_id IN (` + in + `))
 				  AND id NOT IN (
 					SELECT MIN(id) FROM code_edges
-					WHERE to_symbol_id IN (` + in + `)
+					WHERE (to_symbol_id IS NULL OR to_symbol_id IN (` + in + `))
 					GROUP BY from_file_id, IFNULL(from_symbol_id, ''), to_file_id, rel
 				  )
 			)
