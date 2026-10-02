@@ -209,13 +209,21 @@ func DefaultImpactDepth() int { return defaultImpactDepth }
 // No prefix, basename, or fuzzy fallback; a seed that names no row (by uuid nor
 // path) is an error — never a silently empty walk — and the error names both
 // accepted forms instead of leaking the store's no-rows error.
+// Symbol seeds are uuid-only (R2): a miss names the accepted form and the
+// table — and redirects a pasted path to the file: prefix — but resolution
+// itself never changes with the message.
 func (e *Engine) resolveSeed(typ, value string) (Hit, error) {
 	h, err := e.lookupEntity(typ, value, ReasonExactID, 0, 1.0)
-	if err == nil || typ != "file" || !isNotFound(err) {
-		if err != nil {
-			err = fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, value, err)
-		}
-		return h, err
+	if err == nil {
+		return h, nil
+	}
+	if !isNotFound(err) {
+		return Hit{}, fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, value, err)
+	}
+	if typ != "file" {
+		return Hit{}, fmt.Errorf(
+			"retrieval: ImpactWalk: seed symbol:<uuid> not found — %q matched no row in `symbols` (by id); symbol seeds are uuid-only, and a file path is not accepted here",
+			value)
 	}
 	f, perr := e.store.GetFileByPath(store.NormalizePath(value))
 	if perr != nil {
@@ -223,7 +231,7 @@ func (e *Engine) resolveSeed(typ, value string) (Hit, error) {
 			return Hit{}, fmt.Errorf("retrieval: ImpactWalk: seed %s:%s: %w", typ, value, perr)
 		}
 		return Hit{}, fmt.Errorf(
-			"retrieval: ImpactWalk: seed file:<uuid-or-path> not found — %q matched no row in `files` (by path) nor in `files.id` (by uuid); get one with `trace search <term>` and use the entity_id",
+			"retrieval: ImpactWalk: seed file:<uuid-or-path> not found — %q matched no row in `files` (by path) nor in `files.id` (by uuid). File ids come from a path-shaped search, e.g. `trace search \"src/store\"` (file rows carry the path in `title`, not `body`); `trace index status` shows what is indexed",
 			value)
 	}
 	return Hit{EntityType: "file", EntityID: f.ID, Title: f.Path, Path: f.Path, ReasonCode: ReasonExactPath, Score: 1.0, Distance: 0}, nil

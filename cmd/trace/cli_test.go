@@ -1618,11 +1618,41 @@ func TestImpactWalkCLIPathSeed(t *testing.T) {
 	errOut := captureStderrAllowFail(t, func() int {
 		return run([]string{"-C", dir, "impact", "walk", "--seed", "file:missing.go", "--depth", "1"})
 	})
-	if !strings.Contains(errOut, "uuid-or-path") {
-		t.Fatalf("error must name accepted form: %q", errOut)
+	for _, want := range []string{"uuid-or-path", "trace search", "index status", "path-shaped"} {
+		if !strings.Contains(errOut, want) {
+			t.Fatalf("error must name accepted form and true advice (%q): %q", want, errOut)
+		}
 	}
 	if strings.Contains(errOut, "sql: no rows") {
 		t.Fatalf("store no-rows error leaked: %q", errOut)
+	}
+
+	// Symbol seed: same treatment — accepted form named, no store leak (R2).
+	errSymbol := captureStderrAllowFail(t, func() int {
+		return run([]string{"-C", dir, "impact", "walk", "--seed", "symbol:nope", "--depth", "1"})
+	})
+	for _, want := range []string{"symbol:<uuid>", "`symbols`", "uuid-only"} {
+		if !strings.Contains(errSymbol, want) {
+			t.Fatalf("symbol error must name accepted form (%q): %q", want, errSymbol)
+		}
+	}
+	if strings.Contains(errSymbol, "sql: no rows") {
+		t.Fatalf("store no-rows error leaked: %q", errSymbol)
+	}
+
+	// R3 shapes callers type resolve at the CLI too (doubled separators are
+	// covered at the retrieval layer via pkg//mod.go).
+	for _, shape := range []string{"file:/a.go", "file:./a.go"} {
+		outShape := captureStdout(t, func() int {
+			return run([]string{"-C", dir, "impact", "walk", "--seed", shape, "--depth", "1"})
+		})
+		var resShape map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(outShape)), &resShape); err != nil {
+			t.Fatalf("json for %s: %v (%s)", shape, err, outShape)
+		}
+		if resShape["ok"] != true {
+			t.Fatalf("shape %s must resolve: %#v", shape, resShape)
+		}
 	}
 }
 

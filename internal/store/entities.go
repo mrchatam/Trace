@@ -326,10 +326,26 @@ func nullStrPtr(ns sql.NullString) *string {
 	return &s
 }
 
-// NormalizePath forces repo-relative forward-slash paths.
+// NormalizePath forces canonical repo-relative forward-slash paths:
+// backslashes become separators, repeated separators collapse, and a leading
+// "/" or "./" is trimmed. This is the repo's single path canonicaliser —
+// every writer (UpsertFile et al.) and every lookup (GetFileByPath, seeds,
+// Engine.Exact) runs through it, so caller shapes like "/pkg/x.go" or
+// "pkg//x.go" resolve to the same stored row instead of missing.
 func NormalizePath(path string) string {
 	path = strings.ReplaceAll(path, "\\", "/")
-	return strings.TrimPrefix(path, "./")
+	for strings.Contains(path, "//") {
+		path = strings.ReplaceAll(path, "//", "/")
+	}
+	for {
+		before := path
+		path = strings.TrimPrefix(path, "./")
+		path = strings.TrimPrefix(path, "/")
+		if path == before {
+			break
+		}
+	}
+	return path
 }
 
 // EnsureRFC3339 returns t formatted as RFC3339 UTC, or now if zero.

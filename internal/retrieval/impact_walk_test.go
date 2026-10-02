@@ -338,6 +338,68 @@ func TestImpactWalkIncludesAffectedTests(t *testing.T) {
 	}
 }
 
+// TestImpactWalkSymbolSeedMessages locks the symbol-seed not-found message
+// (R2): it names the accepted form and the table instead of leaking the store's
+// no-rows error, and tells a path-pasting caller that paths belong to file:.
+// Resolution itself must not change: a valid symbol uuid still walks.
+func TestImpactWalkSymbolSeedMessages(t *testing.T) {
+	eng, st, _ := openEngine(t)
+	ctx := context.Background()
+
+	f, err := st.UpsertFile("a.go", "ha", nil)
+	if err != nil {
+		t.Fatalf("UpsertFile: %v", err)
+	}
+	if err := st.ReplaceFileSymbols("a.go", []store.Symbol{{Name: "Alpha", Kind: "function"}}); err != nil {
+		t.Fatalf("ReplaceFileSymbols: %v", err)
+	}
+	syms, err := st.ListSymbolsByPath("a.go")
+	if err != nil || len(syms) != 1 {
+		t.Fatalf("ListSymbolsByPath: %v %+v", err, syms)
+	}
+	symID := syms[0].ID
+
+	// Resolution unchanged (hard rule: message-only fix).
+	res, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "symbol", EntityID: symID},
+	}, 1)
+	if err != nil {
+		t.Fatalf("valid symbol uuid must still walk: %v", err)
+	}
+	if len(res.Seeds) != 1 || res.Seeds[0].EntityID != symID {
+		t.Fatalf("seeds: %+v", res.Seeds)
+	}
+
+	// Miss: accepted form + table named, no store leak.
+	_, err = eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "symbol", EntityID: "nope"},
+	}, 1)
+	if err == nil {
+		t.Fatal("unresolved symbol seed must error")
+	}
+	msg := err.Error()
+	for _, want := range []string{"symbol:<uuid>", "nope", "`symbols`", "uuid-only"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("symbol not-found message must contain %q: %v", want, msg)
+		}
+	}
+	if strings.Contains(msg, "sql: no rows") {
+		t.Fatalf("store no-rows error leaked through: %v", msg)
+	}
+
+	// A path pasted under symbol: is a miss with the same teaching, and must
+	// never resolve just because the path exists as a file.
+	_, err = eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+		{EntityType: "symbol", EntityID: f.Path},
+	}, 1)
+	if err == nil {
+		t.Fatal("file path under symbol: must not resolve")
+	}
+	if !strings.Contains(err.Error(), "file path is not accepted") {
+		t.Fatalf("path-under-symbol message must redirect to file:: %v", err)
+	}
+}
+
 func TestImpactWalkDepthStillCapped(t *testing.T) {
 	eng, st, _ := openEngine(t)
 	ctx := context.Background()
@@ -429,7 +491,23 @@ func TestImpactWalkFileSeedByPath(t *testing.T) {
 		t.Fatalf("backslash seed must resolve pkg/mod.go: %+v", resBack.Seeds)
 	}
 
-	// A path naming no row is an error, never an empty walk.
+	// R3 shapes callers type: leading slash and doubled separators must
+	// canonicalize to the same row, never to a miss.
+	for _, shape := range []string{"/pkg/mod.go", "pkg//mod.go", "./pkg/mod.go"} {
+		resShape, err := eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
+			{EntityType: "file", EntityID: shape},
+		}, 2)
+		if err != nil {
+			t.Fatalf("ImpactWalk seed %q: %v", shape, err)
+		}
+		if len(resShape.Seeds) != 1 || resShape.Seeds[0].EntityID != m.ID {
+			t.Fatalf("seed %q must resolve pkg/mod.go: %+v", shape, resShape.Seeds)
+		}
+	}
+
+	// A path naming no row is an error, never an empty walk. The message must
+	// name the accepted form and advice that is true for every input (R1):
+	// file rows surface via path-shaped searches only, and index status exists.
 	_, err = eng.ImpactWalk(ctx, []retrieval.ImpactSeed{
 		{EntityType: "file", EntityID: "missing.go"},
 	}, 2)
@@ -437,11 +515,19 @@ func TestImpactWalkFileSeedByPath(t *testing.T) {
 		t.Fatal("unresolved path seed must error, not return an empty blast")
 	}
 	msg := err.Error()
-	if !strings.Contains(msg, "uuid-or-path") || !strings.Contains(msg, "missing.go") {
-		t.Fatalf("error must name the accepted form and the seed: %v", msg)
+	for _, want := range []string{"uuid-or-path", "missing.go", "trace search", "index status"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("file not-found message must contain %q: %v", want, msg)
+		}
 	}
 	if strings.Contains(msg, "sql: no rows") {
 		t.Fatalf("store no-rows error leaked through: %v", msg)
+	}
+
+	// A symbol-shaped term must not be promised as a route to file ids (R1):
+	// fts_docs file rows carry the path in title, not body.
+	if !strings.Contains(msg, "path-shaped") {
+		t.Fatalf("file not-found message must scope the search advice to path-shaped terms: %v", msg)
 	}
 
 	// No prefix/basename fallback: "a.g" names no row and must not resolve.
