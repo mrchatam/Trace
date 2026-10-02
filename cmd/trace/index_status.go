@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mrchatam/Trace/internal/analyzers"
+	"github.com/mrchatam/Trace/internal/indexwalk"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -24,69 +24,16 @@ type indexStatusJSON struct {
 	Drift              *indexDriftJSON `json:"drift"`
 }
 
-// maxDriftPathsSample caps the path lists in the drift report; the counts
-// carry the full number, the samples make the failure diagnosable.
-const maxDriftPathsSample = 20
-
-// indexDriftJSON compares the on-disk walk (exactly what `trace index` would
-// index) against the store. not_indexed is the silent-truncation signal: a
-// whole-tree index that aborted partway (or a store frozen by a constraint
-// failure) leaves the graph a smaller world than the tree, and before this
-// field existed nothing but a manual git-vs-store diff could see it.
-// not_on_disk is the other direction: indexed paths that a full-tree index
-// would garbage-collect (deleted, renamed, or no longer indexable).
-type indexDriftJSON struct {
-	Walkable        int      `json:"walkable"`
-	Indexed         int      `json:"indexed"`
-	NotIndexed      int      `json:"not_indexed"`
-	NotIndexedPaths []string `json:"not_indexed_paths,omitempty"`
-	NotOnDisk       int      `json:"not_on_disk"`
-	NotOnDiskPaths  []string `json:"not_on_disk_paths,omitempty"`
-	PathsTruncated  bool     `json:"paths_truncated,omitempty"`
-}
+// indexDriftJSON is the wire shape of indexwalk.Drift (same fields, JSON
+// tags). The walk-vs-store comparison itself lives in internal/indexwalk so
+// the loop gate evaluates the identical definition.
+type indexDriftJSON = indexwalk.Drift
 
 func computeIndexDrift(abs string, useGitIgnore bool, st *store.Store) (*indexDriftJSON, error) {
-	walkable, err := walkIndexable(abs, useGitIgnore)
-	if err != nil {
-		return nil, err
-	}
-	indexed, err := st.ListFilePaths()
-	if err != nil {
-		return nil, err
-	}
-	sort.Strings(walkable)
-	sort.Strings(indexed)
-	inStore := make(map[string]bool, len(indexed))
-	for _, p := range indexed {
-		inStore[p] = true
-	}
-	onDisk := make(map[string]bool, len(walkable))
-	for _, p := range walkable {
-		onDisk[p] = true
-	}
-
-	d := &indexDriftJSON{Walkable: len(walkable), Indexed: len(indexed)}
-	for _, p := range walkable {
-		if !inStore[p] {
-			d.NotIndexed++
-			if len(d.NotIndexedPaths) < maxDriftPathsSample {
-				d.NotIndexedPaths = append(d.NotIndexedPaths, p)
-			} else {
-				d.PathsTruncated = true
-			}
-		}
-	}
-	for _, p := range indexed {
-		if !onDisk[p] {
-			d.NotOnDisk++
-			if len(d.NotOnDiskPaths) < maxDriftPathsSample {
-				d.NotOnDiskPaths = append(d.NotOnDiskPaths, p)
-			} else {
-				d.PathsTruncated = true
-			}
-		}
-	}
-	return d, nil
+	// useGitIgnore is honored for CLI parity with the index walk; the loop
+	// gate passes true unconditionally (GitIgnored self-disables without git).
+	_ = useGitIgnore
+	return indexwalk.ComputeDrift(abs, st)
 }
 
 func cmdIndexStatus(root string, args []string) int {
@@ -174,12 +121,12 @@ func setHookInstalledFlag(st *store.Store, installed bool) error {
 	return st.UpsertGraphSyncState(state)
 }
 
-// shortPathSample quotes up to maxDriftPathsSample paths for a stderr line,
-// with an "…and N more" tail when the underlying list was truncated.
+// shortPathSample quotes up to indexwalk.MaxPathsSample paths for a stderr
+// line, with an "…and N more" tail when the underlying list was truncated.
 func shortPathSample(paths []string, total int) string {
 	named := paths
-	if len(named) > maxDriftPathsSample {
-		named = named[:maxDriftPathsSample]
+	if len(named) > indexwalk.MaxPathsSample {
+		named = named[:indexwalk.MaxPathsSample]
 	}
 	quoted := make([]string, 0, len(named)+1)
 	for _, p := range named {

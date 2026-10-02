@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/mrchatam/Trace/internal/deliberation"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/indexwalk"
 	"github.com/mrchatam/Trace/internal/planner"
 	"github.com/mrchatam/Trace/internal/store"
 )
@@ -26,6 +29,9 @@ const (
 	violationCodePrematureImplementation = "premature_implementation"
 	violationCodeGateOrientFailed        = "gate_orient_failed"
 	violationCodeGoalPlanGapAdvisory     = "goal_plan_gap_advisory"
+
+	violationCodeIndexDrift = "index_drift"
+	reasonCodeIndexDrift    = "index_drift"
 
 	reasonCodeGoalPlanGapTerminalAdvisory = "goal_plan_gap_terminal_advisory"
 
@@ -263,6 +269,22 @@ func evaluateDone(
 			fmt.Sprintf("done blocked: recommended phase INVESTIGATE (%s)", deliberation.ReasonBlockingUncertainty))}, nil
 	}
 
+	// Phase closure must not sign off on a graph smaller than the tree: work
+	// recorded into a truncated index is evidence about files the graph does
+	// not contain (D1: a consumer repo lost 20 of 145 files across 7 phases
+	// while every index run reported success). Scoped to the done gate —
+	// GateForExport ≡ evaluateDone is a locked P27 board decision and export
+	// enforcement semantics are a separate surface.
+	if gateFor == GateForDone {
+		drift, derr := indexwalk.ComputeDrift(st.ProjectRoot(), st)
+		if derr != nil {
+			return false, nil, fmt.Errorf("loop gate: index drift walk: %w", derr)
+		}
+		if drift.NotIndexed > 0 {
+			return false, []Violation{indexDriftViolation(gateFor, drift)}, nil
+		}
+	}
+
 	if terminalPlanGapAdvisory(gc) {
 		return true, []Violation{terminalPlanGapViolation(gateFor, gc.goalID)}, nil
 	}
@@ -281,6 +303,31 @@ func orientViolation(gateFor GateFor, taskID, reasonCode, message string) Violat
 		For:        string(gateFor),
 		Message:    message,
 		ReasonCode: reasonCode,
+	}
+}
+
+// indexDriftViolation carries its own remedy (the protocol requires refusals
+// to name the concrete call that clears them) and names sample missing paths
+// so the failure is diagnosable without a manual git-vs-store diff.
+func indexDriftViolation(gateFor GateFor, d *indexwalk.Drift) Violation {
+	sample := d.NotIndexedPaths
+	if len(sample) > 3 {
+		sample = sample[:3]
+	}
+	quoted := make([]string, 0, len(sample)+1)
+	for _, p := range sample {
+		quoted = append(quoted, strconv.Quote(p))
+	}
+	if more := d.NotIndexed - len(sample); more > 0 {
+		quoted = append(quoted, fmt.Sprintf("…and %d more", more))
+	}
+	return Violation{
+		Code:       violationCodeIndexDrift,
+		For:        string(gateFor),
+		ReasonCode: reasonCodeIndexDrift,
+		Message: fmt.Sprintf("done blocked: index drift — %d of %d walkable files are not in the store (%s); the graph is smaller than the tree",
+			d.NotIndexed, d.Walkable, strings.Join(quoted, ", ")),
+		Remedy: "run `trace index` to index the full tree, then re-check `trace index status` (drift.not_indexed must be 0)",
 	}
 }
 

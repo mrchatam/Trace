@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/mrchatam/Trace/internal/analyzers"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/indexwalk"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -249,82 +249,13 @@ func normalizeProjectPath(root, p string) (rel, absPath string, err error) {
 	return rel, absPath, nil
 }
 
-// t0SkipDirs are always-skip directory basenames (case-sensitive). Not build/bin.
-var t0SkipDirs = map[string]struct{}{
-	".git": {}, ".trace": {}, "node_modules": {}, "vendor": {},
-	"__pycache__": {}, ".venv": {}, "venv": {}, "dist": {},
-	".next": {}, "target": {}, "coverage": {},
-}
+// Walk/T0/gitignore rules live in internal/indexwalk so `index status` drift
+// and the loop gate evaluate the identical definition of "what trace index
+// would index" (D1: one smaller-world definition hid a 20-file truncation).
+func isT0SkipDir(name string) bool { return indexwalk.IsT0SkipDir(name) }
 
-func isT0SkipDir(name string) bool {
-	_, ok := t0SkipDirs[name]
-	return ok
-}
-
-// isT0SkipPath is true when any path component is a T0 dir, or the basename
-// ends with a T0 minified suffix (.min.js / .min.mjs / .min.cjs).
-func isT0SkipPath(rel string) bool {
-	rel = store.NormalizePath(rel)
-	base := filepath.Base(rel)
-	if strings.HasSuffix(base, ".min.js") ||
-		strings.HasSuffix(base, ".min.mjs") ||
-		strings.HasSuffix(base, ".min.cjs") {
-		return true
-	}
-	for _, seg := range strings.Split(rel, "/") {
-		if seg != "" && isT0SkipDir(seg) {
-			return true
-		}
-	}
-	return false
-}
+func isT0SkipPath(rel string) bool { return indexwalk.IsT0SkipPath(rel) }
 
 func walkIndexable(root string, useGitIgnore bool) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		name := d.Name()
-		if d.IsDir() {
-			// 1. T0 always-skip dirs before descent
-			if isT0SkipDir(name) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		rel = store.NormalizePath(rel)
-		// 2. unsupported language → skip
-		if _, ok := analyzers.DetectLanguage(rel); !ok {
-			return nil
-		}
-		// 3. T0 file suffix or path-segment
-		if isT0SkipPath(rel) {
-			return nil
-		}
-		// 4. best-effort gitignore after T0
-		if useGitIgnore && gitIgnored(root, rel) {
-			return nil
-		}
-		out = append(out, rel)
-		return nil
-	})
-	return out, err
-}
-
-// gitIgnored is best-effort: uses `git check-ignore` when available.
-func gitIgnored(root, rel string) bool {
-	cmd := exec.Command("git", "-C", root, "check-ignore", "-q", "--", rel)
-	err := cmd.Run()
-	if err == nil {
-		return true // exit 0 → ignored
-	}
-	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
-		return false // not ignored
-	}
-	return false
+	return indexwalk.Walk(root, useGitIgnore)
 }
