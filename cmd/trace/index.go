@@ -71,23 +71,44 @@ func cmdIndex(root string, args []string, command string) int {
 	}
 
 	var indexed, hashSkipped, skipped, removed int
-	type indexFailure struct {
-		path string
-		err  error
-	}
-	var failures []indexFailure
-	for _, p := range paths {
-		rel, absPath, err := normalizeProjectPath(abs, p)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "index: %v\n", err)
-			return exitFail
+	var failures []pathFailure
+	if fullTree {
+		// Whole-tree walks reconcile with continue-past-failure semantics: one
+		// bad record must not truncate the rest of the tree — an abort left
+		// every later file unindexed with only a one-line error to show for it
+		// (20 files went missing this way on a consumer repo). Failures print
+		// as they happen; the sync watermark below stays untouched so `index
+		// status` stays stale.
+		var rels []string
+		for _, p := range paths {
+			rel, _, nerr := normalizeProjectPath(abs, p)
+			if nerr != nil {
+				fmt.Fprintf(os.Stderr, "index: %v\n", nerr)
+				return exitFail
+			}
+			if isT0SkipPath(rel) {
+				skipped++
+				continue
+			}
+			rels = append(rels, rel)
 		}
-		// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not hard fail.
-		if isT0SkipPath(rel) {
-			skipped++
-			continue
-		}
-		if !fullTree {
+		out := reconcilePaths(ctx, st, repo, abs, rels, force, "index: ", nil)
+		indexed = out.indexed
+		hashSkipped = out.hashSkipped
+		skipped += out.skipped
+		failures = out.failures
+	} else {
+		for _, p := range paths {
+			rel, absPath, err := normalizeProjectPath(abs, p)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "index: %v\n", err)
+				return exitFail
+			}
+			// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not hard fail.
+			if isT0SkipPath(rel) {
+				skipped++
+				continue
+			}
 			if _, sterr := os.Stat(absPath); sterr != nil && errors.Is(sterr, fs.ErrNotExist) {
 				if derr := st.DeleteFileByPath(rel); derr != nil {
 					fmt.Fprintf(os.Stderr, "index: %v\n", derr)
@@ -96,36 +117,24 @@ func cmdIndex(root string, args []string, command string) int {
 				removed++
 				continue
 			}
-		}
-		wasHashSkip, err := indexOne(ctx, st, repo, abs, rel, absPath, force)
-		if err != nil {
-			var skip *analyzers.SkipError
-			if errors.As(err, &skip) {
-				skipped++
-				continue
+			wasHashSkip, err := indexOne(ctx, st, repo, abs, rel, absPath, force)
+			if err != nil {
+				var skip *analyzers.SkipError
+				if errors.As(err, &skip) {
+					skipped++
+					continue
+				}
+				// Explicit argv keeps hard-fail semantics: the caller asked
+				// for exactly that file.
+				fmt.Fprintf(os.Stderr, "index: %v\n", err)
+				return exitFail
 			}
-			if fullTree {
-				// One bad record must not truncate the rest of the tree: a
-				// whole-tree walk that aborted on the first failing file left
-				// every later file unindexed with only a one-line error to show
-				// for it (20 files went missing this way on a consumer repo).
-				// Continue, report every failure by path below, keep the sync
-				// watermark where it is so `index status` stays stale, and exit
-				// non-zero. Explicit argv keeps hard-fail semantics: the caller
-				// asked for exactly that file.
-				failures = append(failures, indexFailure{path: rel, err: err})
-				continue
+			if wasHashSkip {
+				hashSkipped++
+			} else {
+				indexed++
 			}
-			fmt.Fprintf(os.Stderr, "index: %v\n", err)
-			return exitFail
-		}
-		if wasHashSkip {
-			hashSkipped++
-		} else {
-			indexed++
-		}
-		// DF-40: after successful partial argv index, drop same-hash orphans missing on disk.
-		if !fullTree {
+			// DF-40: after successful partial argv index, drop same-hash orphans missing on disk.
 			n, gerr := gcContentHashOrphans(st, abs, rel)
 			if gerr != nil {
 				fmt.Fprintf(os.Stderr, "index: hash orphan gc: %v\n", gerr)
@@ -159,9 +168,8 @@ func cmdIndex(root string, args []string, command string) int {
 
 	fmt.Fprintf(os.Stderr, "indexed %d, hash_skipped %d, skipped %d, removed %d\n", indexed, hashSkipped, skipped, removed)
 	if len(failures) > 0 {
-		for _, f := range failures {
-			fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", f.path, f.err)
-		}
+		// Per-file FAILED lines were printed by reconcilePaths as they
+		// happened; the summary carries the count and the remedy.
 		fmt.Fprintf(os.Stderr, "index: %d of %d files failed; store is incomplete until these index cleanly (re-run `trace index` after fixing)\n", len(failures), len(paths))
 		return exitFail
 	}
@@ -226,6 +234,66 @@ func indexOne(ctx context.Context, st *store.Store, repo vcs.Repository, root, r
 	}
 	err = analyzers.IndexFile(ctx, st, rel, content, opts)
 	return skipped, err
+}
+
+// pathFailure is one file that failed to reconcile.
+type pathFailure struct {
+	path string
+	err  error
+}
+
+// reconcileOutcome is the tally of indexing a list of paths.
+type reconcileOutcome struct {
+	indexed     int
+	hashSkipped int
+	skipped     int
+	failures    []pathFailure
+}
+
+// reconcilePaths indexes each rel path against root, continuing past
+// per-file failures so one bad record cannot truncate the rest of the set
+// (the whole-tree lesson: an abort converts loud failure into silent
+// truncation). SkipError paths count as skipped and print nothing; every
+// other failure prints "<logPrefix>FAILED <rel>: <err>" as it happens and is
+// returned in outcome.failures for caller policy (exit codes, summaries).
+// onIndexed, when non-nil, fires per successful path (watch mode logs
+// "indexed <rel>"; the CLI walk counts only). Shared by the whole-tree walk
+// and watch-mode drift healing so both surfaces keep identical reconcile
+// semantics.
+func reconcilePaths(
+	ctx context.Context,
+	st *store.Store,
+	repo vcs.Repository,
+	root string,
+	rels []string,
+	force bool,
+	logPrefix string,
+	onIndexed func(rel string),
+) reconcileOutcome {
+	var out reconcileOutcome
+	for _, rel := range rels {
+		absPath := filepath.Join(root, filepath.FromSlash(rel))
+		wasHashSkip, err := indexOne(ctx, st, repo, root, rel, absPath, force)
+		if err != nil {
+			var skip *analyzers.SkipError
+			if errors.As(err, &skip) {
+				out.skipped++
+				continue
+			}
+			out.failures = append(out.failures, pathFailure{path: rel, err: err})
+			fmt.Fprintf(os.Stderr, "%sFAILED %s: %v\n", logPrefix, rel, err)
+			continue
+		}
+		if wasHashSkip {
+			out.hashSkipped++
+		} else {
+			out.indexed++
+		}
+		if onIndexed != nil {
+			onIndexed(rel)
+		}
+	}
+	return out
 }
 
 func normalizeProjectPath(root, p string) (rel, absPath string, err error) {

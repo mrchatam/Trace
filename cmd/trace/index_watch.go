@@ -202,10 +202,8 @@ func pluralSuffix(n int, singular, plural string) string {
 	return plural
 }
 
-// healDrift indexes every walkable path the store is missing. One bad file
-// must not stop the rest — failures are reported per path and the sweep
-// continues (the whole-tree lesson: an abort converts loud failure into
-// silent truncation, the worse defect).
+// healDrift indexes every walkable path the store is missing, with the same
+// continue-past-failure semantics as the whole-tree walk (reconcilePaths).
 func healDrift(ctx context.Context, st *store.Store, repo vcs.Repository, abs string) {
 	missing, err := indexwalk.MissingPaths(abs, st)
 	if err != nil {
@@ -215,21 +213,10 @@ func healDrift(ctx context.Context, st *store.Store, repo vcs.Repository, abs st
 	if len(missing) == 0 {
 		return
 	}
-	var indexedCount int
-	for _, rel := range missing {
-		absPath := filepath.Join(abs, filepath.FromSlash(rel))
-		if _, err := indexOne(ctx, st, repo, abs, rel, absPath, false); err != nil {
-			var skip *analyzers.SkipError
-			if errors.As(err, &skip) {
-				continue
-			}
-			fmt.Fprintf(os.Stderr, "index watch: FAILED %s: %v\n", rel, err)
-			continue
-		}
-		indexedCount++
+	out := reconcilePaths(ctx, st, repo, abs, missing, false, "index watch: ", func(rel string) {
 		fmt.Fprintf(os.Stderr, "indexed %s\n", rel)
-	}
-	fmt.Fprintf(os.Stderr, "index watch: drift heal: %d of %d missing path(s) indexed\n", indexedCount, len(missing))
+	})
+	fmt.Fprintf(os.Stderr, "index watch: drift heal: %d of %d missing path(s) indexed\n", out.indexed, len(missing))
 }
 
 func collectWatchDirs(root string, paths []string) ([]string, error) {
