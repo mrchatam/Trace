@@ -98,50 +98,49 @@ func cmdIndex(root string, args []string, command string) int {
 		skipped += out.skipped
 		failures = out.failures
 	} else {
+		// Explicit argv reconciles with the same continue-past-failure
+		// semantics as the whole-tree walk: one bad file must not stop the
+		// rest of the caller's list from indexing (an abort turned a partial
+		// success into no work at all). Missing paths still delete-only;
+		// T0 paths still count as skipped; failures print as they happen and
+		// the summary below exits non-zero.
+		var rels []string
 		for _, p := range paths {
 			rel, absPath, err := normalizeProjectPath(abs, p)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "index: %v\n", err)
-				return exitFail
+				failures = append(failures, pathFailure{path: p, err: err})
+				fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", p, err)
+				continue
 			}
-			// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not hard fail.
+			// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not a failure.
 			if isT0SkipPath(rel) {
 				skipped++
 				continue
 			}
 			if _, sterr := os.Stat(absPath); sterr != nil && errors.Is(sterr, fs.ErrNotExist) {
 				if derr := st.DeleteFileByPath(rel); derr != nil {
-					fmt.Fprintf(os.Stderr, "index: %v\n", derr)
-					return exitFail
+					failures = append(failures, pathFailure{path: rel, err: derr})
+					fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", rel, derr)
+					continue
 				}
 				removed++
 				continue
 			}
-			wasHashSkip, err := indexOne(ctx, st, repo, abs, rel, absPath, force)
-			if err != nil {
-				var skip *analyzers.SkipError
-				if errors.As(err, &skip) {
-					skipped++
-					continue
-				}
-				// Explicit argv keeps hard-fail semantics: the caller asked
-				// for exactly that file.
-				fmt.Fprintf(os.Stderr, "index: %v\n", err)
-				return exitFail
-			}
-			if wasHashSkip {
-				hashSkipped++
-			} else {
-				indexed++
-			}
-			// DF-40: after successful partial argv index, drop same-hash orphans missing on disk.
+			rels = append(rels, rel)
+		}
+		out := reconcilePaths(ctx, st, repo, abs, rels, force, "index: ", func(rel string) error {
+			// DF-40: after a successful partial argv index, drop same-hash orphans missing on disk.
 			n, gerr := gcContentHashOrphans(st, abs, rel)
 			if gerr != nil {
-				fmt.Fprintf(os.Stderr, "index: hash orphan gc: %v\n", gerr)
-				return exitFail
+				return fmt.Errorf("hash orphan gc: %w", gerr)
 			}
 			removed += n
-		}
+			return nil
+		})
+		indexed += out.indexed
+		hashSkipped += out.hashSkipped
+		skipped += out.skipped
+		failures = append(failures, out.failures...)
 	}
 
 	if fullTree {
@@ -256,10 +255,11 @@ type reconcileOutcome struct {
 // truncation). SkipError paths count as skipped and print nothing; every
 // other failure prints "<logPrefix>FAILED <rel>: <err>" as it happens and is
 // returned in outcome.failures for caller policy (exit codes, summaries).
-// onIndexed, when non-nil, fires per successful path (watch mode logs
-// "indexed <rel>"; the CLI walk counts only). Shared by the whole-tree walk
-// and watch-mode drift healing so both surfaces keep identical reconcile
-// semantics.
+// onIndexed, when non-nil, fires per successful path and its error, if any,
+// is recorded as that path's failure (watch mode logs "indexed <rel>" and
+// returns nil; the CLI argv path runs its post-index content-hash orphan GC
+// here). Shared by the whole-tree walk, explicit argv, and watch-mode drift
+// healing so all surfaces keep identical reconcile semantics.
 func reconcilePaths(
 	ctx context.Context,
 	st *store.Store,
@@ -268,7 +268,7 @@ func reconcilePaths(
 	rels []string,
 	force bool,
 	logPrefix string,
-	onIndexed func(rel string),
+	onIndexed func(rel string) error,
 ) reconcileOutcome {
 	var out reconcileOutcome
 	for _, rel := range rels {
@@ -290,7 +290,11 @@ func reconcilePaths(
 			out.indexed++
 		}
 		if onIndexed != nil {
-			onIndexed(rel)
+			if herr := onIndexed(rel); herr != nil {
+				out.failures = append(out.failures, pathFailure{path: rel, err: herr})
+				fmt.Fprintf(os.Stderr, "%sFAILED %s: %v\n", logPrefix, rel, herr)
+				continue
+			}
 		}
 	}
 	return out

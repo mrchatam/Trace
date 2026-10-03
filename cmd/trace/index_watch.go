@@ -213,8 +213,9 @@ func healDrift(ctx context.Context, st *store.Store, repo vcs.Repository, abs st
 	if len(missing) == 0 {
 		return
 	}
-	out := reconcilePaths(ctx, st, repo, abs, missing, false, "index watch: ", func(rel string) {
+	out := reconcilePaths(ctx, st, repo, abs, missing, false, "index watch: ", func(rel string) error {
 		fmt.Fprintf(os.Stderr, "indexed %s\n", rel)
+		return nil
 	})
 	fmt.Fprintf(os.Stderr, "index watch: drift heal: %d of %d missing path(s) indexed\n", out.indexed, len(missing))
 }

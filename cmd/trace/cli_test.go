@@ -587,17 +587,100 @@ func TestIndexFullTreeContinuesPastPerFileFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
 	for _, p := range []string{"bbb-early.js", "zzz-late.js"} {
 		if _, err := st.GetFileByPath(p); err != nil {
+			st.Close()
 			t.Fatalf("%s must stay indexed despite aaa-broken.js failing: %v", p, err)
 		}
 	}
+	// Close before the argv run below: an open store holds the root lock and
+	// would mask the poison error with a lock error.
+	st.Close()
 
-	// Explicit argv keeps hard-fail semantics for the file the caller named.
+	// Explicit argv reconciles like the walk now: it exits non-zero and names
+	// the failing file instead of a bare error line.
 	code2, _, stderr2 := runCapture(t, []string{"-C", dir, "index", "aaa-broken.js"})
 	if code2 == exitOK {
 		t.Fatalf("explicit argv index must fail on its own file, stderr: %q", stderr2)
+	}
+	if !strings.Contains(stderr2, "FAILED aaa-broken.js") {
+		t.Fatalf("argv stderr must name the failed path, got %q", stderr2)
+	}
+}
+
+func TestIndexArgvContinuesPastPerFileFailure(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("permission-denied poison only fails for non-root on POSIX")
+	}
+	dir := t.TempDir()
+	if code := run([]string{"-C", dir, "init"}); code != exitOK {
+		t.Fatalf("init: %d", code)
+	}
+
+	// aaa-broken.js is the first argv path; if the run aborted on it, the
+	// later paths would never be touched.
+	broken := filepath.Join(dir, "aaa-broken.js")
+	early := filepath.Join(dir, "bbb-early.js")
+	late := filepath.Join(dir, "zzz-late.js")
+	for _, p := range []struct {
+		path    string
+		content string
+	}{
+		{broken, "export function broken() { return 1 }\n"},
+		{early, "export function early() { return 2 }\n"},
+		{late, "export function late() { return 3 }\n"},
+	} {
+		if err := os.WriteFile(p.path, []byte(p.content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if code := run([]string{"-C", dir, "index"}); code != exitOK {
+		t.Fatalf("initial full-tree index: %d", code)
+	}
+
+	// Poison the first argv path and edit the second so that re-indexing it
+	// is observable in the store: an abort at the first failure would leave
+	// bbb-early.js with its old symbols.
+	if err := os.Chmod(broken, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(broken, 0o644) })
+	if err := os.WriteFile(early, []byte("export function earlyV2() { return 22 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, stderr := runCapture(t, []string{"-C", dir, "index", "aaa-broken.js", "bbb-early.js", "zzz-late.js"})
+	if code == exitOK {
+		t.Fatalf("argv index must exit non-zero when a named file fails, stderr: %q", stderr)
+	}
+	if !strings.Contains(stderr, "FAILED aaa-broken.js") {
+		t.Fatalf("stderr must name the failed path, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "1 of 3 files failed") {
+		t.Fatalf("stderr must summarize the failure count, got %q", stderr)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	syms, err := st.ListSymbolsByPath("bbb-early.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundV2 := false
+	for _, s := range syms {
+		if s.Name == "earlyV2" {
+			foundV2 = true
+			break
+		}
+	}
+	if !foundV2 {
+		t.Fatalf("bbb-early.js must be re-indexed even though aaa-broken.js failed first; got %+v", syms)
+	}
+	if _, err := st.GetFileByPath("zzz-late.js"); err != nil {
+		t.Fatalf("zzz-late.js must stay indexed: %v", err)
 	}
 }
 
