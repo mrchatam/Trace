@@ -32,7 +32,7 @@ cp -f bin/trace bin/trace-mcp ~/.local/bin/   # or any dir on PATH
 ```
 
 - Both `trace` and `trace-mcp` need **`CGO_ENABLED=1`** on tip (tree-sitter / analyzers). `CGO_ENABLED=0` fails to link language bindings.
-- Some library packages that do not import analyzers remain usable with `CGO_ENABLED=0`.
+- Library packages that do not import analyzers remain buildable with `CGO_ENABLED=0`: `internal/store`, `internal/vcs`, `internal/gitcli`, `internal/deliberation`, `internal/langdetect`, `internal/indexwalk`, `internal/domain`.
 - No GitHub Releases yet — use the build above. See also [`docs/gui-quickstart.md`](docs/gui-quickstart.md) for PATH notes.
 
 `trace install …` configures agent/MCP/hook snippets; it does **not** put binaries on PATH.

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mrchatam/Trace/internal/langdetect"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -935,6 +936,20 @@ func TestBuiltinLanguageAdaptersContributionPath(t *testing.T) {
 	for id, found := range wantIDs {
 		if !found {
 			t.Fatalf("builtinAdapters missing language id %q", id)
+		}
+	}
+
+	// Reverse direction: every langdetect table extension must have an adapter
+	// behind it. langdetect.Detect is the CGO-free classification surface
+	// (indexwalk, domain); an extension detectable there but unextractable via
+	// adapters would index files the parsers cannot read.
+	for _, ext := range langdetect.AllExts() {
+		a, ok := adapterByExt(ext)
+		if !ok {
+			t.Fatalf("langdetect table extension %q has no builtin adapter", ext)
+		}
+		if lang, _ := langdetect.Detect("x" + ext); lang != a.ID() {
+			t.Fatalf("langdetect maps %q to %q but adapter id is %q", ext, lang, a.ID())
 		}
 	}
 }

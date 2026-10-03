@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mrchatam/Trace/internal/analyzers"
+	"github.com/mrchatam/Trace/internal/langdetect"
 	"github.com/mrchatam/Trace/internal/store"
 )
 
@@ -70,7 +70,7 @@ func Walk(root string, useGitIgnore bool) ([]string, error) {
 		}
 		rel = store.NormalizePath(rel)
 		// 2. unsupported language → skip
-		if _, ok := analyzers.DetectLanguage(rel); !ok {
+		if _, ok := langdetect.Detect(rel); !ok {
 			return nil
 		}
 		// 3. T0 file suffix or path-segment
