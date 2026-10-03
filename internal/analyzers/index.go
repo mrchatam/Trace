@@ -93,26 +93,28 @@ func IndexFile(ctx context.Context, st *store.Store, path string, content []byte
 
 	apply := func(stx *store.Store) error {
 		if _, err := stx.UpsertFile(path, contentHash, opts.GitOID); err != nil {
-			return fmt.Errorf("analyzers: upsert file: %w", err)
+			return fmt.Errorf("analyzers: upsert file %s: %w", path, err)
 		}
 		if err := stx.SetFileLanguage(path, lang); err != nil {
-			return fmt.Errorf("analyzers: set language: %w", err)
+			return fmt.Errorf("analyzers: set language %s: %w", path, err)
 		}
 		// Clear outgoing edges before symbol replace. Leftover-symbol DELETE would
 		// SET NULL to_symbol_id on outgoing contains_module/exports_api and collide
 		// idx_code_edges_unique. Incoming validates on stable ids are kept by
-		// ReplaceFileSymbols upsert-first; leftover incoming is collapsed there.
+		// ReplaceFileSymbols upsert-first; leftover incoming — including
+		// pre-existing file-level (NULL to_symbol_id) rows in the same group — is
+		// collapsed there (see collapseEdgesTargetingSymbols).
 		if err := stx.ReplaceFileEdges(path, nil); err != nil {
-			return fmt.Errorf("analyzers: clear edges: %w", err)
+			return fmt.Errorf("analyzers: clear edges %s: %w", path, err)
 		}
 		if err := stx.ReplaceFileSymbols(path, symbols); err != nil {
-			return fmt.Errorf("analyzers: replace symbols: %w", err)
+			return fmt.Errorf("analyzers: replace symbols %s: %w", path, err)
 		}
 		if err := stx.ReplaceFileImports(path, imports); err != nil {
-			return fmt.Errorf("analyzers: replace imports: %w", err)
+			return fmt.Errorf("analyzers: replace imports %s: %w", path, err)
 		}
 		if err := indexCodeEdges(stx, path, content, lang); err != nil {
-			return err
+			return fmt.Errorf("analyzers: index edges %s: %w", path, err)
 		}
 		return nil
 	}

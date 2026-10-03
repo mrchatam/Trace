@@ -716,6 +716,69 @@ func TestValidatesMultipleNamedImportsSurviveTargetReindex(t *testing.T) {
 	}
 }
 
+// TestIndexFileSurvivesFileLevelValidatesWithStaleTargetSymbols reproduces the
+// consumer-repo failure end to end. The test file imports two symbols; one
+// resolves symbol-level, one is not exported yet, so its validates edge is
+// file-level (to_symbol_id NULL). Re-indexing the target with a changed symbol
+// set makes the symbol-level edge's target a leftover symbol; the leftover
+// DELETE then SET NULLs that edge onto the pre-existing NULL row and
+// idx_code_edges_unique aborts the whole-tree index.
+func TestIndexFileSurvivesFileLevelValidatesWithStaleTargetSymbols(t *testing.T) {
+	st := openTemp(t)
+	ctx := context.Background()
+	libV1 := []byte("export function alpha() { return 1; }\n")
+	testSrc := []byte("import { alpha, epsilon } from './lib.js'\ntest('uses alpha', () => { alpha(); })\n")
+	if err := IndexFile(ctx, st, "src/lib.js", libV1, IndexOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := IndexFile(ctx, st, "src/lib.test.js", testSrc, IndexOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	edges, err := st.ListEdgesByFile("src/lib.test.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fileLevel, symbolLevel int
+	for _, e := range edges {
+		if e.Rel != store.RelValidates {
+			continue
+		}
+		if e.ToSymbolID == nil {
+			fileLevel++
+		} else {
+			symbolLevel++
+		}
+	}
+	if fileLevel != 1 || symbolLevel != 1 {
+		t.Fatalf("want 1 file-level + 1 symbol-level validates before reindex, got fileLevel=%d symbolLevel=%d (%+v)", fileLevel, symbolLevel, edges)
+	}
+	// alpha moves to a new line (new deterministic id → old id becomes
+	// leftover); epsilon is added. The leftover DELETE must not collide with
+	// the file-level edge.
+	libV2 := []byte("export function epsilon() { return 3; }\nexport function alpha() { return 1; }\n")
+	if err := IndexFile(ctx, st, "src/lib.js", libV2, IndexOptions{}); err != nil {
+		t.Fatalf("target reindex with file-level + symbol-level incoming validates: %v", err)
+	}
+	// Repair path: incoming validates are re-derived against the fresh symbols.
+	edges, err = st.ListEdgesByFile("src/lib.test.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var validates int
+	for _, e := range edges {
+		if e.Rel != store.RelValidates {
+			continue
+		}
+		validates++
+		if e.ToSymbolID == nil {
+			t.Fatalf("validates edge should be symbol-level after repair: %+v", e)
+		}
+	}
+	if validates != 2 {
+		t.Fatalf("want both named imports re-resolved after reindex, got %d validates in %+v", validates, edges)
+	}
+}
+
 func TestValidatesFooTestPackageNotInferred(t *testing.T) {
 	lib := []byte("package foo\n\nfunc Foo() int { return 1 }\n")
 	xtest := []byte("package foo_test\n\nimport \"testing\"\n\nfunc TestFoo(t *testing.T) {}\n")

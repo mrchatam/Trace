@@ -2,10 +2,14 @@ package loop_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 
+	"github.com/mrchatam/Trace/internal/analyzers"
 	"github.com/mrchatam/Trace/internal/deliberation"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/loop"
@@ -426,6 +430,57 @@ func TestEvaluateGate_Done_Clean(t *testing.T) {
 	_, taskID := seedFullCycleClear(t, psvc, dsvc, st)
 	allowed, violations := evalGate(t, st, psvc, dsvc, taskID, loop.GateForDone)
 	assertAllowed(t, allowed, violations)
+}
+
+// TestEvaluateGate_Done_IndexDriftBlocks pins the done-gate drift refusal: a
+// phase cannot close while the store is smaller than the walkable tree — the
+// D1 failure mode that lost 20 of 145 files across 7 phases while every index
+// run reported success. The refusal names sample paths and the clearing call;
+// indexing the missing files clears it. Export stays unaffected: the
+// GateForExport ≡ evaluateDone board lock (P27) is about deliberation-state
+// parity, and export enforcement semantics are a separate decision.
+func TestEvaluateGate_Done_IndexDriftBlocks(t *testing.T) {
+	st, psvc, dsvc := openLoopTestStore(t)
+	_, taskID := seedFullCycleClear(t, psvc, dsvc, st)
+	root := st.ProjectRoot()
+
+	// Walkable files on disk, never indexed.
+	names := []string{"late_a.go", "late_b.ts"}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("package main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	allowed, violations := evalGate(t, st, psvc, dsvc, taskID, loop.GateForDone)
+	assertBlocked(t, allowed, violations, "index_drift", "index_drift")
+	v := violations[0]
+	if !strings.Contains(v.Remedy, "trace index") || !strings.Contains(v.Remedy, "trace index status") {
+		t.Fatalf("remedy must name the clearing calls: %q", v.Remedy)
+	}
+	if !strings.Contains(v.Message, `"late_a.go"`) || !strings.Contains(v.Message, "2 of 2") {
+		t.Fatalf("message must name sample paths and counts: %q", v.Message)
+	}
+
+	// Export intentionally keeps its current semantics (see comment above).
+	allowedExport, exportViolations := evalGate(t, st, psvc, dsvc, taskID, loop.GateForExport)
+	if !allowedExport {
+		t.Fatalf("export gate must stay unaffected by the done-gate drift check: %+v", exportViolations)
+	}
+
+	// Indexing the missing files clears the refusal.
+	ctx := context.Background()
+	for _, name := range names {
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := analyzers.IndexFile(ctx, st, name, b, analyzers.IndexOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	allowed2, violations2 := evalGate(t, st, psvc, dsvc, taskID, loop.GateForDone)
+	assertAllowed(t, allowed2, violations2)
 }
 
 func TestEvaluateGate_Export_SameAsDone(t *testing.T) {

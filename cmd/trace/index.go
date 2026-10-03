@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/mrchatam/Trace/internal/analyzers"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/indexwalk"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -71,51 +71,76 @@ func cmdIndex(root string, args []string, command string) int {
 	}
 
 	var indexed, hashSkipped, skipped, removed int
-	for _, p := range paths {
-		rel, absPath, err := normalizeProjectPath(abs, p)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "index: %v\n", err)
-			return exitFail
+	var failures []pathFailure
+	if fullTree {
+		// Whole-tree walks reconcile with continue-past-failure semantics: one
+		// bad record must not truncate the rest of the tree — an abort left
+		// every later file unindexed with only a one-line error to show for it
+		// (20 files went missing this way on a consumer repo). Failures print
+		// as they happen; the sync watermark below stays untouched so `index
+		// status` stays stale.
+		var rels []string
+		for _, p := range paths {
+			rel, _, nerr := normalizeProjectPath(abs, p)
+			if nerr != nil {
+				fmt.Fprintf(os.Stderr, "index: %v\n", nerr)
+				return exitFail
+			}
+			if isT0SkipPath(rel) {
+				skipped++
+				continue
+			}
+			rels = append(rels, rel)
 		}
-		// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not hard fail.
-		if isT0SkipPath(rel) {
-			skipped++
-			continue
-		}
-		if !fullTree {
+		out := reconcilePaths(ctx, st, repo, abs, rels, force, "index: ", nil)
+		indexed = out.indexed
+		hashSkipped = out.hashSkipped
+		skipped += out.skipped
+		failures = out.failures
+	} else {
+		// Explicit argv reconciles with the same continue-past-failure
+		// semantics as the whole-tree walk: one bad file must not stop the
+		// rest of the caller's list from indexing (an abort turned a partial
+		// success into no work at all). Missing paths still delete-only;
+		// T0 paths still count as skipped; failures print as they happen and
+		// the summary below exits non-zero.
+		var rels []string
+		for _, p := range paths {
+			rel, absPath, err := normalizeProjectPath(abs, p)
+			if err != nil {
+				failures = append(failures, pathFailure{path: p, err: err})
+				fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", p, err)
+				continue
+			}
+			// Explicit argv under T0 dirs/suffixes: count as skipped (same as SkipError), not a failure.
+			if isT0SkipPath(rel) {
+				skipped++
+				continue
+			}
 			if _, sterr := os.Stat(absPath); sterr != nil && errors.Is(sterr, fs.ErrNotExist) {
 				if derr := st.DeleteFileByPath(rel); derr != nil {
-					fmt.Fprintf(os.Stderr, "index: %v\n", derr)
-					return exitFail
+					failures = append(failures, pathFailure{path: rel, err: derr})
+					fmt.Fprintf(os.Stderr, "index: FAILED %s: %v\n", rel, derr)
+					continue
 				}
 				removed++
 				continue
 			}
+			rels = append(rels, rel)
 		}
-		wasHashSkip, err := indexOne(ctx, st, repo, abs, rel, absPath, force)
-		if err != nil {
-			var skip *analyzers.SkipError
-			if errors.As(err, &skip) {
-				skipped++
-				continue
-			}
-			fmt.Fprintf(os.Stderr, "index: %v\n", err)
-			return exitFail
-		}
-		if wasHashSkip {
-			hashSkipped++
-		} else {
-			indexed++
-		}
-		// DF-40: after successful partial argv index, drop same-hash orphans missing on disk.
-		if !fullTree {
+		out := reconcilePaths(ctx, st, repo, abs, rels, force, "index: ", func(rel string) error {
+			// DF-40: after a successful partial argv index, drop same-hash orphans missing on disk.
 			n, gerr := gcContentHashOrphans(st, abs, rel)
 			if gerr != nil {
-				fmt.Fprintf(os.Stderr, "index: hash orphan gc: %v\n", gerr)
-				return exitFail
+				return fmt.Errorf("hash orphan gc: %w", gerr)
 			}
 			removed += n
-		}
+			return nil
+		})
+		indexed += out.indexed
+		hashSkipped += out.hashSkipped
+		skipped += out.skipped
+		failures = append(failures, out.failures...)
 	}
 
 	if fullTree {
@@ -141,6 +166,12 @@ func cmdIndex(root string, args []string, command string) int {
 	}
 
 	fmt.Fprintf(os.Stderr, "indexed %d, hash_skipped %d, skipped %d, removed %d\n", indexed, hashSkipped, skipped, removed)
+	if len(failures) > 0 {
+		// Per-file FAILED lines were printed by reconcilePaths as they
+		// happened; the summary carries the count and the remedy.
+		fmt.Fprintf(os.Stderr, "index: %d of %d files failed; store is incomplete until these index cleanly (re-run `trace index` after fixing)\n", len(failures), len(paths))
+		return exitFail
+	}
 	if repo != nil {
 		if err := updateGraphSyncWatermark(ctx, st, repo); err != nil {
 			fmt.Fprintf(os.Stderr, "index: graph sync watermark: %v\n", err)
@@ -204,6 +235,71 @@ func indexOne(ctx context.Context, st *store.Store, repo vcs.Repository, root, r
 	return skipped, err
 }
 
+// pathFailure is one file that failed to reconcile.
+type pathFailure struct {
+	path string
+	err  error
+}
+
+// reconcileOutcome is the tally of indexing a list of paths.
+type reconcileOutcome struct {
+	indexed     int
+	hashSkipped int
+	skipped     int
+	failures    []pathFailure
+}
+
+// reconcilePaths indexes each rel path against root, continuing past
+// per-file failures so one bad record cannot truncate the rest of the set
+// (the whole-tree lesson: an abort converts loud failure into silent
+// truncation). SkipError paths count as skipped and print nothing; every
+// other failure prints "<logPrefix>FAILED <rel>: <err>" as it happens and is
+// returned in outcome.failures for caller policy (exit codes, summaries).
+// onIndexed, when non-nil, fires per successful path and its error, if any,
+// is recorded as that path's failure (watch mode logs "indexed <rel>" and
+// returns nil; the CLI argv path runs its post-index content-hash orphan GC
+// here). Shared by the whole-tree walk, explicit argv, and watch-mode drift
+// healing so all surfaces keep identical reconcile semantics.
+func reconcilePaths(
+	ctx context.Context,
+	st *store.Store,
+	repo vcs.Repository,
+	root string,
+	rels []string,
+	force bool,
+	logPrefix string,
+	onIndexed func(rel string) error,
+) reconcileOutcome {
+	var out reconcileOutcome
+	for _, rel := range rels {
+		absPath := filepath.Join(root, filepath.FromSlash(rel))
+		wasHashSkip, err := indexOne(ctx, st, repo, root, rel, absPath, force)
+		if err != nil {
+			var skip *analyzers.SkipError
+			if errors.As(err, &skip) {
+				out.skipped++
+				continue
+			}
+			out.failures = append(out.failures, pathFailure{path: rel, err: err})
+			fmt.Fprintf(os.Stderr, "%sFAILED %s: %v\n", logPrefix, rel, err)
+			continue
+		}
+		if wasHashSkip {
+			out.hashSkipped++
+		} else {
+			out.indexed++
+		}
+		if onIndexed != nil {
+			if herr := onIndexed(rel); herr != nil {
+				out.failures = append(out.failures, pathFailure{path: rel, err: herr})
+				fmt.Fprintf(os.Stderr, "%sFAILED %s: %v\n", logPrefix, rel, herr)
+				continue
+			}
+		}
+	}
+	return out
+}
+
 func normalizeProjectPath(root, p string) (rel, absPath string, err error) {
 	if filepath.IsAbs(p) {
 		absPath = filepath.Clean(p)
@@ -225,82 +321,13 @@ func normalizeProjectPath(root, p string) (rel, absPath string, err error) {
 	return rel, absPath, nil
 }
 
-// t0SkipDirs are always-skip directory basenames (case-sensitive). Not build/bin.
-var t0SkipDirs = map[string]struct{}{
-	".git": {}, ".trace": {}, "node_modules": {}, "vendor": {},
-	"__pycache__": {}, ".venv": {}, "venv": {}, "dist": {},
-	".next": {}, "target": {}, "coverage": {},
-}
+// Walk/T0/gitignore rules live in internal/indexwalk so `index status` drift
+// and the loop gate evaluate the identical definition of "what trace index
+// would index" (D1: one smaller-world definition hid a 20-file truncation).
+func isT0SkipDir(name string) bool { return indexwalk.IsT0SkipDir(name) }
 
-func isT0SkipDir(name string) bool {
-	_, ok := t0SkipDirs[name]
-	return ok
-}
-
-// isT0SkipPath is true when any path component is a T0 dir, or the basename
-// ends with a T0 minified suffix (.min.js / .min.mjs / .min.cjs).
-func isT0SkipPath(rel string) bool {
-	rel = store.NormalizePath(rel)
-	base := filepath.Base(rel)
-	if strings.HasSuffix(base, ".min.js") ||
-		strings.HasSuffix(base, ".min.mjs") ||
-		strings.HasSuffix(base, ".min.cjs") {
-		return true
-	}
-	for _, seg := range strings.Split(rel, "/") {
-		if seg != "" && isT0SkipDir(seg) {
-			return true
-		}
-	}
-	return false
-}
+func isT0SkipPath(rel string) bool { return indexwalk.IsT0SkipPath(rel) }
 
 func walkIndexable(root string, useGitIgnore bool) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		name := d.Name()
-		if d.IsDir() {
-			// 1. T0 always-skip dirs before descent
-			if isT0SkipDir(name) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		rel = store.NormalizePath(rel)
-		// 2. unsupported language → skip
-		if _, ok := analyzers.DetectLanguage(rel); !ok {
-			return nil
-		}
-		// 3. T0 file suffix or path-segment
-		if isT0SkipPath(rel) {
-			return nil
-		}
-		// 4. best-effort gitignore after T0
-		if useGitIgnore && gitIgnored(root, rel) {
-			return nil
-		}
-		out = append(out, rel)
-		return nil
-	})
-	return out, err
-}
-
-// gitIgnored is best-effort: uses `git check-ignore` when available.
-func gitIgnored(root, rel string) bool {
-	cmd := exec.Command("git", "-C", root, "check-ignore", "-q", "--", rel)
-	err := cmd.Run()
-	if err == nil {
-		return true // exit 0 → ignored
-	}
-	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
-		return false // not ignored
-	}
-	return false
+	return indexwalk.Walk(root, useGitIgnore)
 }

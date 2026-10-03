@@ -16,6 +16,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/mrchatam/Trace/internal/analyzers"
 	"github.com/mrchatam/Trace/internal/domain"
+	"github.com/mrchatam/Trace/internal/indexwalk"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -124,9 +125,38 @@ func runIndexWatch(ctx context.Context, root string, args []string) int {
 		pending.Store(absPath, t)
 	}
 
+	// Drift healing: per-path timers only see events, and events have blind
+	// spots — a directory created with files already inside fires a dir event
+	// but none for its contents, atomic saves can rename over files, and
+	// fsnotify drops updates on some filesystems. One sweep scheduled a
+	// debounce window after the last event walks the tree (the shared
+	// indexwalk definition) and indexes whatever the store is missing — the
+	// net that makes watch mode converge instead of trusting the event stream
+	// (D1: 20 files went missing while every run reported success).
+	var driftMu sync.Mutex
+	var driftTimer *time.Timer
+	scheduleDriftHeal := func() {
+		driftMu.Lock()
+		defer driftMu.Unlock()
+		if driftTimer != nil {
+			driftTimer.Stop()
+		}
+		driftTimer = time.AfterFunc(*debounce, func() {
+			driftMu.Lock()
+			driftTimer = nil
+			driftMu.Unlock()
+			healDrift(indexCtx, st, repo, abs)
+		})
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			driftMu.Lock()
+			if driftTimer != nil {
+				driftTimer.Stop()
+			}
+			driftMu.Unlock()
 			pending.Range(func(key, value any) bool {
 				value.(*time.Timer).Stop()
 				return true
@@ -150,10 +180,12 @@ func runIndexWatch(ctx context.Context, root string, args []string) int {
 			if info.IsDir() {
 				if !isT0SkipDir(info.Name()) {
 					_ = watcher.Add(path)
+					scheduleDriftHeal() // files inside a new dir never fired events
 				}
 				continue
 			}
 			scheduleIndex(path)
+			scheduleDriftHeal()
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return exitOK
@@ -168,6 +200,24 @@ func pluralSuffix(n int, singular, plural string) string {
 		return singular
 	}
 	return plural
+}
+
+// healDrift indexes every walkable path the store is missing, with the same
+// continue-past-failure semantics as the whole-tree walk (reconcilePaths).
+func healDrift(ctx context.Context, st *store.Store, repo vcs.Repository, abs string) {
+	missing, err := indexwalk.MissingPaths(abs, st)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "index watch: drift heal: %v\n", err)
+		return
+	}
+	if len(missing) == 0 {
+		return
+	}
+	out := reconcilePaths(ctx, st, repo, abs, missing, false, "index watch: ", func(rel string) error {
+		fmt.Fprintf(os.Stderr, "indexed %s\n", rel)
+		return nil
+	})
+	fmt.Fprintf(os.Stderr, "index watch: drift heal: %d of %d missing path(s) indexed\n", out.indexed, len(missing))
 }
 
 func collectWatchDirs(root string, paths []string) ([]string, error) {

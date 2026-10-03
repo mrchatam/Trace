@@ -330,6 +330,60 @@ func TestReplaceFileSymbolsCollapsesIncomingWhenSymbolDropped(t *testing.T) {
 	}
 }
 
+// TestReplaceFileSymbolsCollapsesWithExistingFileLevelIncoming pins the
+// consumer-store collision (idx_code_edges_unique on reindex): alongside a
+// symbol-level incoming validates edge, a file-level edge (to_symbol_id NULL —
+// written when a named import could not be resolved against the target's
+// stored symbols) already sits in the same (from_file_id, from_symbol_id,
+// to_file_id, rel) group. collapseEdgesTargetingSymbols only dedups rows whose
+// to_symbol_id is in the leftover set, so the leftover DELETE SET NULLs the
+// surviving symbol-level edge onto the pre-existing NULL row and the unique
+// index aborts the whole reindex.
+func TestReplaceFileSymbolsCollapsesWithExistingFileLevelIncoming(t *testing.T) {
+	s, _ := openTempStore(t)
+	lib, err := s.UpsertFile("lib.js", "h1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	test, err := s.UpsertFile("lib.test.js", "ht", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReplaceFileSymbols("lib.js", []Symbol{
+		{Name: "alpha", Kind: "function", StartLine: 1, EndLine: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	syms, err := s.ListSymbolsByPath("lib.js")
+	if err != nil || len(syms) != 1 {
+		t.Fatalf("symbols: %v %v", syms, err)
+	}
+	idA := syms[0].ID
+	// One file-level validates edge (unresolved named import) plus one
+	// symbol-level edge — the exact shape of the reporting store.
+	if err := s.ReplaceFileEdges("lib.test.js", []CodeEdge{
+		{FromFileID: test.ID, ToFileID: lib.ID, Rel: RelValidates, Provenance: ImportProvenanceExtracted},
+		{FromFileID: test.ID, ToFileID: lib.ID, ToSymbolID: &idA, Rel: RelValidates, Provenance: ImportProvenanceExtracted},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Reindex with a different symbol set: alpha becomes leftover and is
+	// deleted; its incoming edge must collapse into the existing file-level
+	// row, not SET NULL onto it (idx_code_edges_unique).
+	if err := s.ReplaceFileSymbols("lib.js", []Symbol{
+		{Name: "beta", Kind: "function", StartLine: 5, EndLine: 5},
+	}); err != nil {
+		t.Fatalf("reindex with pre-existing file-level incoming validates: %v", err)
+	}
+	edges, err := s.ListEdgesByFile("lib.test.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 1 || edges[0].ToSymbolID != nil || edges[0].ToFileID != lib.ID || edges[0].Rel != RelValidates {
+		t.Fatalf("want one file-level validates edge, got %+v", edges)
+	}
+}
+
 func TestListFilePathsInDir(t *testing.T) {
 	s, _ := openTempStore(t)
 	if _, err := s.UpsertFile("a.go", "h1", nil); err != nil {

@@ -211,7 +211,7 @@ Build note:
   Then from a Trace project: trace gui
   (CGO_ENABLED=1 required for full analyzer-linked binary.)
   MCP stdio server:
-    CGO_ENABLED=0 go build -o bin/trace-mcp ./cmd/trace-mcp
+    CGO_ENABLED=1 go build -o bin/trace-mcp ./cmd/trace-mcp
   Note: trace install … configures agents/MCP/hooks — it does not put the
   trace binary on PATH.
   Note: go install …/cmd/trace@latest fails until a module version is tagged/published.
