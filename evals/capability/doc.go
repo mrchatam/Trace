@@ -9,13 +9,14 @@
 // Schema: schema-capability.json (schema_version 1)
 // Metrics: temp metrics-capability.json under t.TempDir()
 //
-// Run (CGO-free — domain+store+compiler):
+// Run (the test binary links the tree-sitter analyzer graph via shared test
+// imports, so CGO_ENABLED=1 is required):
 //
-//	CGO_ENABLED=0 go test ./evals/capability/... -count=1
+//	CGO_ENABLED=1 go test ./evals/capability/... -count=1
 //
 // Named subset:
 //
-//	CGO_ENABLED=0 go test ./evals/capability/... -count=1 -run TestPlantedCapabilitySelectionAblation
+//	CGO_ENABLED=1 go test ./evals/capability/... -count=1 -run TestPlantedCapabilitySelectionAblation
 //
 // Regression with honesty / replan / impact / p0x / x0:
 //

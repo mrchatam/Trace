@@ -4,7 +4,8 @@
 // S01/S02 planner surface: PLAN_AFFECTING+ supersedes via ApplyDiscoveryReplan;
 // INFO does not; budget fail-closed then recovers after AckReplan.
 //
-// Run (CGO-free — planner+domain+store):
+// Run (the test binary links the tree-sitter analyzer graph via shared test
+// imports, so CGO_ENABLED=1 is required):
 //
-//	CGO_ENABLED=0 go test ./evals/replan/... -count=1
+//	CGO_ENABLED=1 go test ./evals/replan/... -count=1
 package replan

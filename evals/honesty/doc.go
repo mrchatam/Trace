@@ -12,13 +12,14 @@
 // scope-review hooks, and writes schema-valid metrics-gate-g.json (see
 // schema-gate-g.json). The hatch is counted as an escape only in that report.
 //
-// Run both tests (CGO-free — domain+store+planner):
+// Run both tests (the test binary links the tree-sitter analyzer graph via
+// shared test imports, so CGO_ENABLED=1 is required):
 //
-//	CGO_ENABLED=0 go test ./evals/honesty/... -count=1
+//	CGO_ENABLED=1 go test ./evals/honesty/... -count=1
 //
 // Named subset:
 //
-//	CGO_ENABLED=0 go test ./evals/honesty/... -count=1 -run 'TestHonestyFailClosedPlantedClaim|TestHonestyEscapeRateGateGPrelim'
+//	CGO_ENABLED=1 go test ./evals/honesty/... -count=1 -run 'TestHonestyFailClosedPlantedClaim|TestHonestyEscapeRateGateGPrelim'
 //
 // Regression with P0-X:
 //
