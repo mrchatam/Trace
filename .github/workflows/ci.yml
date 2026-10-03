@@ -32,6 +32,73 @@ jobs:
       - name: Run Go CI script
         run: bash scripts/ci-go-test.sh
 
+  # Pure-Go floor: these library packages promise CGO_ENABLED=0 buildability
+  # (README “CGO” bullet). DetectLanguage extraction (langdetect) exists exactly
+  # so detection-only consumers do not link the tree-sitter graph; build-only,
+  # because some of these packages' tests import the CGO analyzers.
+  go-pure:
+    name: Go (CGO_ENABLED=0 library build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build pure-Go libraries without CGO
+        run: |
+          CGO_ENABLED=0 go build \
+            ./internal/store/ \
+            ./internal/vcs/ \
+            ./internal/gitcli/ \
+            ./internal/deliberation/ \
+            ./internal/langdetect/ \
+            ./internal/indexwalk/ \
+            ./internal/domain/
+
+  # Race gate on the concurrency-carrying core (store locking, watch/heal
+  # goroutines, httpapi handlers, MCP, loop apply). One runner per package:
+  # raced domain/cmd-trace alone run 5-15 minutes, so a single sequential job
+  # would flirt with the timeout. Requires CGO (race detector constraint), so
+  # the toolchain install matches the go-test job.
+  go-race:
+    name: "Go (race: ${{ matrix.pkg }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg:
+          - ./cmd/trace/
+          - ./internal/analyzers/
+          - ./internal/deliberation/
+          - ./internal/domain/
+          - ./internal/gitcli/
+          - ./internal/indexwalk/
+          - ./internal/langdetect/
+          - ./internal/loop/
+          - ./internal/mcp/
+          - ./internal/httpapi/
+          - ./internal/store/
+          - ./internal/testrun/
+          - ./internal/vcs/
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install CGO toolchain
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc g++
+
+      - name: go test -race ${{ matrix.pkg }}
+        run: CGO_ENABLED=1 go test -race -count=1 -timeout=25m ${{ matrix.pkg }}
+
   web:
     name: Web (build + unit tests)
     runs-on: ubuntu-latest
@@ -98,7 +165,7 @@ jobs:
       - run: test -f api/openapi.yaml && grep -q 'BoundedGraph' api/openapi.yaml
 
   # Advisory extended gates (compat Phase 29 HTTP policy + perf ladder).
-  # Required merge path: go-test, web, embed-gui, openapi above.
+  # Required merge path: go-test, go-pure, go-race, web, embed-gui, openapi above.
   evals-extended:
     name: Evals (compat + perf gates)
     runs-on: ubuntu-latest
