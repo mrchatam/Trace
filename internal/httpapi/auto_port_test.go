@@ -38,29 +38,29 @@ func TestListenAutoPort_freeDefaultStays7432(t *testing.T) {
 	// T11 — no hop when DefaultAddr is free. Do not Parallel: binds 7432–7441.
 	occupyTCP(t, "127.0.0.1:7433") // unrelated busy must not force hop from free 7432
 
-	var heard string
-	srv := newAutoPortServer(t, DefaultAddr, false, func(a string) { heard = a })
+	// OnListening fires on the ListenAndServe goroutine; a channel receive
+	// (not a polled shared string) keeps the handoff race-free.
+	heard := make(chan string, 1)
+	srv := newAutoPortServer(t, DefaultAddr, false, func(a string) { heard <- a })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe(ctx) }()
 
+	var got string
 	deadline := time.After(3 * time.Second)
-	for heard == "" {
-		select {
-		case err := <-errCh:
-			t.Fatalf("ListenAndServe failed early: %v", err)
-		case <-deadline:
-			t.Fatal("timeout waiting for OnListening")
-		default:
-			time.Sleep(10 * time.Millisecond)
-		}
+	select {
+	case err := <-errCh:
+		t.Fatalf("ListenAndServe failed early: %v", err)
+	case got = <-heard:
+	case <-deadline:
+		t.Fatal("timeout waiting for OnListening")
 	}
 	cancel()
 	<-errCh
 
-	if heard != DefaultAddr {
-		t.Fatalf("OnListening addr=%q want %q", heard, DefaultAddr)
+	if got != DefaultAddr {
+		t.Fatalf("OnListening addr=%q want %q", got, DefaultAddr)
 	}
 	if srv.Addr() != DefaultAddr {
 		t.Fatalf("Addr()=%q want %q", srv.Addr(), DefaultAddr)
@@ -71,30 +71,30 @@ func TestListenAutoPort_busyDefaultHopsNext(t *testing.T) {
 	// T4 — occupy :7432 → bind :7433.
 	occupyTCP(t, DefaultAddr)
 
-	var heard string
-	srv := newAutoPortServer(t, DefaultAddr, false, func(a string) { heard = a })
+	// OnListening fires on the ListenAndServe goroutine; a channel receive
+	// (not a polled shared string) keeps the handoff race-free.
+	heard := make(chan string, 1)
+	srv := newAutoPortServer(t, DefaultAddr, false, func(a string) { heard <- a })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe(ctx) }()
 
+	var got string
 	deadline := time.After(3 * time.Second)
-	for heard == "" {
-		select {
-		case err := <-errCh:
-			t.Fatalf("ListenAndServe failed early: %v", err)
-		case <-deadline:
-			t.Fatal("timeout waiting for OnListening")
-		default:
-			time.Sleep(10 * time.Millisecond)
-		}
+	select {
+	case err := <-errCh:
+		t.Fatalf("ListenAndServe failed early: %v", err)
+	case got = <-heard:
+	case <-deadline:
+		t.Fatal("timeout waiting for OnListening")
 	}
 	cancel()
 	<-errCh
 
 	want := "127.0.0.1:7433"
-	if heard != want {
-		t.Fatalf("OnListening addr=%q want %q", heard, want)
+	if got != want {
+		t.Fatalf("OnListening addr=%q want %q", got, want)
 	}
 	if srv.Addr() != want {
 		t.Fatalf("Addr()=%q want %q", srv.Addr(), want)

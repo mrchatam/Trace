@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/mrchatam/Trace/internal/analyzers"
+	"github.com/mrchatam/Trace/internal/langdetect"
 	"github.com/mrchatam/Trace/internal/store"
 	"github.com/mrchatam/Trace/internal/vcs"
 )
@@ -608,7 +608,7 @@ func (s *Service) isMeaningfulChangePath(path string) bool {
 	if path == "" {
 		return false
 	}
-	if _, ok := analyzers.DetectLanguage(path); ok {
+	if _, ok := langdetect.Detect(path); ok {
 		return true
 	}
 	if _, err := s.store.GetFileByPath(path); err == nil {
