@@ -51,6 +51,26 @@ var legalTransitions = map[string]map[string]bool{
 	},
 }
 
+// NormalizeWorkState returns a valid work_state, upper-cased and trimmed.
+// Empty and unknown values fail closed so a mistyped filter can never look
+// like an authoritative empty list (#154).
+func NormalizeWorkState(ws string) (string, error) {
+	v := strings.ToUpper(strings.TrimSpace(ws))
+	if v == "" {
+		return "", &ErrValidation{Msg: "work_state is required (PENDING|IN_PROGRESS|AWAITING_REVIEW|BLOCKED|FAILED|DONE|STALE|SKIPPED)"}
+	}
+	switch v {
+	case store.WorkStatePending, store.WorkStateInProgress, store.WorkStateAwaitingReview,
+		store.WorkStateBlocked, store.WorkStateFailed, store.WorkStateDone,
+		store.WorkStateStale, store.WorkStateSkipped:
+		return v, nil
+	default:
+		return "", &ErrValidation{
+			Msg: "work_state must be PENDING, IN_PROGRESS, AWAITING_REVIEW, BLOCKED, FAILED, DONE, STALE, or SKIPPED",
+		}
+	}
+}
+
 // TransitionTask moves a task along the locked work_state graph.
 // Actor and Reason must be non-empty. Check order: legal edge → DF-24 missing
 // caps → →DONE policy (hatch OR (no linked FAIL ∧ PASS ∧ AllowOperatorDone)).

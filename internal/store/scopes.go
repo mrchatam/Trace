@@ -77,7 +77,7 @@ func (s *Store) GetScope(id string) (Scope, error) {
 		FROM scopes WHERE id = ?
 	`, id).Scan(&sc.ID, &sc.Slug, &sc.Title, &sc.Kind, &sc.CreatedAt, &sc.UpdatedAt)
 	if err == sql.ErrNoRows {
-		return Scope{}, fmt.Errorf("store: scope %q: %w", id, err)
+		return Scope{}, notFound("scope", id)
 	}
 	if err != nil {
 		return Scope{}, fmt.Errorf("store: get scope: %w", err)

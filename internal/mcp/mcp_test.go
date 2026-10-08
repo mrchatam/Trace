@@ -410,8 +410,19 @@ func TestMCPVirginProjectDoesNotMkdir(t *testing.T) {
 		srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
 		_, _, err := callAdd(srv, ctx, tracemcp.AddInput{Kind: "goal", Title: "G"})
 		mustNotInitialized(t, err)
-		_, _, err = callVersion(srv, ctx, tracemcp.VersionInput{})
-		mustNotInitialized(t, err)
+		// trace_version is the stale-server probe: it answers on a virgin
+		// project and must still not create anything (#152).
+		vres, _, verr := callVersion(srv, ctx, tracemcp.VersionInput{})
+		if verr != nil {
+			t.Fatalf("trace_version must not require a store: %v", verr)
+		}
+		var vm map[string]any
+		if err := json.Unmarshal([]byte(mustText(t, vres)), &vm); err != nil {
+			t.Fatal(err)
+		}
+		if vm["project_initialized"] != false {
+			t.Fatalf("project_initialized = %v, want false", vm["project_initialized"])
+		}
 		assertNoTraceDir(t, dir)
 	})
 
@@ -772,9 +783,21 @@ func TestMCPChangesList(t *testing.T) {
 		t.Fatalf("trace_changes list: %v", err)
 	}
 	text := mustText(t, res)
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(text), &rows); err != nil {
+	var env struct {
+		OK        bool             `json:"ok"`
+		Items     []map[string]any `json:"items"`
+		Count     int              `json:"count"`
+		Truncated bool             `json:"truncated"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
 		t.Fatalf("json: %v\n%s", err, text)
+	}
+	if !env.OK || env.Truncated {
+		t.Fatalf("envelope: %s", text)
+	}
+	rows := env.Items
+	if env.Count != len(rows) {
+		t.Fatalf("count %d must match items %d: %s", env.Count, len(rows), text)
 	}
 	if len(rows) != 1 {
 		t.Fatalf("want 1 row, got %v", rows)
@@ -843,26 +866,30 @@ func TestMCPRegressionsRegistered(t *testing.T) {
 	}
 	text := mustText(t, res)
 	var payload struct {
-		OK          bool `json:"ok"`
-		Count       int  `json:"count"`
-		Regressions []struct {
+		OK        bool `json:"ok"`
+		Count     int  `json:"count"`
+		Truncated bool `json:"truncated"`
+		Items     []struct {
 			ID string `json:"id"`
-		} `json:"regressions"`
+		} `json:"items"`
 	}
 	if err := json.Unmarshal([]byte(text), &payload); err != nil {
 		t.Fatalf("json: %v\n%s", err, text)
 	}
-	if !payload.OK || payload.Count < 1 {
+	if !payload.OK || payload.Count < 1 || payload.Truncated {
 		t.Fatalf("payload: %#v", payload)
 	}
+	if payload.Count != len(payload.Items) {
+		t.Fatalf("count %d must match items %d", payload.Count, len(payload.Items))
+	}
 	got := false
-	for _, r := range payload.Regressions {
+	for _, r := range payload.Items {
 		if r.ID == reg.ID {
 			got = true
 		}
 	}
 	if !got {
-		t.Fatalf("regression %s not in MCP list: %+v", reg.ID, payload.Regressions)
+		t.Fatalf("regression %s not in MCP list: %+v", reg.ID, payload.Items)
 	}
 }
 
@@ -1186,10 +1213,19 @@ func TestMCPAgentsRecommend(t *testing.T) {
 		t.Fatalf("trace_agents recommend: %v", err)
 	}
 	text := mustText(t, res)
-	var recs []map[string]any
-	if err := json.Unmarshal([]byte(text), &recs); err != nil {
+	var env struct {
+		OK        bool             `json:"ok"`
+		Items     []map[string]any `json:"items"`
+		Count     int              `json:"count"`
+		Truncated bool             `json:"truncated"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
 		t.Fatalf("json: %v\n%s", err, text)
 	}
+	if !env.OK || env.Truncated || env.Count != len(env.Items) {
+		t.Fatalf("envelope: %s", text)
+	}
+	recs := env.Items
 	if len(recs) == 0 || recs[0]["agent_slug"] != "agent:code-reviewer" {
 		t.Fatalf("recommendations: %s", text)
 	}
@@ -1338,9 +1374,35 @@ func TestMCPAssertBuiltinAutoAllowedSucceeds(t *testing.T) {
 
 	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
 	ctx := context.Background()
-	res, _, err := callVersion(srv, ctx, tracemcp.VersionInput{})
-	if err != nil {
+	// trace_version deliberately does not run the capability gate (it is the
+	// stale-server probe), so the AUTO_ALLOW durability check uses a gated tool.
+	if _, _, err := callTasks(srv, ctx, tracemcp.TasksInput{}); err != nil {
 		t.Fatalf("builtin CallTool should AUTO_ALLOW: %v", err)
+	}
+
+	st2, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st2.Close()
+	row, err := st2.GetCapabilityToolDecisionBySlug("mcp:trace_tasks")
+	if err != nil {
+		t.Fatalf("expected durable AUTO_ALLOWED row: %v", err)
+	}
+	if row.Decision != store.ToolDecisionAutoAllowed {
+		t.Fatalf("want AUTO_ALLOWED got %q", row.Decision)
+	}
+}
+
+// TestVersionAnswersWithoutStore is the #152 proof: the stale-server probe must
+// work on an uninitialized project, report that fact honestly, and create
+// nothing on disk.
+func TestVersionAnswersWithoutStore(t *testing.T) {
+	dir := t.TempDir()
+	srv := tracemcp.NewServer(tracemcp.Options{ProjectRoot: dir})
+	res, _, err := callVersion(srv, context.Background(), tracemcp.VersionInput{})
+	if err != nil {
+		t.Fatalf("trace_version must not require a store: %v", err)
 	}
 	var m map[string]any
 	if err := json.Unmarshal([]byte(mustText(t, res)), &m); err != nil {
@@ -1349,18 +1411,29 @@ func TestMCPAssertBuiltinAutoAllowedSucceeds(t *testing.T) {
 	if m["ok"] != true || m["name"] != "trace" {
 		t.Fatalf("version payload: %v", m)
 	}
+	if m["project_initialized"] != false {
+		t.Fatalf("project_initialized = %v, want false on a virgin dir", m["project_initialized"])
+	}
+	assertNoTraceDir(t, dir)
 
-	st2, err := store.Open(dir)
+	// An initialized project reports true.
+	init2 := t.TempDir()
+	st, err := store.Open(init2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st2.Close()
-	row, err := st2.GetCapabilityToolDecisionBySlug("mcp:trace_version")
+	st.Close()
+	srv2 := tracemcp.NewServer(tracemcp.Options{ProjectRoot: init2})
+	res2, _, err := callVersion(srv2, context.Background(), tracemcp.VersionInput{})
 	if err != nil {
-		t.Fatalf("expected durable AUTO_ALLOWED row: %v", err)
+		t.Fatal(err)
 	}
-	if row.Decision != store.ToolDecisionAutoAllowed {
-		t.Fatalf("want AUTO_ALLOWED got %q", row.Decision)
+	var m2 map[string]any
+	if err := json.Unmarshal([]byte(mustText(t, res2)), &m2); err != nil {
+		t.Fatal(err)
+	}
+	if m2["project_initialized"] != true {
+		t.Fatalf("project_initialized = %v, want true", m2["project_initialized"])
 	}
 }
 
@@ -1377,6 +1450,11 @@ func TestTraceTasksParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	task, err := svc.CreateTask(ctx, domain.TaskInput{Title: "T", GoalID: &g.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A real goal with no tasks yields the authoritative empty list.
+	empty2, err := svc.CreateGoal(ctx, domain.GoalInput{Title: "G2-empty"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1418,7 +1496,7 @@ func TestTraceTasksParity(t *testing.T) {
 	if len(frows) != 1 {
 		t.Fatalf("goal filter: %v", frows)
 	}
-	empty, _, err := callTasks(srv, ctx, tracemcp.TasksInput{GoalID: "00000000-0000-0000-0000-000000000000"})
+	empty, _, err := callTasks(srv, ctx, tracemcp.TasksInput{GoalID: empty2.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1429,6 +1507,13 @@ func TestTraceTasksParity(t *testing.T) {
 	erows, _ := epage["items"].([]any)
 	if len(erows) != 0 {
 		t.Fatalf("want empty filter result, got %v", erows)
+	}
+	// A well-formed but nonexistent goal_id is refused, not an authoritative
+	// empty list (#154 class): a typo must not read as "goal has no tasks".
+	if _, _, err := callTasks(srv, ctx, tracemcp.TasksInput{GoalID: "00000000-0000-0000-0000-000000000000"}); err == nil {
+		t.Fatal("nonexistent goal_id must fail closed")
+	} else if !strings.Contains(err.Error(), "no goal") {
+		t.Fatalf("error must name the missing goal, got %v", err)
 	}
 }
 

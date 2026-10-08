@@ -56,9 +56,9 @@ func (s *Server) agentsList(ctx context.Context, st *store.Store) (*sdkmcp.CallT
 	if items == nil {
 		items = []agents.AgentListItem{}
 	}
-	out := map[string]any{"ok": true, "items": items, "count": len(items)}
+	out := newListEnvelope(items, len(items), false)
 	if len(items) == 0 {
-		out["hint"] = agents.EmptyCatalogHint
+		out = out.withHint(agents.EmptyCatalogHint)
 	}
 	b, err := json.Marshal(out)
 	if err != nil {
@@ -87,12 +87,18 @@ func (s *Server) agentsRecommend(ctx context.Context, st *store.Store, in Agents
 		Keywords: in.Keywords,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("trace_agents recommend: %w", err)
 	}
 	if recs == nil {
 		recs = []agents.Recommendation{}
 	}
-	b, err := json.Marshal(recs)
+	// An empty recommendation set is the same dead end as an empty catalog,
+	// so it carries the same hint the list action emits (#157).
+	env := newListEnvelope(recs, len(recs), false)
+	if len(recs) == 0 {
+		env = env.withHint(agents.EmptyCatalogHint)
+	}
+	b, err := json.Marshal(env)
 	if err != nil {
 		return nil, nil, err
 	}

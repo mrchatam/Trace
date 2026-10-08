@@ -96,5 +96,29 @@ func ResultText(t testing.TB, res any) string {
 }
 
 func TraceAddDescriptionForTest() string {
-	return traceAddDescription
+	return descAdd
+}
+
+// ToolDescriptions exposes the generated descriptions so the drift guard can
+// assert every schema enum value appears in its tool's description (#159).
+func ToolDescriptions() map[string]string {
+	return map[string]string{
+		"trace_why":         descWhy,
+		"trace_context":     descContext,
+		"trace_add":         descAdd,
+		"trace_link":        descLink,
+		"trace_transition":  descTransition,
+		"trace_review":      descReview,
+		"trace_tasks":       descTasks,
+		"trace_capability":  descCapability,
+		"trace_impact":      descImpact,
+		"trace_version":     descVersion,
+		"trace_search":      descSearch,
+		"trace_changes":     descChanges,
+		"trace_regressions": descRegressions,
+		"trace_loop":        descLoop,
+		"trace_agents":      descAgents,
+		"trace_plan":        descPlan,
+		"trace_explore":     descExplore,
+	}
 }

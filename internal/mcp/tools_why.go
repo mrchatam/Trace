@@ -40,11 +40,11 @@ func (s *Server) toolWhy(ctx context.Context, _ *sdkmcp.CallToolRequest, in WhyI
 
 	res, err := eng.Why(ctx, in.EntityType, in.ID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_why: %w", err)
+		return nil, nil, wrapToolErr("trace_why", err)
 	}
 	impact, err := domain.New(st).ImpactSummariesForWhySeed(ctx, retrieval.NormalizeEntityType(in.EntityType), in.ID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_why: %w", err)
+		return nil, nil, wrapToolErr("trace_why", err)
 	}
 	out := struct {
 		retrieval.WhyResult

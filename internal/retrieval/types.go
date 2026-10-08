@@ -3,6 +3,8 @@ package retrieval
 import (
 	"strings"
 	"time"
+
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 // Locked reason codes (exact strings).
@@ -62,8 +64,9 @@ type ExactQuery struct {
 // When Intent is non-nil, Search builds the FTS query from ExtractIntent (G9);
 // nil preserves legacy raw-q behavior for MCP direct search.
 type SearchOptions struct {
-	Limit  int
-	Intent *IntentInput
+	Limit   int
+	Intent  *IntentInput
+	Matcher store.MatchMode // zero value = MatchAnd (safe literal AND-join)
 }
 
 // MaxWhySteps is the hard cap on Why explanation steps (seed + expand + events).

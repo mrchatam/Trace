@@ -9,10 +9,12 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/mrchatam/Trace/internal/compiler"
+	"github.com/mrchatam/Trace/internal/deliberation"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/loop"
 	"github.com/mrchatam/Trace/internal/planner"
 	"github.com/mrchatam/Trace/internal/retrieval"
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 // LoopInput mirrors `trace loop next|apply|status|gate`.
@@ -34,6 +36,7 @@ type mcpGateEnvelope struct {
 	Allowed          bool             `json:"allowed"`
 	RecommendedPhase string           `json:"recommended_phase,omitempty"`
 	ReasonCode       string           `json:"reason_code,omitempty"`
+	Remedy           string           `json:"remedy,omitempty"`
 	Violations       []loop.Violation `json:"violations"`
 }
 
@@ -64,6 +67,64 @@ func (s *Server) toolLoop(ctx context.Context, _ *sdkmcp.CallToolRequest, in Loo
 	}
 }
 
+// loopNextPrecondition is a caller-actionable reason action=next cannot build a
+// packet. It is reported as the gate envelope rather than as prose, so an
+// agent gets the same structured answer it gets from action=gate (#156).
+type loopNextPrecondition struct {
+	reasonCode string
+	phase      string
+	remedy     string
+	message    string
+}
+
+// checkLoopNextPreconditions inspects the seed task before packet assembly.
+func checkLoopNextPreconditions(st *store.Store, taskID string) *loopNextPrecondition {
+	task, err := st.GetTask(taskID)
+	if err != nil {
+		return &loopNextPrecondition{
+			reasonCode: "seed_task_not_found",
+			remedy:     "list candidate tasks with trace_tasks, then call trace_loop action=next with one of their ids",
+			message:    fmt.Sprintf("no task %q to build a packet for", taskID),
+		}
+	}
+	if task.GoalID == nil || *task.GoalID == "" {
+		return &loopNextPrecondition{
+			reasonCode: "goal_link_missing",
+			phase:      string(deliberation.PhaseOrient),
+			remedy:     "link the task to a goal first: trace_link rel=goal-task from=<goal uuid> to=" + taskID,
+			message:    fmt.Sprintf("task %q has no goal_id", task.ID),
+		}
+	}
+	return nil
+}
+
+// loopNextPreconditionResult renders a blocked action=next as the same
+// trace.loop.gate.v1 envelope action=gate returns.
+func loopNextPreconditionResult(taskID string, pre *loopNextPrecondition) (*sdkmcp.CallToolResult, any, error) {
+	env := mcpGateEnvelope{
+		SchemaVersion:    mcpGateSchemaVersion,
+		TaskID:           taskID,
+		For:              "next",
+		Allowed:          false,
+		RecommendedPhase: pre.phase,
+		ReasonCode:       pre.reasonCode,
+		Remedy:           pre.remedy,
+		Violations: []loop.Violation{{
+			Code:             pre.reasonCode,
+			For:              "next",
+			Message:          pre.message,
+			RecommendedPhase: pre.phase,
+			ReasonCode:       pre.reasonCode,
+			Remedy:           pre.remedy,
+		}},
+	}
+	b, err := json.Marshal(env)
+	if err != nil {
+		return nil, nil, err
+	}
+	return textResult(string(b)), nil, nil
+}
+
 func (s *Server) loopNext(ctx context.Context, in LoopInput) (*sdkmcp.CallToolResult, any, error) {
 	taskID := strings.TrimSpace(in.TaskID)
 	if taskID == "" {
@@ -75,6 +136,10 @@ func (s *Server) loopNext(ctx context.Context, in LoopInput) (*sdkmcp.CallToolRe
 		return nil, nil, err
 	}
 	defer st.Close()
+
+	if pre := checkLoopNextPreconditions(st, taskID); pre != nil {
+		return loopNextPreconditionResult(taskID, pre)
+	}
 
 	eng := retrieval.New(st)
 	if repo, rerr := tryOpenGit(abs, st); rerr == nil {
@@ -91,6 +156,15 @@ func (s *Server) loopNext(ctx context.Context, in LoopInput) (*sdkmcp.CallToolRe
 		Compiler:  comp,
 	})
 	if err != nil {
+		// A precondition that slipped past the pre-check still returns the
+		// structured envelope rather than prose.
+		if store.IsNotFound(err) {
+			return loopNextPreconditionResult(taskID, &loopNextPrecondition{
+				reasonCode: "seed_task_not_found",
+				remedy:     "list candidate tasks with trace_tasks, then retry trace_loop action=next",
+				message:    err.Error(),
+			})
+		}
 		return nil, nil, fmt.Errorf("trace_loop next: %w", err)
 	}
 	b, err := json.Marshal(packet)

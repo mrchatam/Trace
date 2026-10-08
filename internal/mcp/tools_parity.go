@@ -17,10 +17,10 @@ import (
 type TasksInput struct {
 	Project    string   `json:"project,omitempty" jsonschema:"optional project root override"`
 	GoalID     string   `json:"goal_id,omitempty" jsonschema:"optional goal UUID filter (mirrors --goal)"`
-	Limit      float64  `json:"limit,omitempty" jsonschema:"optional max rows (default 50, cap 500); when all=true, limit is MaxTaskListLimit (500)"`
+	Limit      float64  `json:"limit,omitempty" jsonschema:"optional max rows (default 50, cap 500); when all=true, limit is MaxTaskListLimit (500). Rows are ordered by created_at ASC then id ASC; rows created in the same second tie-break on id, so use cursor for stable paging"`
 	Cursor     string   `json:"cursor,omitempty" jsonschema:"opaque pagination cursor from next_cursor"`
-	WorkState  string   `json:"work_state,omitempty" jsonschema:"optional single work_state filter"`
-	WorkStates []string `json:"work_states,omitempty" jsonschema:"optional work_state filters (OR)"`
+	WorkState  string   `json:"work_state,omitempty" jsonschema:"optional single work_state filter: PENDING|IN_PROGRESS|AWAITING_REVIEW|BLOCKED|FAILED|DONE|STALE|SKIPPED"`
+	WorkStates []string `json:"work_states,omitempty" jsonschema:"optional work_state filters (OR); same vocabulary as work_state"`
 	All        bool     `json:"all,omitempty" jsonschema:"when true, return up to MaxTaskListLimit (500) matching tasks; prefer cursor pagination"`
 }
 
@@ -89,11 +89,30 @@ func (s *Server) toolTasks(ctx context.Context, _ *sdkmcp.CallToolRequest, in Ta
 	}
 
 	states := append([]string{}, in.WorkStates...)
+	for i, ws := range states {
+		norm, err := domain.NormalizeWorkState(ws)
+		if err != nil {
+			return nil, nil, fmt.Errorf("trace_tasks: work_states[%d]: %w", i, err)
+		}
+		states[i] = norm
+	}
 	if ws := strings.TrimSpace(in.WorkState); ws != "" {
-		states = append(states, ws)
+		norm, err := domain.NormalizeWorkState(ws)
+		if err != nil {
+			return nil, nil, fmt.Errorf("trace_tasks: work_state: %w", err)
+		}
+		states = append(states, norm)
+	}
+	goalID := strings.TrimSpace(in.GoalID)
+	if goalID != "" {
+		// Fail closed on a goal that does not exist (#154 class): an empty task
+		// list is only authoritative when the goal is real.
+		if _, err := domain.New(st).GetGoal(ctx, goalID); err != nil {
+			return nil, nil, wrapToolErr("trace_tasks", err)
+		}
 	}
 	filt := store.TaskListFilter{
-		GoalID:     strings.TrimSpace(in.GoalID),
+		GoalID:     goalID,
 		WorkStates: states,
 		Cursor:     in.Cursor,
 	}
@@ -114,13 +133,9 @@ func (s *Server) toolTasks(ctx context.Context, _ *sdkmcp.CallToolRequest, in Ta
 			ID: t.ID, Title: t.Title, WorkState: t.WorkState, GoalID: t.GoalID,
 		})
 	}
-	payload := map[string]any{
-		"items":     out,
-		"count":     len(out),
-		"truncated": res.Truncated,
-	}
+	payload := newListEnvelope(out, len(out), res.Truncated).withLimit(filt.Limit)
 	if res.NextCursor != "" {
-		payload["next_cursor"] = res.NextCursor
+		payload = payload.withCursor(res.NextCursor)
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -241,11 +256,11 @@ func (s *Server) capabilityRequire(ctx context.Context, in CapabilityInput) (*sd
 	svc := domain.New(st)
 	cap, err := svc.ResolveCapabilityIDOrSlug(ctx, in.Capability)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_capability: %w", err)
+		return nil, nil, wrapToolErr("trace_capability require", err)
 	}
 	r, err := svc.RequireCapability(ctx, taskID, cap.ID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_capability: %w", err)
+		return nil, nil, wrapToolErr("trace_capability require", err)
 	}
 	b, err := json.Marshal(map[string]any{
 		"ok": true, "id": r.ID, "task": r.TaskID, "capability": r.CapabilityID, "slug": cap.Slug,
@@ -294,9 +309,12 @@ func (s *Server) capabilityMissing(ctx context.Context, in CapabilityInput) (*sd
 	}
 	defer st.Close()
 	svc := domain.New(st)
+	if _, err := svc.GetTask(ctx, taskID); err != nil {
+		return nil, nil, wrapToolErr("trace_capability missing", err)
+	}
 	list, err := svc.MissingCapabilities(ctx, taskID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_capability: %w", err)
+		return nil, nil, wrapToolErr("trace_capability missing", err)
 	}
 	if list == nil {
 		list = []store.Capability{}
@@ -311,16 +329,19 @@ func (s *Server) capabilityMissing(ctx context.Context, in CapabilityInput) (*sd
 	return textResult(string(b)), nil, nil
 }
 
+// toolVersion answers from the process alone. It deliberately does not require
+// an initialized store and does not run the capability gate: an agent uses this
+// tool to detect a stale stdio server after a rebuild, which is exactly when
+// the project may be uninitialized or locked by another process (#152).
 func (s *Server) toolVersion(ctx context.Context, _ *sdkmcp.CallToolRequest, _ VersionInput) (*sdkmcp.CallToolResult, any, error) {
-	_, st, err := s.openStore("")
+	abs, err := s.resolveProject("")
 	if err != nil {
 		return nil, nil, err
 	}
-	defer st.Close()
-	if err := assertMCPToolAllowed(ctx, st, "trace_version"); err != nil {
-		return nil, nil, err
-	}
-	b, err := json.Marshal(buildmeta.Payload(nil))
+	b, err := json.Marshal(buildmeta.Payload(map[string]any{
+		"project_initialized": store.ProjectInitialized(abs),
+		"project_root":        abs,
+	}))
 	if err != nil {
 		return nil, nil, err
 	}

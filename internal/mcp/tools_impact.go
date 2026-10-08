@@ -8,6 +8,7 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/mrchatam/Trace/internal/compiler"
 	"github.com/mrchatam/Trace/internal/domain"
 	"github.com/mrchatam/Trace/internal/retrieval"
 	"github.com/mrchatam/Trace/internal/store"
@@ -125,9 +126,15 @@ func (s *Server) impactFindingList(ctx context.Context, in ImpactInput) (*sdkmcp
 		return nil, nil, err
 	}
 	defer st.Close()
-	list, err := domain.New(st).ListImpactFindings(ctx, decisionID)
+	svc := domain.New(st)
+	// Fail closed on a decision that does not exist (#154 class): an empty
+	// findings list is only authoritative when the decision is real.
+	if _, err := svc.GetDecision(ctx, decisionID); err != nil {
+		return nil, nil, wrapToolErr("trace_impact finding list", err)
+	}
+	list, err := svc.ListImpactFindings(ctx, decisionID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_impact: %w", err)
+		return nil, nil, wrapToolErr("trace_impact finding list", err)
 	}
 	if list == nil {
 		list = []store.DecisionImpactFinding{}
@@ -289,14 +296,15 @@ func (s *Server) impactWalk(ctx context.Context, in ImpactInput) (*sdkmcp.CallTo
 		return nil, nil, fmt.Errorf("trace_impact: %w", err)
 	}
 	b, err := json.Marshal(map[string]any{
-		"ok":             true,
-		"seeds":          res.Seeds,
-		"blast":          res.Blast,
-		"affected_tests": res.AffectedTests,
-		"blast_total":    res.BlastTotal,
-		"blast_kept":     res.BlastKept,
-		"truncated":      res.Truncated,
-		"depth":          res.Depth,
+		"ok":                 true,
+		"seeds":              res.Seeds,
+		"blast":              res.Blast,
+		"affected_tests":     res.AffectedTests,
+		"blast_total":        res.BlastTotal,
+		"blast_kept":         res.BlastKept,
+		"truncated":          res.Truncated,
+		"depth":              res.Depth,
+		"graph_sync_honesty": compiler.GraphSyncHonestyFor(st),
 	})
 	if err != nil {
 		return nil, nil, err

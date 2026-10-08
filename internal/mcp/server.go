@@ -9,10 +9,7 @@ import (
 	"github.com/mrchatam/Trace/internal/buildmeta"
 )
 
-const (
-	serverName          = "trace"
-	traceAddDescription = "Create a domain entity (discovery|task|goal|decision|assumption|plan-change|claim|evidence). Prefer the task/promotion path over discovery-only edits: after a BLOCKING discovery, promote with trace_add kind=task or loop apply spawned_tasks with discovery_id before product edits — do not discovery-only then edit. Mirrors `trace add`."
-)
+const serverName = "trace"
 
 // Options configure the Trace MCP server.
 type Options struct {
@@ -59,7 +56,8 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_why",
-		Description: "Explain why an entity exists via causal neighborhood (retrieval.Why). Mirrors `trace why <type> <id>`.",
+		Description: descWhy,
+		InputSchema: schemaFor[WhyInput](nil),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Why",
 			ReadOnlyHint:  true,
@@ -69,7 +67,12 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_context",
-		Description: "Compile a task context packet (compiler.TaskContext / ExpandContext). Mirrors `trace context`. depth 1|2; format json|markdown|both; optional query merges agent FTS hits (task_id required).",
+		Description: descContext,
+		InputSchema: schemaFor[ContextInput](map[string]propConstraint{
+			"depth":     rangeOf(1, 2),
+			"max_layer": rangeOf(1, 3),
+			"format":    enumOf(contextFormats...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Context",
 			ReadOnlyHint:  true,
@@ -79,7 +82,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_add",
-		Description: traceAddDescription,
+		Description: descAdd,
+		InputSchema: schemaFor[AddInput](map[string]propConstraint{
+			"kind":   enumOf(addKinds...),
+			"status": enumOf(provenanceStatus...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Add",
 			ReadOnlyHint:    false,
@@ -90,7 +97,10 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_link",
-		Description: "Link two entities (goal-task|decision-task|discovery-plan-change|discovery-mentions-task|claim-evidence|scope-member|api-contract|implements|blocks). Mirrors `trace link`.",
+		Description: descLink,
+		InputSchema: schemaFor[LinkInput](map[string]propConstraint{
+			"rel": enumOf(linkRels...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Link",
 			ReadOnlyHint:    false,
@@ -101,7 +111,10 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_transition",
-		Description: "Transition a task work_state. DONE requires linked Review PASS + as_operator with no linked FAIL, or allow_done hatch (returns warning); as_operator is a conscious claim (flag≠identity / not verified operator identity); evidence_ids alone do not authorize DONE; actor is not authorization; missing caps fail-closed unless allow_missing_caps; allow_done does not bypass missing caps. Mirrors `trace transition`.",
+		Description: descTransition,
+		InputSchema: schemaFor[TransitionInput](map[string]propConstraint{
+			"to_state": enumOf(workStates...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Transition",
 			ReadOnlyHint:    false,
@@ -112,7 +125,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_review",
-		Description: "Create a review (optional task link) or set result PASS|FAIL|UNCERTAIN. action=create|set. Mirrors `trace review`.",
+		Description: descReview,
+		InputSchema: schemaFor[ReviewInput](map[string]propConstraint{
+			"action": enumOf(reviewActions...),
+			"result": enumOf(reviewResults...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Review",
 			ReadOnlyHint:    false,
@@ -123,7 +140,12 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_tasks",
-		Description: "List tasks (bounded). Returns {items,count,truncated,next_cursor?}. Optional goal_id, work_state/work_states, limit (default 50, cap 500), cursor. all=true is hard-capped at 500 (prefer cursor). Mirrors `trace tasks`.",
+		Description: descTasks,
+		InputSchema: schemaFor[TasksInput](map[string]propConstraint{
+			"limit":       rangeOf(1, 500),
+			"work_state":  enumOf(workStates...),
+			"work_states": {enum: workStates},
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Tasks",
 			ReadOnlyHint:  true,
@@ -133,7 +155,13 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_capability",
-		Description: "Capability catalog: action=declare|list|require|unrequire|missing. missing requires task or task_id (list via trace_tasks). Mirrors `trace capability`.",
+		Description: descCapability,
+		InputSchema: schemaFor[CapabilityInput](map[string]propConstraint{
+			"action": enumOf(capabilityActions...),
+			"kind":   enumOf(capabilityKinds...),
+			"status": enumOf(capabilityStatus...),
+			"limit":  rangeOf(1, 500),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Capability",
 			ReadOnlyHint:    false,
@@ -144,7 +172,12 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_impact",
-		Description: "Decision impact: action=finding|alternative|report|walk. finding op=add|list; alternative op=add|list|recommend. Mirrors `trace impact`.",
+		Description: descImpact,
+		InputSchema: schemaFor[ImpactInput](map[string]propConstraint{
+			"action": enumOf(impactActions...),
+			"op":     enumOf(impactOps...),
+			"depth":  rangeOf(1, 8),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Impact",
 			ReadOnlyHint:    false,
@@ -155,7 +188,8 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_version",
-		Description: "Return live MCP process identity {ok,name,version} so agents can detect a stale stdio server after rebuild/install.",
+		Description: descVersion,
+		InputSchema: schemaFor[VersionInput](nil),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Version",
 			ReadOnlyHint:  true,
@@ -165,7 +199,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_search",
-		Description: "Full-text search over indexed entities. Args: query (required), limit (optional). Mirrors `trace search`.",
+		Description: descSearch,
+		InputSchema: schemaFor[SearchInput](map[string]propConstraint{
+			"limit":   rangeOf(1, 64),
+			"matcher": enumOf(matchers...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Search",
 			ReadOnlyHint:  true,
@@ -175,7 +213,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_changes",
-		Description: "Change history: action=list|show|compare. list: optional task_id, limit; show: change_id; compare: from, to. Mirrors `trace changes`.",
+		Description: descChanges,
+		InputSchema: schemaFor[ChangesInput](map[string]propConstraint{
+			"action": enumOf(changeActions...),
+			"limit":  rangeOf(1, 64),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Changes",
 			ReadOnlyHint:  true,
@@ -185,7 +227,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_regressions",
-		Description: "Regression history: action=list. Optional task_id, change_id, limit. Mirrors `trace regressions list`.",
+		Description: descRegressions,
+		InputSchema: schemaFor[RegressionsInput](map[string]propConstraint{
+			"action": enumOf(regressionAction...),
+			"limit":  rangeOf(1, 64),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Regressions",
 			ReadOnlyHint:  true,
@@ -195,7 +241,11 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_loop",
-		Description: "Deliberation loop: action=next|apply|status. next/status require task_id; apply requires envelope (trace.loop.apply.v1). Mirrors `trace loop`.",
+		Description: descLoop,
+		InputSchema: schemaFor[LoopInput](map[string]propConstraint{
+			"action": enumOf(loopActions...),
+			"for":    enumOf(loopGateFors...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Loop",
 			ReadOnlyHint:    false,
@@ -206,7 +256,10 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_agents",
-		Description: "Harness agent catalog: action=list|describe|recommend. describe requires slug; recommend requires task_id or phase (+ optional keywords). Mirrors `trace agents`. Recommend-only — no spawn.",
+		Description: descAgents,
+		InputSchema: schemaFor[AgentsInput](map[string]propConstraint{
+			"action": enumOf(agentActions...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Agents",
 			ReadOnlyHint:    true,
@@ -217,7 +270,10 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_plan",
-		Description: "Progressive planner: action=create-coarse|set-current|deep|show|bootstrap. Mirrors `trace plan`. Bootstrap recovers PlanExists from plan_changes.",
+		Description: descPlan,
+		InputSchema: schemaFor[PlanInput](map[string]propConstraint{
+			"action": enumOf(planActions...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           "Plan",
 			ReadOnlyHint:    false,
@@ -228,7 +284,13 @@ func (s *Server) registerTools() {
 
 	sdkmcp.AddTool(s.mcp, &sdkmcp.Tool{
 		Name:        "trace_explore",
-		Description: "Unified task-aware capped explore: task context packet + search + why on top hits + neighborhood. task_id required; optional query merges via G1. Mirrors `trace explore`.",
+		Description: descExplore,
+		InputSchema: schemaFor[ExploreInput](map[string]propConstraint{
+			"limit":     rangeOf(1, 64),
+			"max_nodes": rangeOf(1, 500),
+			"depth":     rangeOf(1, 8),
+			"matcher":   enumOf(matchers...),
+		}),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:         "Explore",
 			ReadOnlyHint:  true,

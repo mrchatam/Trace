@@ -56,6 +56,19 @@ func TestServeExplicitDefaultAddrBusyNoHop(t *testing.T) {
 
 // T5 — two concurrent default binds → distinct ports; gui hook/open sees chosen addr.
 func TestGuiServeConcurrentDefaultDistinctPorts(t *testing.T) {
+	// The "distinct ports" invariant only holds against other test-controlled
+	// binds. If anything outside this test already occupies the default range
+	// (e.g. a parallel package's test holding 7432), the two servers can hop to
+	// the same next-free port and the assertion becomes flaky. Skip rather than
+	// flake — consistent with the T6 skip-when-busy convention.
+	for p := 7432; p <= 7433; p++ {
+		ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(p)))
+		if err != nil {
+			t.Skipf("port %d not bindable (busy externally): %v", p, err)
+		}
+		ln.Close()
+	}
+
 	var (
 		mu      sync.Mutex
 		cancels []context.CancelFunc

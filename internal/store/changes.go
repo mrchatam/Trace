@@ -152,7 +152,7 @@ func (s *Store) GetChange(id string) (Change, error) {
 		&c.SourceType, &c.Confidence, &c.CreatedAt, &c.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Change{}, fmt.Errorf("store: change %q: %w", id, err)
+		return Change{}, notFound("change", id)
 	}
 	if err != nil {
 		return Change{}, fmt.Errorf("store: get change: %w", err)
@@ -519,7 +519,7 @@ func (s *Store) GetEffect(id string) (Effect, error) {
 		&e.Confidence, &e.SourceType, &e.CreatedAt, &e.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return Effect{}, fmt.Errorf("store: effect %q: %w", id, err)
+		return Effect{}, notFound("effect", id)
 	}
 	if err != nil {
 		return Effect{}, fmt.Errorf("store: get effect: %w", err)

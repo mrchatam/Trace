@@ -166,7 +166,7 @@ func (s *Store) GetDecision(id string) (Decision, error) {
 		&d.CreatedAt, &d.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Decision{}, fmt.Errorf("store: decision %q: %w", id, err)
+		return Decision{}, notFound("decision", id)
 	}
 	if err != nil {
 		return Decision{}, fmt.Errorf("store: get decision: %w", err)
@@ -226,7 +226,7 @@ func (s *Store) GetAssumption(id string) (Assumption, error) {
 		&a.CreatedAt, &a.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Assumption{}, fmt.Errorf("store: assumption %q: %w", id, err)
+		return Assumption{}, notFound("assumption", id)
 	}
 	if err != nil {
 		return Assumption{}, fmt.Errorf("store: get assumption: %w", err)
@@ -290,7 +290,7 @@ func (s *Store) GetDiscovery(id string) (Discovery, error) {
 		&d.CreatedAt, &d.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Discovery{}, fmt.Errorf("store: discovery %q: %w", id, err)
+		return Discovery{}, notFound("discovery", id)
 	}
 	if err != nil {
 		return Discovery{}, fmt.Errorf("store: get discovery: %w", err)
@@ -413,7 +413,7 @@ func (s *Store) GetClaim(id string) (Claim, error) {
 		&c.CreatedAt, &c.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Claim{}, fmt.Errorf("store: claim %q: %w", id, err)
+		return Claim{}, notFound("claim", id)
 	}
 	if err != nil {
 		return Claim{}, fmt.Errorf("store: get claim: %w", err)
@@ -473,7 +473,7 @@ func (s *Store) GetEvidence(id string) (Evidence, error) {
 		&e.CreatedAt, &e.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Evidence{}, fmt.Errorf("store: evidence %q: %w", id, err)
+		return Evidence{}, notFound("evidence", id)
 	}
 	if err != nil {
 		return Evidence{}, fmt.Errorf("store: get evidence: %w", err)
@@ -534,7 +534,7 @@ func (s *Store) GetReview(id string) (Review, error) {
 		&r.CreatedAt, &r.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Review{}, fmt.Errorf("store: review %q: %w", id, err)
+		return Review{}, notFound("review", id)
 	}
 	if err != nil {
 		return Review{}, fmt.Errorf("store: get review: %w", err)

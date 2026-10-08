@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -22,22 +23,80 @@ type FTSHit struct {
 	Score      float64
 }
 
-// SearchFTS runs an FTS5 MATCH query against fts_docs.
-// Tokenizer is unicode61 (see schema/004_fts.sql). limit <= 0 defaults to 32; hard-capped at 64.
-func (s *Store) SearchFTS(query string, limit int) ([]FTSHit, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, nil
+// MatchMode selects how free text is compiled to an FTS5 MATCH expression.
+type MatchMode int
+
+const (
+	// MatchAnd is the default. Every token is FTS5-quoted and AND-joined, so
+	// uppercase AND/OR/NOT/NEAR, quoted phrases and trailing '*' carry no
+	// meaning and are searched as ordinary terms (DF-87 injection lock).
+	MatchAnd MatchMode = iota
+	// MatchOps honors a small, closed FTS5 boolean subset: uppercase AND, OR,
+	// NOT, NEAR / NEAR(n), double-quoted phrases, and a trailing '*' prefix.
+	// Literals are still FTS5-quoted, so MATCH stays a bound parameter and no
+	// caller text is ever interpolated into the expression.
+	MatchOps
+)
+
+const (
+	// maxOpsTerms bounds the boolean expression we will build in MatchOps mode.
+	maxOpsTerms = 32
+	// maxNearDistance bounds NEAR(n) so a query cannot build a pathological expr.
+	maxNearDistance = 64
+)
+
+// OpsFallbackNotice is reported when a boolean query had to be AND-joined.
+const OpsFallbackNotice = "matcher=ops requested but the boolean expression was not usable; terms AND-joined (pass a supported form: a|b OR a AND b, NOT a, \"exact phrase\", NEAR or NEAR(n), term*)"
+
+// String returns the wire form of the mode ("" is the default).
+func (m MatchMode) String() string {
+	if m == MatchOps {
+		return "ops"
 	}
+	return "and"
+}
+
+// ParseMatchMode maps the wire form to a MatchMode. Empty means MatchAnd.
+func ParseMatchMode(s string) (MatchMode, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "and":
+		return MatchAnd, nil
+	case "ops", "fts":
+		return MatchOps, nil
+	default:
+		return MatchAnd, fmt.Errorf("matcher must be and or ops, got %q", s)
+	}
+}
+
+// FTSQuery is the compiled form of one free-text query plus the honesty
+// metadata a caller needs to report that the query was rewritten.
+type FTSQuery struct {
+	Match       string   // FTS5 MATCH expression; empty when no usable terms
+	Operands    []string // sanitized terms that survived, in order
+	SawOperator bool     // input carried boolean/phrase/prefix syntax
+	Fallback    string   // non-empty when MatchMode could not be honored
+}
+
+// SearchFTSOpts runs a compiled query and returns the compiled form so callers
+// can report rewrites. An empty Match returns no rows without touching SQLite.
+type SearchFTSOpts struct {
+	Query string
+	Limit int
+	Mode  MatchMode
+}
+
+// SearchFTSOpts compiles o.Query under o.Mode and runs it against fts_docs.
+func (s *Store) SearchFTSOpts(o SearchFTSOpts) ([]FTSHit, FTSQuery, error) {
+	limit := o.Limit
 	if limit <= 0 {
 		limit = 32
 	}
 	if limit > 64 {
 		limit = 64
 	}
-	match := sanitizeFTSQuery(query)
-	if match == "" {
-		return nil, nil
+	compiled := CompileFTSQuery(o.Query, o.Mode)
+	if compiled.Match == "" {
+		return nil, compiled, nil
 	}
 
 	rows, err := s.db.Query(`
@@ -47,9 +106,9 @@ func (s *Store) SearchFTS(query string, limit int) ([]FTSHit, error) {
 		WHERE fts_docs MATCH ?
 		ORDER BY rank ASC, entity_type ASC, entity_id ASC
 		LIMIT ?
-	`, match, limit)
+	`, compiled.Match, limit)
 	if err != nil {
-		return nil, fmt.Errorf("store: search fts: %w", err)
+		return nil, compiled, fmt.Errorf("store: search fts: %w", err)
 	}
 	defer rows.Close()
 
@@ -60,18 +119,68 @@ func (s *Store) SearchFTS(query string, limit int) ([]FTSHit, error) {
 			&h.EntityType, &h.EntityID, &h.Title, &h.Body, &h.Path,
 			&h.SymbolName, &h.SymbolKind, &h.Rank,
 		); err != nil {
-			return nil, fmt.Errorf("store: scan fts hit: %w", err)
+			return nil, compiled, fmt.Errorf("store: scan fts hit: %w", err)
 		}
 		h.Score = -h.Rank
 		out = append(out, h)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, compiled, err
+	}
+	return out, compiled, nil
 }
 
-// sanitizeFTSQuery turns free text into a safe FTS5 MATCH expression.
-// Keep Unicode letters/numbers; every other rune (including `/`) is a separator.
-// Remaining tokens are FTS5-quoted and joined with AND so operators cannot inject MATCH syntax.
-func sanitizeFTSQuery(q string) string {
+// SearchFTS runs an FTS5 MATCH query against fts_docs in the default MatchAnd
+// mode. Tokenizer is unicode61 (see schema/004_fts.sql). limit <= 0 defaults
+// to 32; hard-capped at 64. Callers that need the compiled form (or boolean
+// operators) use SearchFTSOpts.
+func (s *Store) SearchFTS(query string, limit int) ([]FTSHit, error) {
+	hits, _, err := s.SearchFTSOpts(SearchFTSOpts{Query: query, Limit: limit})
+	return hits, err
+}
+
+// CompileFTSQuery turns free text into an FTS5 MATCH expression.
+//
+// MatchAnd reproduces the DF-87 contract exactly: keep Unicode letters and
+// numbers, treat every other rune as a separator, quote the remaining tokens
+// and AND-join them. MatchOps additionally honors the boolean subset above and
+// records what it saw so a caller can report the rewrite.
+func CompileFTSQuery(q string, mode MatchMode) FTSQuery {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return FTSQuery{}
+	}
+	toks := tokenizeOpsQuery(q)
+	sawOp := false
+	for _, t := range toks {
+		if t.kind != opsLiteral && t.kind != opsPhrase {
+			sawOp = true
+			break
+		}
+	}
+	out := FTSQuery{SawOperator: sawOp}
+	if mode == MatchOps && sawOp {
+		switch {
+		case len(toks) > maxOpsTerms:
+			out.Fallback = "boolean FTS capped at " + strconv.Itoa(maxOpsTerms) + " terms; AND-joined"
+		default:
+			expr, ok := buildOpsMatch(toks)
+			if ok {
+				out.Match = expr
+				out.Operands = opsOperands(toks)
+				return out
+			}
+			out.Fallback = OpsFallbackNotice
+		}
+	}
+	out.Match = sanitizeFTSQuery(q)
+	out.Operands = ftsTokens(q)
+	return out
+}
+
+// ftsTokens splits q into sanitized terms: Unicode letters and numbers are
+// kept, every other rune (including '/') is a separator.
+func ftsTokens(q string) []string {
 	var b strings.Builder
 	b.Grow(len(q))
 	for _, r := range q {
@@ -81,13 +190,24 @@ func sanitizeFTSQuery(q string) string {
 			b.WriteByte(' ')
 		}
 	}
-	parts := strings.Fields(b.String())
+	return strings.Fields(b.String())
+}
+
+func quoteFTS(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}
+
+// sanitizeFTSQuery turns free text into a safe FTS5 MATCH expression.
+// Keep Unicode letters/numbers; every other rune (including `/`) is a separator.
+// Remaining tokens are FTS5-quoted and joined with AND so operators cannot inject MATCH syntax.
+func sanitizeFTSQuery(q string) string {
+	parts := ftsTokens(q)
 	if len(parts) == 0 {
 		return ""
 	}
 	quoted := make([]string, len(parts))
 	for i, p := range parts {
-		quoted[i] = `"` + strings.ReplaceAll(p, `"`, `""`) + `"`
+		quoted[i] = quoteFTS(p)
 	}
 	return strings.Join(quoted, " AND ")
 }

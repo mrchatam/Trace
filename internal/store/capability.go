@@ -102,7 +102,7 @@ func (s *Store) GetCapability(id string) (Capability, error) {
 		&c.ID, &c.Kind, &c.Slug, &c.Title, &c.Status, &c.Body, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return Capability{}, fmt.Errorf("store: capability %q: %w", id, err)
+		return Capability{}, notFound("capability", id)
 	}
 	if err != nil {
 		return Capability{}, fmt.Errorf("store: get capability: %w", err)
@@ -123,7 +123,7 @@ func (s *Store) GetCapabilityBySlug(slug string) (Capability, error) {
 		&c.ID, &c.Kind, &c.Slug, &c.Title, &c.Status, &c.Body, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return Capability{}, fmt.Errorf("store: capability slug %q: %w", slug, err)
+		return Capability{}, notFound("capability", slug)
 	}
 	if err != nil {
 		return Capability{}, fmt.Errorf("store: get capability by slug: %w", err)

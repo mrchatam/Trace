@@ -89,10 +89,26 @@ func scopeExists(st *store.Store, id string) (bool, error) {
 	return false, err
 }
 
+// refuseSelfLink rejects an edge whose endpoints are the same entity. A
+// self-edge is never meaningful and reads back as a cycle in every rel that is
+// traversed as a graph edge (#162).
+func refuseSelfLink(rel, fromID, toID string) error {
+	if fromID != "" && fromID == toID {
+		return &ErrValidation{
+			Msg: "link " + rel + " cannot link an entity to itself (from == to == " + fromID + ")",
+		}
+	}
+	return nil
+}
+
 func isNotFoundErr(err error) bool {
 	if err == nil {
 		return false
 	}
+	if store.IsNotFound(err) {
+		return true
+	}
+	// Legacy store paths that still surface the raw driver text.
 	return errors.Is(err, sql.ErrNoRows) || strings.Contains(err.Error(), "sql: no rows")
 }
 
@@ -141,6 +157,9 @@ func (s *Service) LinkAPIContract(ctx context.Context, fromTaskID, toTaskID stri
 	toTaskID = strings.TrimSpace(toTaskID)
 	if fromTaskID == "" || toTaskID == "" {
 		return &ErrValidation{Msg: "from and to task ids are required"}
+	}
+	if err := refuseSelfLink("api-contract", fromTaskID, toTaskID); err != nil {
+		return err
 	}
 	if _, err := s.store.GetTask(fromTaskID); err != nil {
 		return err
@@ -216,6 +235,9 @@ func (s *Service) LinkBlocks(ctx context.Context, fromTaskID, toTaskID string, m
 	toTaskID = strings.TrimSpace(toTaskID)
 	if fromTaskID == "" || toTaskID == "" {
 		return &ErrValidation{Msg: "from and to task ids are required"}
+	}
+	if err := refuseSelfLink("blocks", fromTaskID, toTaskID); err != nil {
+		return err
 	}
 	if _, err := s.store.GetTask(fromTaskID); err != nil {
 		return err

@@ -78,6 +78,10 @@ func isNotFoundErr(err error) bool {
 	if err == nil {
 		return false
 	}
+	if store.IsNotFound(err) {
+		return true
+	}
+	// Legacy store paths that still surface the raw driver text.
 	msg := err.Error()
 	return strings.Contains(msg, "sql: no rows") || strings.Contains(msg, "no rows in result set")
 }

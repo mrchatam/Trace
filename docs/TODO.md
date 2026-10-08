@@ -71,8 +71,11 @@ Phase 00–44 complete — do not re-run closed rows.
 | 42+ | Concept & index | done | — | [TODO/phase-42.md](TODO/phase-42.md) |
 | 43 | GitHub hygiene (issues + Actions) | done | — | [TODO/phase-43.md](TODO/phase-43.md) |
 | 44 | Scoped graph linking & scope semantics | done | — | [TODO/phase-44.md](TODO/phase-44.md) |
+| 45 | MCP surface honesty (#149–#162) | done | — | [TODO/phase-45.md](TODO/phase-45.md) |
 
 (P44 closed 2026-08-23 at P44-S05-02 — scoped graph linking shipped; DR-HANDOFF CLOSED; successor **no successor**.)
+
+(P45 closed 2026-10-04 at P45-S06-02 — MCP surface honesty shipped: fail-closed writes, no driver text, one gate envelope, generated schema/descriptions, store-free version, permanent key-shape + protocol guards; audit found and fixed 14 more findings; **full test suite green**; successor **no successor**.)
 
 ---
 

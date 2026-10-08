@@ -118,7 +118,7 @@ func (s *Store) GetGoal(id string) (Goal, error) {
 		&g.CreatedAt, &g.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Goal{}, fmt.Errorf("store: goal %q: %w", id, err)
+		return Goal{}, notFound("goal", id)
 	}
 	if err != nil {
 		return Goal{}, fmt.Errorf("store: get goal: %w", err)
@@ -227,7 +227,7 @@ func (s *Store) GetTask(id string) (Task, error) {
 		&t.CreatedAt, &t.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Task{}, fmt.Errorf("store: task %q: %w", id, err)
+		return Task{}, notFound("task", id)
 	}
 	if err != nil {
 		return Task{}, fmt.Errorf("store: get task: %w", err)

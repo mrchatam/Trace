@@ -158,7 +158,7 @@ func (s *Store) GetUncertainty(id string) (Uncertainty, error) {
 		&u.Resolution, &u.CreatedAt, &u.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Uncertainty{}, fmt.Errorf("store: uncertainty %q: %w", id, err)
+		return Uncertainty{}, notFound("uncertainty", id)
 	}
 	if err != nil {
 		return Uncertainty{}, fmt.Errorf("store: get uncertainty: %w", err)
@@ -228,7 +228,7 @@ func (s *Store) GetHypothesis(id string) (Hypothesis, error) {
 		&h.CreatedAt, &h.UpdatedAt, &lastVerified,
 	)
 	if err == sql.ErrNoRows {
-		return Hypothesis{}, fmt.Errorf("store: hypothesis %q: %w", id, err)
+		return Hypothesis{}, notFound("hypothesis", id)
 	}
 	if err != nil {
 		return Hypothesis{}, fmt.Errorf("store: get hypothesis: %w", err)
@@ -288,7 +288,7 @@ func (s *Store) GetDecisionReconsideration(id string) (DecisionReconsideration, 
 		&r.ReconsiderAt, &r.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return DecisionReconsideration{}, fmt.Errorf("store: decision reconsideration %q: %w", id, err)
+		return DecisionReconsideration{}, notFound("decision_reconsideration", id)
 	}
 	if err != nil {
 		return DecisionReconsideration{}, fmt.Errorf("store: get decision reconsideration: %w", err)

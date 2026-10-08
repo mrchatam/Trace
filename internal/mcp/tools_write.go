@@ -21,11 +21,12 @@ type AddInput struct {
 	Kind       string  `json:"kind" jsonschema:"discovery|task|goal|decision|assumption|plan-change|claim|evidence"`
 	Title      string  `json:"title" jsonschema:"entity title (required)"`
 	Body       string  `json:"body,omitempty" jsonschema:"entity body"`
-	ID         string  `json:"id,omitempty" jsonschema:"optional UUID"`
+	ID         string  `json:"id,omitempty" jsonschema:"optional UUID; must not already exist unless replace=true"`
+	Replace    bool    `json:"replace,omitempty" jsonschema:"allow overwriting an existing entity with the same id (default false; refuse rather than silently overwrite)"`
 	SourceType string  `json:"source_type,omitempty" jsonschema:"provenance source_type"`
 	Confidence float64 `json:"confidence,omitempty" jsonschema:"provenance confidence"`
 	Status     string  `json:"status,omitempty" jsonschema:"provenance status"`
-	GoalID     string  `json:"goal_id,omitempty" jsonschema:"goal id (task only)"`
+	GoalID     string  `json:"goal_id,omitempty" jsonschema:"goal id (task only); must resolve to an existing goal"`
 }
 
 // LinkInput mirrors `trace link <rel> --from --to`.
@@ -67,9 +68,18 @@ type ReviewInput struct {
 }
 
 func (s *Server) toolAdd(ctx context.Context, _ *sdkmcp.CallToolRequest, in AddInput) (*sdkmcp.CallToolResult, any, error) {
-	if strings.TrimSpace(in.Kind) == "" || strings.TrimSpace(in.Title) == "" {
-		return nil, nil, fmt.Errorf("trace_add: kind and title are required")
+	if strings.TrimSpace(in.Title) == "" {
+		return nil, nil, fmt.Errorf("trace_add: title is required")
 	}
+	kind, err := domain.NormalizeAddKind(in.Kind)
+	if err != nil {
+		return nil, nil, fmt.Errorf("trace_add: %w", err)
+	}
+	entityID, err := domain.ValidateEntityID("id", in.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("trace_add: %w", err)
+	}
+
 	_, st, err := s.openStore(in.Project)
 	if err != nil {
 		return nil, nil, err
@@ -80,32 +90,61 @@ func (s *Server) toolAdd(ctx context.Context, _ *sdkmcp.CallToolRequest, in AddI
 	}
 	svc := domain.New(st)
 
+	// Fail closed on an existing id: an explicit id is a claim about identity,
+	// and the upsert underneath would silently destroy the row (#150).
+	created := true
+	if entityID != "" {
+		exists, err := svc.EntityExists(ctx, kind, entityID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("trace_add: %w", err)
+		}
+		if exists {
+			if !in.Replace {
+				return nil, nil, fmt.Errorf(
+					"trace_add: %s %q already exists; pass replace=true to overwrite it (or omit id to create a new entity)",
+					kind, entityID)
+			}
+			created = false
+		}
+	}
+
+	// A task's goal_id has no FK, so it must be resolved before the write (#151).
+	goalID := strings.TrimSpace(in.GoalID)
+	if kind == domain.AddKindTask && goalID != "" {
+		if _, err := domain.ValidateEntityID("goal_id", goalID); err != nil {
+			return nil, nil, fmt.Errorf("trace_add: %w", err)
+		}
+		if _, err := svc.GetGoal(ctx, goalID); err != nil {
+			return nil, nil, fmt.Errorf("trace_add: goal_id %q: %w", goalID, err)
+		}
+	}
+
 	var outID, outType string
-	switch in.Kind {
-	case "goal":
+	switch kind {
+	case domain.AddKindGoal:
 		g, err := svc.CreateGoal(ctx, domain.GoalInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = g.ID, domain.EntityGoal
-	case "task":
+	case domain.AddKindTask:
 		var gid *string
-		if in.GoalID != "" {
-			g := in.GoalID
+		if goalID != "" {
+			g := goalID
 			gid = &g
 		}
 		t, err := svc.CreateTask(ctx, domain.TaskInput{
-			ID: in.ID, GoalID: gid, Title: in.Title, Body: in.Body,
+			ID: entityID, GoalID: gid, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = t.ID, domain.EntityTask
-	case "decision":
+	case domain.AddKindDecision:
 		d, err := svc.CreateDecision(ctx, domain.DecisionInput{
 			ID: in.ID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
@@ -114,45 +153,45 @@ func (s *Server) toolAdd(ctx context.Context, _ *sdkmcp.CallToolRequest, in AddI
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = d.ID, domain.EntityDecision
-	case "assumption":
+	case domain.AddKindAssumption:
 		a, err := svc.CreateAssumption(ctx, domain.AssumptionInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = a.ID, domain.EntityAssumption
-	case "discovery":
+	case domain.AddKindDiscovery:
 		d, err := svc.CreateDiscovery(ctx, domain.DiscoveryInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = d.ID, domain.EntityDiscovery
-	case "plan-change":
+	case domain.AddKindPlanChange:
 		p, err := svc.CreatePlanChange(ctx, domain.PlanChangeInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = p.ID, domain.EntityPlanChange
-	case "claim":
+	case domain.AddKindClaim:
 		c, err := svc.CreateClaim(ctx, domain.ClaimInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("trace_add: %w", err)
 		}
 		outID, outType = c.ID, domain.EntityClaim
-	case "evidence":
+	case domain.AddKindEvidence:
 		e, err := svc.CreateEvidence(ctx, domain.EvidenceInput{
-			ID: in.ID, Title: in.Title, Body: in.Body,
+			ID: entityID, Title: in.Title, Body: in.Body,
 			SourceType: in.SourceType, Confidence: in.Confidence, Status: in.Status,
 		})
 		if err != nil {
@@ -163,7 +202,7 @@ func (s *Server) toolAdd(ctx context.Context, _ *sdkmcp.CallToolRequest, in AddI
 		return nil, nil, fmt.Errorf("trace_add: unknown kind %q", in.Kind)
 	}
 
-	b, err := json.Marshal(map[string]any{"ok": true, "type": outType, "id": outID})
+	b, err := json.Marshal(map[string]any{"ok": true, "type": outType, "id": outID, "created": created})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -173,6 +212,12 @@ func (s *Server) toolAdd(ctx context.Context, _ *sdkmcp.CallToolRequest, in AddI
 func (s *Server) toolLink(ctx context.Context, _ *sdkmcp.CallToolRequest, in LinkInput) (*sdkmcp.CallToolResult, any, error) {
 	if in.Rel == "" || in.From == "" || in.To == "" {
 		return nil, nil, fmt.Errorf("trace_link: rel, from, and to are required")
+	}
+	// A self-link is never meaningful and silently produces a cycle in every
+	// rel that is read back as a graph edge (#162).
+	if strings.TrimSpace(in.From) == strings.TrimSpace(in.To) {
+		return nil, nil, fmt.Errorf(
+			"trace_link: rel %s cannot link an entity to itself (from == to == %q)", in.Rel, strings.TrimSpace(in.From))
 	}
 	_, st, err := s.openStore(in.Project)
 	if err != nil {
@@ -208,7 +253,7 @@ func (s *Server) toolLink(ctx context.Context, _ *sdkmcp.CallToolRequest, in Lin
 		return nil, nil, fmt.Errorf("trace_link: unknown rel %q", in.Rel)
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_link: %w", err)
+		return nil, nil, wrapLinkErr(in.Rel, in.From, in.To, err)
 	}
 	b, err := json.Marshal(map[string]any{"ok": true, "rel": in.Rel, "from": in.From, "to": in.To})
 	if err != nil {
@@ -271,7 +316,7 @@ func (s *Server) toolTransition(ctx context.Context, _ *sdkmcp.CallToolRequest, 
 		AllowMissingCapabilities: in.AllowMissingCaps,
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_transition: %w", err)
+		return nil, nil, wrapToolErr("trace_transition", err)
 	}
 	out := map[string]any{"ok": true, "task": in.TaskID, "to": in.ToState}
 	if in.AllowDone {
@@ -319,6 +364,14 @@ func (s *Server) reviewCreate(ctx context.Context, in ReviewInput) (*sdkmcp.Call
 	}
 	defer st.Close()
 	svc := domain.New(st)
+	// Validate the task link target before creating anything, so a bogus
+	// task_id cannot leave an orphaned review behind while the tool reports
+	// an error (the caller would retry and create duplicates).
+	if taskID := strings.TrimSpace(in.TaskID); taskID != "" {
+		if _, err := svc.GetTask(ctx, taskID); err != nil {
+			return nil, nil, wrapToolErr("trace_review create", err)
+		}
+	}
 
 	r, err := svc.CreateReview(ctx, domain.ReviewInput{
 		ID: in.ID, Title: in.Title, Body: in.Body,
@@ -363,7 +416,7 @@ func (s *Server) reviewSet(ctx context.Context, in ReviewInput) (*sdkmcp.CallToo
 		Actor: actor, Reason: in.Reason,
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("trace_review: %w", err)
+		return nil, nil, wrapToolErr("trace_review", err)
 	}
 	b, err := json.Marshal(map[string]any{"ok": true, "id": in.ID, "result": result})
 	if err != nil {

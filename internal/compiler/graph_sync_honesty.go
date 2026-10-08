@@ -9,6 +9,13 @@ import (
 
 const graphSyncHonestyNotice = "graph indexed at an older commit — run trace index"
 
+// GraphSyncHonestyFor exposes the staleness check to read surfaces that do not
+// compile a packet (search, impact walk). It is the same definition the packet
+// path uses, so every surface reports one honest answer (#153).
+func GraphSyncHonestyFor(st *store.Store) *GraphSyncHonesty {
+	return buildGraphSyncHonesty(st)
+}
+
 // buildGraphSyncHonesty reports when git HEAD differs from last_indexed_commit.
 // Omit when not a git repo, HEAD unavailable, or watermark matches HEAD.
 func buildGraphSyncHonesty(st *store.Store) *GraphSyncHonesty {

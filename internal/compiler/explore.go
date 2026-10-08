@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mrchatam/Trace/internal/retrieval"
+	"github.com/mrchatam/Trace/internal/store"
 )
 
 const (
@@ -20,9 +21,10 @@ const (
 type ExploreOpts struct {
 	TaskID   string
 	Query    string
-	Limit    int // FTS search limit; default 32, cap 64
-	MaxNodes int // neighborhood max_nodes; default 100
-	Depth    int // neighborhood depth; default 2
+	Limit    int             // FTS search limit; default 32, cap 64
+	MaxNodes int             // neighborhood max_nodes; default 100
+	Depth    int             // neighborhood depth; default 2
+	Matcher  store.MatchMode // zero value = MatchAnd (safe literal AND-join)
 }
 
 func (o ExploreOpts) withDefaults() ExploreOpts {
@@ -56,12 +58,13 @@ type TaskSummary struct {
 
 // ExploreResult is the unified capped explore response (task moat required).
 type ExploreResult struct {
-	TaskSummary  TaskSummary             `json:"task_summary"`
-	PacketBudget Budget                  `json:"packet_budget"`
-	SearchHits   []retrieval.Hit         `json:"search_hits"`
-	WhySlices    []retrieval.WhyResult   `json:"why_slices"`
-	Neighborhood *retrieval.BoundedGraph `json:"neighborhood,omitempty"`
-	Truncated    bool                    `json:"truncated"`
+	TaskSummary      TaskSummary             `json:"task_summary"`
+	PacketBudget     Budget                  `json:"packet_budget"`
+	SearchHits       []retrieval.Hit         `json:"search_hits"`
+	WhySlices        []retrieval.WhyResult   `json:"why_slices"`
+	Neighborhood     *retrieval.BoundedGraph `json:"neighborhood,omitempty"`
+	Truncated        bool                    `json:"truncated"`
+	GraphSyncHonesty *GraphSyncHonesty       `json:"graph_sync_honesty,omitempty"`
 }
 
 // ExploreEngine is the retrieval surface used by Explore (tests may stub Search).
@@ -101,11 +104,12 @@ func Explore(ctx context.Context, comp *Compiler, eng ExploreEngine, opts Explor
 	}
 
 	out := ExploreResult{
-		TaskSummary:  summary,
-		PacketBudget: pkt.Budget,
-		SearchHits:   []retrieval.Hit{},
-		WhySlices:    []retrieval.WhyResult{},
-		Truncated:    pkt.Budget.Truncated || pkt.Budget.CandidatesCapped,
+		TaskSummary:      summary,
+		PacketBudget:     pkt.Budget,
+		SearchHits:       []retrieval.Hit{},
+		WhySlices:        []retrieval.WhyResult{},
+		Truncated:        pkt.Budget.Truncated || pkt.Budget.CandidatesCapped,
+		GraphSyncHonesty: GraphSyncHonestyFor(comp.store),
 	}
 
 	searchQ := strings.TrimSpace(opts.Query)
@@ -114,7 +118,7 @@ func Explore(ctx context.Context, comp *Compiler, eng ExploreEngine, opts Explor
 	}
 	if searchQ != "" {
 		intentIn := comp.taskIntentInput(opts.TaskID, opts.Query)
-		searchOpts := retrieval.SearchOptions{Limit: opts.Limit, Intent: &intentIn}
+		searchOpts := retrieval.SearchOptions{Limit: opts.Limit, Intent: &intentIn, Matcher: opts.Matcher}
 		hits, serr := eng.Search(ctx, searchQ, searchOpts)
 		if serr != nil {
 			hits = nil

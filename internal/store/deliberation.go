@@ -111,7 +111,7 @@ func (s *Store) GetDeliberationState(taskID string) (DeliberationState, error) {
 		&planCritiqued, &stopped, &st.StopReason, &st.ConsecutiveEmptyApplies, &st.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return DeliberationState{}, fmt.Errorf("store: deliberation state %q: %w", taskID, err)
+		return DeliberationState{}, notFound("deliberation_state", taskID)
 	}
 	if err != nil {
 		return DeliberationState{}, fmt.Errorf("store: get deliberation state: %w", err)
